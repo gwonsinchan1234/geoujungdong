@@ -1,0 +1,1 @@
+notepad .cursor\rules\db-payload-excel-safety.md
