@@ -1,0 +1,135 @@
+.page {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100dvh;
+  overflow: hidden;
+  background: #ffffff;
+  color: #0b0f14;
+}
+
+.bg {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+}
+
+.video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scale(1.02);
+  filter: saturate(0.95) contrast(1.02);
+}
+
+.fallback {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(1200px 700px at 20% 20%, rgba(0, 0, 0, 0.06), transparent 60%),
+    radial-gradient(900px 600px at 80% 30%, rgba(0, 0, 0, 0.05), transparent 55%),
+    radial-gradient(900px 600px at 40% 90%, rgba(0, 0, 0, 0.04), transparent 55%),
+    #ffffff;
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(6px);
+}
+
+.content {
+  position: relative;
+  z-index: 2;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.center {
+  width: min(860px, 100%);
+  text-align: center;
+}
+
+.kicker {
+  margin: 0 0 14px;
+  font-size: 12px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(11, 15, 20, 0.55);
+}
+
+.title {
+  margin: 0;
+  font-size: clamp(28px, 4vw, 52px);
+  line-height: 1.06;
+  letter-spacing: -0.02em;
+  font-weight: 700;
+}
+
+.subtitle {
+  margin: 16px auto 0;
+  width: min(720px, 100%);
+  font-size: clamp(14px, 1.6vw, 18px);
+  line-height: 1.6;
+  color: rgba(11, 15, 20, 0.66);
+}
+
+.actions {
+  margin-top: 26px;
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.primaryBtn {
+  border: 1px solid rgba(11, 15, 20, 0.16);
+  background: #0b0f14;
+  color: #fff;
+  padding: 12px 18px;
+  border-radius: 999px;
+  text-decoration: none;
+  font-weight: 650;
+  font-size: 14px;
+  min-width: 140px;
+  text-align: center;
+}
+
+.secondaryBtn {
+  border: 1px solid rgba(11, 15, 20, 0.16);
+  background: rgba(255, 255, 255, 0.72);
+  color: #0b0f14;
+  padding: 12px 18px;
+  border-radius: 999px;
+  text-decoration: none;
+  font-weight: 650;
+  font-size: 14px;
+  min-width: 140px;
+  text-align: center;
+}
+
+.footnote {
+  margin-top: 18px;
+  font-size: 12px;
+  color: rgba(11, 15, 20, 0.52);
+}
+
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New",
+    monospace;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .video {
+    display: none;
+  }
+  .overlay {
+    backdrop-filter: none;
+    background: rgba(255, 255, 255, 0.9);
+  }
+}

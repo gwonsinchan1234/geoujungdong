@@ -19,7 +19,7 @@ const empty = (): Record<SlotKey, SlotState> => ({
   install3: { file: null, url: null, name: null },
 });
 
-export default function PhotoSection({ expenseItemId }: { expenseItemId: string }) {
+export default function PhotoSection({ docId, itemId }: { docId: string; itemId: string }) {
   const [slots, setSlots] = useState<Record<SlotKey, SlotState>>(empty());
 
   // item 바뀌면 초기화
@@ -27,7 +27,7 @@ export default function PhotoSection({ expenseItemId }: { expenseItemId: string 
     Object.values(slots).forEach((s) => s.url && URL.revokeObjectURL(s.url));
     setSlots(empty());
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [expenseItemId]);
+  }, [itemId]);
 
   // 언마운트 시 정리
   useEffect(() => {
@@ -116,7 +116,9 @@ export default function PhotoSection({ expenseItemId }: { expenseItemId: string 
     <section className={styles.wrapper}>
       <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "baseline" }}>
         <div style={{ fontWeight: 800 }}>사진 업로드 (item.id 기준)</div>
-        <div style={{ fontSize: 12, opacity: 0.75, wordBreak: "break-all" }}>{expenseItemId}</div>
+        <div style={{ fontSize: 12, opacity: 0.75, wordBreak: "break-all" }}>
+          docId: {docId} / itemId: {itemId}
+        </div>
       </div>
 
       <div style={{ marginTop: 12, marginBottom: 8, fontWeight: 800, fontSize: 13 }}>반입 사진 (1장)</div>

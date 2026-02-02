@@ -64,13 +64,14 @@ async function fetchImageBuffer(storagePath: string) {
 function addImageToRange(
   workbook: ExcelJS.Workbook,
   worksheet: ExcelJS.Worksheet,
-  imageBuf: Buffer,
+  imageBuf: unknown,
   ext: "png" | "jpeg",
   range: string
 ) {
-  const imageId = workbook.addImage({ buffer: imageBuf, extension: ext });
+  const imageId = workbook.addImage({ buffer: imageBuf as any, extension: ext });
   worksheet.addImage(imageId, range);
 }
+
 
 /**
  * ExcelJS는 “시트 완전 복제” API가 없어서,
