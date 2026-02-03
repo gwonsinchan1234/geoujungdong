@@ -6,7 +6,8 @@ import ScrollUnlock from "./ScrollUnlock";
 import styles from "./IntroPage.module.css";
 
 export default function IntroPage(): React.ReactElement {
-  const videoSrc = useMemo(() => "/background.mp4", []);
+  // 이유: 경로 문자열 재생성 방지(불필요 렌더/리소스 힌트 최소화)
+  const videoSrc = useMemo(() => "/intro.mp4", []);
 
   return (
     <div className={styles.page}>
@@ -16,12 +17,14 @@ export default function IntroPage(): React.ReactElement {
         <video className={styles.video} autoPlay muted loop playsInline preload="metadata">
           <source src={videoSrc} type="video/mp4" />
         </video>
+
+        {/* 흰/멀건 레이어 제거 유지 */}
         <div className={styles.fallback} />
         <div className={styles.overlay} />
       </div>
 
       <main className={styles.content}>
-        <div className={styles.center}>
+        <div className={styles.hero}>
           <p className={styles.kicker}>EXPENSE PHOTO PLATFORM</p>
 
           <h1 className={styles.title}>
@@ -30,23 +33,13 @@ export default function IntroPage(): React.ReactElement {
             엑셀 행 기준으로 정확하게.
           </h1>
 
-          <p className={styles.subtitle}>
-            NO.x · 품명 · 수량 선택 → 반입/지급·설치 사진 업로드 → 템플릿대로 즉시 출력
-          </p>
+          <p className={styles.subtitle}>NO.x · 품명 · 수량 선택 → 반입/지급·설치 사진 업로드 → 템플릿대로 즉시 출력</p>
 
           <div className={styles.actions}>
-            <Link className={styles.primaryBtn} href="/expense">
+            <Link className={styles.primaryBtn} href="/workspace">
               시작하기
             </Link>
-
-            <Link className={styles.secondaryBtn} href="/photos-test">
-              미리보기
-            </Link>
           </div>
-
-          <p className={styles.footnote}>
-            * 영상: <span className={styles.mono}>/public/background.mp4</span>
-          </p>
         </div>
       </main>
     </div>

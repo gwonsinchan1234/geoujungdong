@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import * as XLSX from "xlsx";
 import styles from "./WorkspacePage.module.css";
 
 /**
@@ -25,8 +26,13 @@ type TemplateSpec = {
 type Item = {
   id: string;
   evidenceNo: number; // NO.x
-  name: string; // 품명
+  name: string; // 사용내역(품명)
   qtyLabel: string; // "1개" 같은 표시
+  qty?: number; // 수량 숫자(테이블 표시용)
+  useDate?: string; // 사용일자 (YY.MM.DD)
+  unitPrice?: number | null; // 단가
+  amount?: number | null; // 금액
+  proofNo?: string; // 증빙번호
   templateName: string;
   templateSpec: TemplateSpec;
 };
@@ -74,6 +80,152 @@ function uniqueBy<T>(arr: T[], keyFn: (x: T) => string) {
     out.push(x);
   }
   return out;
+}
+
+const DEFAULT_TEMPLATE_SPEC: TemplateSpec = {
+  incomingSlots: 1,
+  installSlots: 4,
+};
+
+/** 엑셀 셀 값을 사용일자(YY.MM.DD) 문자열로 반환 */
+function formatUseDate(cell: unknown): string | undefined {
+  if (cell == null) return undefined;
+  const s = String(cell).trim();
+  if (!s) return undefined;
+  if (cell instanceof Date && !Number.isNaN(cell.getTime())) {
+    const y = cell.getFullYear() % 100;
+    const m = cell.getMonth() + 1;
+    const d = cell.getDate();
+    return `${String(y).padStart(2, "0")}.${String(m).padStart(2, "0")}.${String(d).padStart(2, "0")}`;
+  }
+  if (typeof cell === "number" && Number.isFinite(cell)) {
+    const dc = XLSX.SSF.parse_date_code(cell);
+    if (!dc || !dc.y) return undefined;
+    const y = dc.y % 100;
+    const m = dc.m ?? 0;
+    const d = dc.d ?? 0;
+    return `${String(y).padStart(2, "0")}.${String(m).padStart(2, "0")}.${String(d).padStart(2, "0")}`;
+  }
+  if (/^\d{2}\.\d{1,2}\.\d{1,2}$/.test(s) || /^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  return undefined;
+}
+
+/** 엑셀 항목별사용내역서 형식: 사용일자, 사용내역, 수량, 단가, 금액, 증빙번호 */
+function parseItemsFromSheet(
+  ws: XLSX.WorkSheet,
+  docId: string
+): Item[] {
+  const data = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" }) as (string | number)[][];
+  const norm = (v: string) => String(v ?? "").replace(/\s/g, "");
+
+  let headerRowIndex = -1;
+  let colUsageDate = -1;
+  let colDesc = -1;
+  let colQty = -1;
+  let colUnitPrice = -1;
+  let colAmount = -1;
+  let colEvidenceNo = -1;
+
+  for (let r = 0; r < Math.min(data.length, 50); r++) {
+    colUsageDate = colDesc = colQty = colUnitPrice = colAmount = colEvidenceNo = -1;
+    const row = data[r] ?? [];
+    for (let c = 0; c < row.length; c++) {
+      const cell = norm(String(row[c] ?? ""));
+      if (cell === "사용일자") colUsageDate = c;
+      else if (cell === "사용내역") colDesc = c;
+      else if (cell === "수량") colQty = c;
+      else if (cell === "단가") colUnitPrice = c;
+      else if (cell === "금액") colAmount = c;
+      else if (cell === "증빙번호") colEvidenceNo = c;
+    }
+    if (colDesc >= 0 && colQty >= 0) {
+      headerRowIndex = r;
+      break;
+    }
+  }
+
+  if (headerRowIndex < 0 || colDesc < 0) return [];
+
+  const items: Item[] = [];
+  for (let r = headerRowIndex + 1; r < data.length; r++) {
+    const row = data[r] ?? [];
+    const desc = String(row[colDesc] ?? "").trim();
+    if (!desc || desc === "계" || norm(desc) === "계") continue;
+
+    const qtyRaw = row[colQty];
+    const qtyNum = typeof qtyRaw === "number" ? qtyRaw : Number(String(qtyRaw).replace(/,/g, ""));
+    const qtyLabel = Number.isFinite(qtyNum) ? `${qtyNum}개` : String(qtyRaw ?? "").trim() || "—";
+
+    const toNum = (val: unknown): number | null => {
+      if (val == null) return null;
+      const n = typeof val === "number" ? val : Number(String(val).replace(/,/g, ""));
+      return Number.isFinite(n) ? n : null;
+    };
+
+    let evidenceNo = r - headerRowIndex;
+    if (colEvidenceNo >= 0) {
+      const no = row[colEvidenceNo];
+      const noStr = String(no ?? "").trim();
+      if (noStr !== "") {
+        const n = toNum(no);
+        if (n !== null && n >= 1) evidenceNo = n;
+      }
+    }
+
+    items.push({
+      id: `item_${docId}_${r}`,
+      evidenceNo,
+      name: desc,
+      qtyLabel,
+      qty: Number.isFinite(qtyNum) ? qtyNum : undefined,
+      useDate: colUsageDate >= 0 ? formatUseDate(row[colUsageDate]) : undefined,
+      unitPrice: colUnitPrice >= 0 ? toNum(row[colUnitPrice]) : undefined,
+      amount: colAmount >= 0 ? toNum(row[colAmount]) : undefined,
+      proofNo: colEvidenceNo >= 0 ? String(row[colEvidenceNo] ?? "").trim() || undefined : undefined,
+      templateName: "반입/지급-설치",
+      templateSpec: DEFAULT_TEMPLATE_SPEC,
+    });
+  }
+
+  return uniqueBy(items, (x) => `${x.evidenceNo}__${x.name}`);
+}
+
+/** 업로드한 엑셀 시트를 미리보기용 헤더+행으로 반환 */
+export type SheetPreviewData = {
+  sheetName: string;
+  headers: string[];
+  rows: (string | number)[][];
+};
+
+function getSheetPreviewData(ws: XLSX.WorkSheet, sheetName: string): SheetPreviewData | null {
+  const data = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" }) as (string | number)[][];
+  const norm = (v: string) => String(v ?? "").replace(/\s/g, "");
+
+  let headerRowIndex = -1;
+  let colDesc = -1;
+  let colQty = -1;
+
+  for (let r = 0; r < Math.min(data.length, 50); r++) {
+    colDesc = colQty = -1;
+    const row = data[r] ?? [];
+    for (let c = 0; c < row.length; c++) {
+      const cell = norm(String(row[c] ?? ""));
+      if (cell === "사용내역") colDesc = c;
+      else if (cell === "수량") colQty = c;
+    }
+    if (colDesc >= 0 && colQty >= 0) {
+      headerRowIndex = r;
+      break;
+    }
+  }
+
+  if (headerRowIndex < 0) return null;
+
+  const headerRow = data[headerRowIndex] ?? [];
+  const headers = headerRow.map((c) => String(c ?? "").trim() || "");
+  const rows = data.slice(headerRowIndex + 1) as (string | number)[][];
+
+  return { sheetName, headers, rows };
 }
 
 function PhotoDropSlot(props: {
@@ -185,15 +337,11 @@ function PhotoDropSlot(props: {
 }
 
 export default function Page() {
-  /**
-   * [현재 단계] UI 완성용 Mock
-   * - 다음 단계에서 docs/items를 /api로 교체하면 됩니다.
-   */
-  const mockDocs: Doc[] = useMemo(
+  const initialDocs: Doc[] = useMemo(
     () => [
       {
         id: "doc_001",
-        title: "강남 사옥 확장공사",
+        title: "블랑써밋 74",
         subtitle: "2023_정리검검_점검시각자료.xlsx",
         updatedAt: "2026-02-02",
       },
@@ -218,6 +366,11 @@ export default function Page() {
     ],
     []
   );
+
+  const [docs, setDocs] = useState<Doc[]>(initialDocs);
+  const [docItems, setDocItems] = useState<Record<string, Item[]>>({});
+  const [docSheetPreview, setDocSheetPreview] = useState<Record<string, SheetPreviewData>>({});
+  const excelInputRef = useRef<HTMLInputElement | null>(null);
 
   const mockItems: Item[] = useMemo(() => {
     const raw: Item[] = [
@@ -262,17 +415,28 @@ export default function Page() {
 
   const [docQuery, setDocQuery] = useState("");
   const [itemQuery, setItemQuery] = useState("");
-  const [selectedDocId, setSelectedDocId] = useState<string>(mockDocs[0]?.id ?? "");
+  const [selectedDocId, setSelectedDocId] = useState<string>(initialDocs[0]?.id ?? "");
   const [selectedItemId, setSelectedItemId] = useState<string>(mockItems[0]?.id ?? "");
 
+  const currentItems = useMemo(
+    () => docItems[selectedDocId] ?? mockItems,
+    [docItems, selectedDocId, mockItems]
+  );
+
+  useEffect(() => {
+    const items = docItems[selectedDocId] ?? mockItems;
+    const firstId = items[0]?.id ?? "";
+    setSelectedItemId((prev) => (items.some((it) => it.id === prev) ? prev : firstId));
+  }, [selectedDocId, docItems, mockItems]);
+
   const selectedDoc = useMemo(
-    () => mockDocs.find((d) => d.id === selectedDocId) ?? null,
-    [mockDocs, selectedDocId]
+    () => docs.find((d) => d.id === selectedDocId) ?? null,
+    [docs, selectedDocId]
   );
 
   const selectedItem = useMemo(
-    () => mockItems.find((it) => it.id === selectedItemId) ?? null,
-    [mockItems, selectedItemId]
+    () => currentItems.find((it) => it.id === selectedItemId) ?? null,
+    [currentItems, selectedItemId]
   );
 
   // 선택 품목 템플릿에 따라 슬롯 구성
@@ -298,24 +462,59 @@ export default function Page() {
   // 문서 검색 필터
   const filteredDocs = useMemo(() => {
     const q = docQuery.trim().toLowerCase();
-    if (!q) return mockDocs;
-    return mockDocs.filter(
+    if (!q) return docs;
+    return docs.filter(
       (d) => d.title.toLowerCase().includes(q) || d.subtitle.toLowerCase().includes(q)
     );
-  }, [docQuery, mockDocs]);
+  }, [docQuery, docs]);
 
   // 품목 검색 필터
   const filteredItems = useMemo(() => {
     const q = itemQuery.trim().toLowerCase();
-    if (!q) return mockItems;
-    return mockItems.filter((it) => {
+    if (!q) return currentItems;
+    return currentItems.filter((it) => {
       const a = `${it.evidenceNo} ${it.name} ${it.qtyLabel} ${it.templateName}`.toLowerCase();
       return a.includes(q);
     });
-  }, [itemQuery, mockItems]);
+  }, [itemQuery, currentItems]);
+
+  // 총합계 (수량·금액 합산)
+  const totalQty = useMemo(
+    () =>
+      filteredItems.reduce((sum, it) => sum + (it.qty ?? 0), 0),
+    [filteredItems]
+  );
+  const totalAmount = useMemo(
+    () =>
+      filteredItems.reduce((sum, it) => sum + (it.amount ?? 0), 0),
+    [filteredItems]
+  );
 
   const progressDone = 0;
   const progressTotal = 23;
+
+  const [previewFullOpen, setPreviewFullOpen] = useState(false);
+  const [excelPreviewOpen, setExcelPreviewOpen] = useState(false);
+
+  const sheetPreview = selectedDocId
+    ? (docSheetPreview[selectedDocId] ?? null)
+    : null;
+
+  /** 엑셀 미리보기: 사용내역 있는 행만 1,2,3… 부여 */
+  const excelPreviewProofNumbers = useMemo(() => {
+    if (!sheetPreview?.rows?.length) return [];
+    const nums: (number | null)[] = [];
+    let next = 1;
+    const descCol = 2;
+    for (const row of sheetPreview.rows) {
+      const cells = row.slice(0, 7);
+      const desc = String(cells[descCol] ?? "").trim();
+      const norm = desc.replace(/\s/g, "");
+      if (desc && norm !== "계") nums.push(next++);
+      else nums.push(null);
+    }
+    return nums;
+  }, [sheetPreview?.rows]);
 
   const incomingFilled = useMemo(() => countFilled(slots, "incoming"), [slots]);
   const installFilled = useMemo(() => countFilled(slots, "install"), [slots]);
@@ -347,9 +546,75 @@ export default function Page() {
     });
   }
 
-  function onClickPreview() {
-    alert("미리보기는 다음 단계에서 연결합니다. (현재는 UI 완성/모션 적용 단계)");
+  function openExcelUpload() {
+    excelInputRef.current?.click();
   }
+
+  function clearAllUploaded() {
+    const hasUploaded = docs.length > initialDocs.length || Object.keys(docItems).length > 0;
+    if (!hasUploaded) return;
+    if (!confirm("업로드된 문서와 테이블 내역을 모두 삭제할까요?")) return;
+    setDocs([...initialDocs]);
+    setDocItems({});
+    setDocSheetPreview({});
+    setSelectedDocId(initialDocs[0]?.id ?? "");
+  }
+
+  async function handleExcelFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    const name = file.name.toLowerCase();
+    if (!name.endsWith(".xlsx") && !name.endsWith(".xls")) {
+      alert("엑셀 파일(.xlsx, .xls)만 업로드할 수 있습니다.");
+      return;
+    }
+    try {
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, { type: "array" });
+      const firstSheetName = wb.SheetNames[0] ?? "";
+      const ws = firstSheetName ? wb.Sheets[firstSheetName] : undefined;
+      const title =
+        firstSheetName.trim() || file.name.replace(/\.(xlsx|xls)$/i, "").trim() || "새 문서";
+      const newDoc: Doc = {
+        id: `doc_${Date.now()}`,
+        title,
+        subtitle: file.name,
+        updatedAt: new Date().toISOString().slice(0, 10),
+      };
+      const items = ws ? parseItemsFromSheet(ws, newDoc.id) : [];
+      const sheetPreview = ws ? getSheetPreviewData(ws, firstSheetName) : null;
+      setDocs((prev) => [...prev, newDoc]);
+      setDocItems((prev) => ({ ...prev, [newDoc.id]: items }));
+      if (sheetPreview) {
+        setDocSheetPreview((prev) => ({ ...prev, [newDoc.id]: sheetPreview }));
+      }
+      setSelectedDocId(newDoc.id);
+    } catch (err) {
+      console.error(err);
+      alert("엑셀 파일을 읽는 중 오류가 났습니다. 파일 형식을 확인해 주세요.");
+    }
+  }
+
+  function openPreviewFull() {
+    setPreviewFullOpen(true);
+  }
+
+  function closePreviewFull() {
+    setPreviewFullOpen(false);
+  }
+
+  useEffect(() => {
+    if (!previewFullOpen && !excelPreviewOpen) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        if (excelPreviewOpen) setExcelPreviewOpen(false);
+        else closePreviewFull();
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [previewFullOpen, excelPreviewOpen]);
 
   function onClickPdf() {
     alert("PDF 출력은 다음 단계에서 연결합니다. (현재는 UI 완성/모션 적용 단계)");
@@ -360,7 +625,7 @@ export default function Page() {
       {/* 상단 바 */}
       <header className={styles.topbar}>
         <div className={styles.brand}>
-          <div className={styles.brandTitle}>작업대</div>
+          <div className={styles.brandTitle}>EXPENSE PHOTO PLATFORM</div>
           <div className={styles.brandSub}>엑셀 한 행(품목) 기준으로 사진을 정확히 매칭합니다.</div>
         </div>
 
@@ -376,6 +641,9 @@ export default function Page() {
           <div className={styles.progressText}>
             {progressDone}/{progressTotal} 완료
           </div>
+          <button type="button" className={styles.btnSecondary} onClick={openPreviewFull}>
+            미리보기 (전체 보기)
+          </button>
           <button type="button" className={styles.btn} onClick={onClickPdf}>
             PDF 출력
           </button>
@@ -414,12 +682,28 @@ export default function Page() {
             })}
           </div>
 
+          <input
+            ref={excelInputRef}
+            type="file"
+            accept=".xlsx,.xls"
+            className={styles.fileInput}
+            onChange={handleExcelFile}
+            aria-hidden
+          />
           <button
             type="button"
             className={styles.btnSecondary}
-            onClick={() => alert("엑셀 업로드는 다음 단계에서 연결합니다.")}
+            onClick={openExcelUpload}
           >
             + 새 문서 업로드
+          </button>
+          <button
+            type="button"
+            className={styles.btnDelete}
+            onClick={clearAllUploaded}
+            disabled={docs.length <= initialDocs.length && Object.keys(docItems).length === 0}
+          >
+            전체삭제
           </button>
         </aside>
 
@@ -437,21 +721,29 @@ export default function Page() {
                 className={styles.searchInputWide}
                 value={itemQuery}
                 onChange={(e) => setItemQuery(e.target.value)}
-                placeholder="NO, 품명, 템플릿으로 검색"
+                placeholder="사용일자, 사용내역, 수량으로 검색"
               />
             </div>
 
             <div className={styles.itemTableHead}>
-              <div>NO.x</div>
-              <div>품명</div>
-              <div>수량</div>
-              <div>템플릿</div>
-              <div />
+              <div className={styles.cellNum}>순번</div>
+              <div>사용일자</div>
+              <div>사용내역</div>
+              <div className={styles.cellNum}>수량</div>
+              <div className={styles.cellNum}>단가</div>
+              <div className={styles.cellNum}>금액</div>
+              <div>증빙번호</div>
             </div>
 
             <div className={styles.itemTable}>
-              {filteredItems.map((it) => {
+              {filteredItems.map((it, index) => {
                 const active = it.id === selectedItemId;
+                const qtyDisplay =
+                  it.qty != null ? String(it.qty) : it.qtyLabel;
+                const unitPriceDisplay =
+                  it.unitPrice != null ? it.unitPrice.toLocaleString("ko-KR") : "—";
+                const amountDisplay =
+                  it.amount != null ? it.amount.toLocaleString("ko-KR") : "—";
                 return (
                   <button
                     key={it.id}
@@ -459,19 +751,29 @@ export default function Page() {
                     className={active ? styles.itemRowActive : styles.itemRow}
                     onClick={() => setSelectedItemId(it.id)}
                   >
-                    <div className={styles.cellMono}>{formatNoX(it.evidenceNo)}</div>
-                    <div className={styles.cellStrong}>{it.name}</div>
-                    <div className={styles.cellDim}>{it.qtyLabel}</div>
-                    <div className={styles.cellDim}>{it.templateName}</div>
-                    <div className={styles.cellRight}>
-                      <span className={styles.pill}>
-                        반입 {it.templateSpec.incomingSlots} / 지급·설치 {it.templateSpec.installSlots}
-                      </span>
-                    </div>
+                    <div className={styles.cellNum}>{index + 1}</div>
+                    <div className={styles.cellMono}>{it.useDate ?? "—"}</div>
+                    <div className={styles.cellStrong} title={it.name}>{it.name}</div>
+                    <div className={styles.cellNum}>{qtyDisplay}</div>
+                    <div className={styles.cellNum}>{unitPriceDisplay}</div>
+                    <div className={styles.cellNum}>{amountDisplay}</div>
+                    <div className={styles.cellNum}>{it.proofNo ?? index + 1}</div>
                   </button>
                 );
               })}
             </div>
+
+            {filteredItems.length > 0 && (
+              <div className={styles.itemTableTotal}>
+                <div className={styles.cellNum} />
+                <div className={styles.cellMuted} />
+                <div className={styles.cellStrong}>총합계</div>
+                <div className={styles.cellNum}>{totalQty.toLocaleString("ko-KR")}</div>
+                <div className={styles.cellMuted}>—</div>
+                <div className={styles.cellNum}>{totalAmount.toLocaleString("ko-KR")}</div>
+                <div className={styles.cellMuted} />
+              </div>
+            )}
           </section>
 
           <section className={styles.photoSection}>
@@ -517,8 +819,17 @@ export default function Page() {
             </div>
 
             <div className={styles.bottomActions}>
-              <button type="button" className={styles.btnSecondary} onClick={onClickPreview}>
-                미리보기
+              {sheetPreview && (
+                <button
+                  type="button"
+                  className={styles.btnSecondary}
+                  onClick={() => setExcelPreviewOpen(true)}
+                >
+                  엑셀 미리보기
+                </button>
+              )}
+              <button type="button" className={styles.btnSecondary} onClick={openPreviewFull}>
+                미리보기 (전체 보기)
               </button>
               <button type="button" className={styles.btn} onClick={onClickPdf}>
                 PDF 출력
@@ -535,6 +846,153 @@ export default function Page() {
           </section>
         </main>
       </div>
+
+      {/* 엑셀 시트 미리보기 모달 (항목별 사용내역서 형식) */}
+      {excelPreviewOpen && sheetPreview && (
+        <div
+          className={styles.previewFullOverlay}
+          role="dialog"
+          aria-modal="true"
+          aria-label="엑셀 미리보기"
+        >
+          <div
+            className={styles.previewFullBackdrop}
+            onClick={() => setExcelPreviewOpen(false)}
+            onKeyDown={(e) => e.key === "Enter" && setExcelPreviewOpen(false)}
+            role="button"
+            tabIndex={0}
+            aria-label="닫기"
+          />
+          <div className={styles.excelPreviewModal}>
+            <div className={styles.previewFullHeader}>
+              <h2 className={styles.previewFullTitle}>
+                {selectedDoc?.title ?? sheetPreview.sheetName} — 엑셀 미리보기
+              </h2>
+              <button
+                type="button"
+                className={styles.previewFullCloseBtn}
+                onClick={() => setExcelPreviewOpen(false)}
+                aria-label="닫기"
+              >
+                ✕
+              </button>
+            </div>
+            <div className={styles.excelPreviewBody}>
+              <div className={styles.excelPreviewTableWrap}>
+                <table className={styles.excelPreviewTable}>
+                  <thead>
+                    <tr>
+                      {sheetPreview.headers.slice(0, 7).map((h: string, i: number) => (
+                        <th key={i}>{h || `(열 ${i + 1})`}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sheetPreview.rows.map((row: (string | number)[], ri: number) => {
+                      const rowCells = row.slice(0, 7);
+                      const proofColIndex = 6;
+                      const proofNum = excelPreviewProofNumbers[ri];
+                      return (
+                        <tr key={ri}>
+                          {sheetPreview.headers.slice(0, 7).map((_: string, ci: number) => {
+                            const val = rowCells[ci];
+                            let display: string =
+                              typeof val === "number"
+                                ? val.toLocaleString("ko-KR")
+                                : String(val ?? "").trim();
+                            if (!display || display === "—" || display === "-") display = "—";
+                            if (ci === proofColIndex) {
+                              display = proofNum != null ? String(proofNum) : display || "—";
+                            }
+                            return <td key={ci}>{display}</td>;
+                          })}
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 엑셀 업로드 전체 미리보기 모달 */}
+      {previewFullOpen && (
+        <div
+          className={styles.previewFullOverlay}
+          role="dialog"
+          aria-modal="true"
+          aria-label="엑셀 업로드 미리보기"
+        >
+          <div
+            className={styles.previewFullBackdrop}
+            onClick={closePreviewFull}
+            onKeyDown={(e) => e.key === "Enter" && closePreviewFull()}
+            role="button"
+            tabIndex={0}
+            aria-label="닫기"
+          />
+          <div className={styles.previewFullModal}>
+            <div className={styles.previewFullHeader}>
+              <h2 className={styles.previewFullTitle}>엑셀 업로드 미리보기</h2>
+              <button
+                type="button"
+                className={styles.previewFullCloseBtn}
+                onClick={closePreviewFull}
+                aria-label="닫기"
+              >
+                ✕
+              </button>
+            </div>
+            <div className={styles.previewFullBody}>
+              <div className={styles.previewFullDoc}>
+                <div className={styles.previewFullLabel}>문서</div>
+                <div className={styles.previewFullDocTitle}>{selectedDoc?.title ?? "—"}</div>
+                <div className={styles.previewFullDocSub}>{selectedDoc?.subtitle ?? ""}</div>
+              </div>
+              {selectedItem && (
+                <div className={styles.previewFullItem}>
+                  <div className={styles.previewFullLabel}>품목</div>
+                  <div className={styles.previewFullItemRow}>
+                    <span>{formatNoX(selectedItem.evidenceNo)}</span>
+                    <span className={styles.previewFullItemName}>{selectedItem.name}</span>
+                    <span>{selectedItem.qtyLabel}</span>
+                    <span className={styles.previewFullItemTemplate}>{selectedItem.templateName}</span>
+                  </div>
+                </div>
+              )}
+              <div className={styles.previewFullSlots}>
+                <div className={styles.previewFullLabel}>사진 슬롯</div>
+                <div className={styles.previewFullSlotGrid}>
+                  {slots.map((slot) => {
+                    const label =
+                      slot.kind === "incoming"
+                        ? `반입 (${slot.slotIndex + 1}/${incomingMax})`
+                        : `지급·설치 (${slot.slotIndex + 1}/${installMax})`;
+                    return (
+                      <div key={`${slot.kind}_${slot.slotIndex}`} className={styles.previewFullSlotCard}>
+                        <div className={styles.previewFullSlotImgWrap}>
+                          {slot.previewUrl ? (
+                            <img
+                              className={styles.previewFullSlotImg}
+                              src={slot.previewUrl}
+                              alt={label}
+                            />
+                          ) : (
+                            <div className={styles.previewFullSlotPlaceholder}>미등록</div>
+                          )}
+                        </div>
+                        <div className={styles.previewFullSlotLabel}>{label}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

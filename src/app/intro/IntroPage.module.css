@@ -4,83 +4,139 @@
   width: 100%;
   height: 100dvh;
   overflow: hidden;
-  background: #ffffff;
-  color: #0b0f14;
+  background: #000;
+  color: #fff;
 }
 
+/* ===== 배경 영상 ===== */
 .bg {
   position: fixed;
   inset: 0;
+  z-index: 0;
   overflow: hidden;
 }
 
 .video {
   position: absolute;
   inset: 0;
+  z-index: 0;
+
   width: 100%;
   height: 100%;
   object-fit: cover;
+
   transform: scale(1.02);
-  filter: saturate(0.95) contrast(1.02);
 }
 
+/* “흰/멀건 레이어” 제거 유지 */
 .fallback {
-  position: absolute;
-  inset: 0;
-  background:
-    radial-gradient(1200px 700px at 20% 20%, rgba(0, 0, 0, 0.06), transparent 60%),
-    radial-gradient(900px 600px at 80% 30%, rgba(0, 0, 0, 0.05), transparent 55%),
-    radial-gradient(900px 600px at 40% 90%, rgba(0, 0, 0, 0.04), transparent 55%),
-    #ffffff;
+  display: none;
 }
 
 .overlay {
-  position: absolute;
-  inset: 0;
-  background: rgba(255, 255, 255, 0.72);
-  backdrop-filter: blur(6px);
+  display: none;
 }
 
+/* ===== 콘텐츠 레이어(해상도 무관 핵심) =====
+   - 중앙 컨테이너: width: min(960px, 92vw)
+   - 상하 여백: clamp(20px ~ 56px)
+   - 1366x768에서 타이틀이 잘리면 여백을 줄이도록 설계
+*/
 .content {
   position: relative;
   z-index: 2;
   height: 100%;
   display: grid;
   place-items: center;
-  padding: 24px;
+  padding: clamp(20px, 4.5vh, 56px) clamp(16px, 3vw, 28px);
 }
 
-.center {
-  width: min(860px, 100%);
+.hero {
+  width: min(960px, 92vw);
   text-align: center;
+
+  /* 768 세로에서 상하 잘림 방지: 콘텐츠가 길면 자연스럽게 줄간격/여백이 줄어듦 */
+  display: grid;
+  gap: clamp(10px, 1.8vh, 18px);
 }
 
+/* ===== 고급 페이드/슬라이드 인(과하지 않게) ===== */
+:root {
+  --intro-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes intro-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+    filter: blur(2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+.kicker,
+.title,
+.subtitle,
+.actions {
+  opacity: 0;
+  transform: translateY(12px);
+  filter: blur(2px);
+
+  animation-name: intro-fade-up;
+  animation-duration: 900ms;
+  animation-timing-function: var(--intro-ease);
+  animation-fill-mode: forwards;
+}
+
+/* 순차 등장 */
 .kicker {
-  margin: 0 0 14px;
-  font-size: 12px;
-  letter-spacing: 0.18em;
+  animation-delay: 120ms;
+}
+.title {
+  animation-delay: 220ms;
+}
+.subtitle {
+  animation-delay: 360ms;
+}
+.actions {
+  animation-delay: 500ms;
+}
+
+/* ===== 타이포(해상도 대응 핵심: clamp) ===== */
+.kicker {
+  margin: 0;
+  font-size: 11px;
+  letter-spacing: 0.22em;
   text-transform: uppercase;
-  color: rgba(11, 15, 20, 0.55);
+  color: #ffffff;
 }
 
 .title {
   margin: 0;
-  font-size: clamp(28px, 4vw, 52px);
-  line-height: 1.06;
+  font-size: clamp(22px, 2.8vw, 40px);
+  line-height: 1.1;
   letter-spacing: -0.02em;
-  font-weight: 700;
+  font-weight: 650;
+  color: #ffffff;
+  text-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
 }
 
 .subtitle {
-  margin: 16px auto 0;
-  width: min(720px, 100%);
-  font-size: clamp(14px, 1.6vw, 18px);
-  line-height: 1.6;
-  color: rgba(11, 15, 20, 0.66);
+  margin: 0 auto;
+  width: min(720px, 92vw);
+  font-size: clamp(13px, 1.35vw, 16px);
+  line-height: 1.65;
+  color: #ffffff;
+  text-shadow: 0 10px 24px rgba(0, 0, 0, 0.38);
 }
 
+/* ===== 버튼(해상도 대응 + 모바일/1366 안전) ===== */
 .actions {
-  margin-top: 26px;
+  margin-top: clamp(6px, 1.2vh, 14px);
   display: flex;
   gap: 10px;
   justify-content: center;
@@ -88,48 +144,64 @@
 }
 
 .primaryBtn {
-  border: 1px solid rgba(11, 15, 20, 0.16);
-  background: #0b0f14;
-  color: #fff;
   padding: 12px 18px;
   border-radius: 999px;
   text-decoration: none;
   font-weight: 650;
-  font-size: 14px;
+  font-size: 13px;
   min-width: 140px;
   text-align: center;
+  backdrop-filter: blur(6px);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.32);
 }
 
-.secondaryBtn {
-  border: 1px solid rgba(11, 15, 20, 0.16);
-  background: rgba(255, 255, 255, 0.72);
-  color: #0b0f14;
-  padding: 12px 18px;
-  border-radius: 999px;
-  text-decoration: none;
-  font-weight: 650;
-  font-size: 14px;
-  min-width: 140px;
-  text-align: center;
+.primaryBtn {
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(0, 0, 0, 0.56);
+  color: #ffffff;
 }
 
-.footnote {
-  margin-top: 18px;
-  font-size: 12px;
-  color: rgba(11, 15, 20, 0.52);
+.primaryBtn:hover {
+  transform: translateY(-1px);
+}
+
+.primaryBtn:active {
+  transform: translateY(0);
 }
 
 .mono {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New",
-    monospace;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .video {
-    display: none;
+/* ===== 1366x768 대응: 세로가 낮을 때 “자동으로 조금 더 조밀하게” ===== */
+@media (max-height: 800px) {
+  .content {
+    padding: 18px 18px;
   }
-  .overlay {
-    backdrop-filter: none;
-    background: rgba(255, 255, 255, 0.9);
+
+  .hero {
+    gap: 12px;
+  }
+
+  .title {
+    font-size: clamp(20px, 2.6vw, 36px);
+  }
+}
+
+/* ===== 모션 줄이기 설정에서도 숨김 금지 ===== */
+@media (prefers-reduced-motion: reduce) {
+  .kicker,
+  .title,
+  .subtitle,
+  .actions {
+    opacity: 1;
+    transform: none;
+    filter: none;
+    animation: none;
+  }
+
+  .primaryBtn:hover,
+  .primaryBtn:active {
+    transform: none;
   }
 }
