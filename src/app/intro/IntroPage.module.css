@@ -157,8 +157,8 @@
 
 .primaryBtn {
   border: 1px solid rgba(255, 255, 255, 0.18);
-  background: rgba(0, 0, 0, 0.56);
-  color: #ffffff;
+  background: #ffffff;
+  color: #000000;
 }
 
 .primaryBtn:hover {

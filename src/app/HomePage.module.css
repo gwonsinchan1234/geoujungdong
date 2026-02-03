@@ -1,0 +1,821 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   HomePage.module.css - 소개 페이지 전용 디자인 시스템
+   ═══════════════════════════════════════════════════════════════════════════
+   Spacing:  8 / 12 / 16 / 24 / 32 / 48 / 64
+   MaxWidth: 1120px (inner)
+   Padding:  24px desktop / 16px mobile
+   Border:   1px #e5e7eb, radius 12px
+   Shadow:   0 1px 3px rgba(0,0,0,0.08)
+   Primary:  #2563eb (버튼/링크/배지 한정)
+   Typo:     H1 clamp(1.75rem~2.5rem) / H2 1.25rem / body 1rem / caption 0.8125rem
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ───── CSS 변수 (/ 페이지 전용) ───── */
+:root {
+  --hp-space-8: 8px;
+  --hp-space-12: 12px;
+  --hp-space-16: 16px;
+  --hp-space-24: 24px;
+  --hp-space-32: 32px;
+  --hp-space-48: 48px;
+  --hp-space-64: 64px;
+
+  --hp-max-width: 1120px;
+  --hp-padding-desktop: 24px;
+  --hp-padding-mobile: 16px;
+
+  --hp-gray-50: #f9fafb;
+  --hp-gray-100: #f3f4f6;
+  --hp-gray-200: #e5e7eb;
+  --hp-gray-300: #d1d5db;
+  --hp-gray-500: #6b7280;
+  --hp-gray-700: #374151;
+  --hp-gray-900: #111827;
+
+  --hp-blue-50: #eff6ff;
+  --hp-blue-600: #2563eb;
+  --hp-blue-700: #1d4ed8;
+
+  --hp-radius: 12px;
+  --hp-radius-sm: 8px;
+  --hp-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --hp-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+/* ───── 기본 레이아웃 ───── */
+.page {
+  min-height: 100vh;
+  background: #fff;
+  color: var(--hp-gray-900);
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   헤더
+   ═══════════════════════════════════════════════════════════════════════════ */
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--hp-gray-200);
+}
+
+.headerInner {
+  max-width: var(--hp-max-width);
+  margin: 0 auto;
+  padding: var(--hp-space-12) var(--hp-padding-mobile);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--hp-space-16);
+}
+
+.brand {
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--hp-gray-900);
+  text-decoration: none;
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.brand:hover {
+  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.brand:focus-visible {
+  outline: 2px solid var(--hp-blue-600);
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+
+.navLink {
+  padding: var(--hp-space-8) var(--hp-space-16);
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #fff;
+  text-decoration: none;
+  border-radius: var(--hp-radius);
+  border: none;
+  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+}
+
+.navLink:hover {
+  background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+}
+
+.navLink:focus-visible {
+  outline: 2px solid var(--hp-blue-600);
+  outline-offset: 2px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Hero 섹션
+   ═══════════════════════════════════════════════════════════════════════════ */
+.hero {
+  background: linear-gradient(135deg, #f0f7ff 0%, #e8f4f8 50%, #f5f0ff 100%);
+  border-bottom: 1px solid var(--hp-gray-200);
+  position: relative;
+  overflow: hidden;
+}
+
+.hero::before {
+  content: "";
+  position: absolute;
+  top: -50%;
+  right: -20%;
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.08) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.hero::after {
+  content: "";
+  position: absolute;
+  bottom: -30%;
+  left: -10%;
+  width: 400px;
+  height: 400px;
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.06) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.heroInner {
+  position: relative;
+  z-index: 1;
+  max-width: var(--hp-max-width);
+  margin: 0 auto;
+  padding: var(--hp-space-48) var(--hp-padding-mobile);
+  display: grid;
+  gap: var(--hp-space-32);
+}
+
+.heroText {
+  max-width: 560px;
+}
+
+.h1 {
+  margin: 0 0 var(--hp-space-16);
+  font-size: clamp(1.75rem, 4vw, 2.5rem);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.2;
+  color: var(--hp-gray-900);
+}
+
+.heroSub {
+  margin: 0 0 var(--hp-space-24);
+  font-size: 1rem;
+  line-height: 1.7;
+  color: var(--hp-gray-500);
+}
+
+.heroCta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--hp-space-12);
+}
+
+/* ───── 버튼 공통 ───── */
+.btnPrimary,
+.btnSecondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--hp-space-12) var(--hp-space-24);
+  font-size: 1rem;
+  font-weight: 600;
+  text-decoration: none;
+  border-radius: var(--hp-radius);
+  transition: background 0.15s ease, transform 0.1s ease;
+  min-height: 48px; /* 터치 영역 */
+}
+
+.btnPrimary {
+  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+  color: #fff;
+  border: none;
+  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.4);
+}
+
+.btnPrimary:hover {
+  background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
+  box-shadow: 0 6px 20px rgba(99, 102, 241, 0.5);
+}
+
+.btnPrimary:active {
+  transform: translateY(1px);
+}
+
+.btnPrimary:focus-visible {
+  outline: 2px solid var(--hp-blue-600);
+  outline-offset: 2px;
+}
+
+.btnSecondary {
+  background: #fff;
+  color: var(--hp-gray-700);
+  border: 1px solid var(--hp-gray-200);
+}
+
+.btnSecondary:hover {
+  background: var(--hp-gray-50);
+  border-color: var(--hp-gray-300);
+}
+
+.btnSecondary:focus-visible {
+  outline: 2px solid var(--hp-blue-600);
+  outline-offset: 2px;
+}
+
+/* ───── 미니 프리뷰 UI ───── */
+.heroPreview {
+  display: flex;
+  justify-content: center;
+}
+
+.miniWorkspace {
+  width: 100%;
+  max-width: 420px;
+  background: #fff;
+  border: 1px solid var(--hp-gray-200);
+  border-radius: var(--hp-radius);
+  box-shadow:
+    0 4px 6px rgba(0, 0, 0, 0.05),
+    0 10px 20px rgba(99, 102, 241, 0.1),
+    0 0 0 1px rgba(99, 102, 241, 0.05);
+  padding: var(--hp-space-12);
+  display: grid;
+  gap: var(--hp-space-12);
+}
+
+.miniTable {
+  border: 1px solid var(--hp-gray-200);
+  border-radius: var(--hp-radius-sm);
+  overflow: hidden;
+  font-size: 0.75rem;
+}
+
+.miniTableHeader {
+  display: grid;
+  grid-template-columns: 40px 1fr 80px 48px;
+  gap: 4px;
+  padding: var(--hp-space-8) var(--hp-space-8);
+  background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+  font-weight: 600;
+  color: var(--hp-gray-500);
+  border-bottom: 1px solid var(--hp-gray-200);
+}
+
+.miniTableRow {
+  display: grid;
+  grid-template-columns: 40px 1fr 80px 48px;
+  gap: 4px;
+  padding: var(--hp-space-8);
+  color: var(--hp-gray-700);
+  border-bottom: 1px solid var(--hp-gray-100);
+}
+
+.miniTableRow:last-child {
+  border-bottom: none;
+}
+
+.miniTableRowActive {
+  background: linear-gradient(90deg, #eef2ff 0%, #e0e7ff 100%);
+  color: #4f46e5;
+  font-weight: 600;
+  border-left: 3px solid #6366f1;
+}
+
+.miniPhotoSlots {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--hp-space-8);
+}
+
+.miniSlot {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: var(--hp-space-12);
+  background: var(--hp-gray-50);
+  border: 2px dashed var(--hp-gray-300);
+  border-radius: var(--hp-radius-sm);
+  min-height: 80px;
+}
+
+.miniSlotIcon {
+  color: var(--hp-gray-500);
+}
+
+.miniSlotLabel {
+  font-size: 0.6875rem;
+  font-weight: 500;
+  color: var(--hp-gray-500);
+}
+
+.miniSlotFilled {
+  border-style: solid;
+  border-color: #10b981;
+  background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+}
+
+.miniSlotFilled .miniSlotLabel {
+  color: #059669;
+}
+
+.miniSlotThumb {
+  width: 40px;
+  height: 40px;
+  background: linear-gradient(135deg, #6ee7b7 0%, #34d399 100%);
+  border-radius: 4px;
+}
+
+.miniSlotCheck {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.625rem;
+  font-weight: 700;
+  color: #fff;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(16, 185, 129, 0.3);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Proof (신뢰 요소)
+   ═══════════════════════════════════════════════════════════════════════════ */
+.proof {
+  background: linear-gradient(90deg, #1e293b 0%, #334155 100%);
+  border-bottom: none;
+}
+
+.proofInner {
+  max-width: var(--hp-max-width);
+  margin: 0 auto;
+  padding: var(--hp-space-24) var(--hp-padding-mobile);
+  display: grid;
+  gap: var(--hp-space-16);
+}
+
+.proofItem {
+  display: flex;
+  align-items: center;
+  gap: var(--hp-space-12);
+}
+
+.proofIcon {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(99, 102, 241, 0.15);
+  border-radius: var(--hp-radius-sm);
+  color: #a5b4fc;
+}
+
+.proofText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.proofText strong {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #fff;
+}
+
+.proofText span {
+  font-size: 0.8125rem;
+  color: #94a3b8;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Features (기능 카드)
+   ═══════════════════════════════════════════════════════════════════════════ */
+.features {
+  background: #fff;
+}
+
+.featuresInner {
+  max-width: var(--hp-max-width);
+  margin: 0 auto;
+  padding: var(--hp-space-48) var(--hp-padding-mobile);
+}
+
+.h2 {
+  margin: 0 0 var(--hp-space-24);
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--hp-gray-900);
+}
+
+.featureGrid {
+  display: grid;
+  gap: var(--hp-space-16);
+}
+
+.featureCard {
+  padding: var(--hp-space-24);
+  background: #fff;
+  border: 1px solid var(--hp-gray-200);
+  border-radius: var(--hp-radius);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.featureCard:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 24px rgba(99, 102, 241, 0.1);
+}
+
+.featureCard:nth-child(1) .featureIconWrap {
+  background: linear-gradient(135deg, #dbeafe 0%, #e0e7ff 100%);
+  color: #4f46e5;
+}
+
+.featureCard:nth-child(2) .featureIconWrap {
+  background: linear-gradient(135deg, #d1fae5 0%, #cffafe 100%);
+  color: #059669;
+}
+
+.featureCard:nth-child(3) .featureIconWrap {
+  background: linear-gradient(135deg, #fce7f3 0%, #fae8ff 100%);
+  color: #db2777;
+}
+
+.featureIconWrap {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #dbeafe 0%, #e0e7ff 100%);
+  border: none;
+  border-radius: var(--hp-radius-sm);
+  color: var(--hp-blue-600);
+  margin-bottom: var(--hp-space-16);
+}
+
+.featureTitle {
+  margin: 0 0 var(--hp-space-8);
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--hp-gray-900);
+}
+
+.featureDesc {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.6;
+  color: var(--hp-gray-500);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Steps (사용 방법)
+   ═══════════════════════════════════════════════════════════════════════════ */
+.steps {
+  background: linear-gradient(180deg, #fafbff 0%, #f0f4ff 100%);
+  border-top: 1px solid var(--hp-gray-200);
+  border-bottom: 1px solid var(--hp-gray-200);
+}
+
+.stepsInner {
+  max-width: var(--hp-max-width);
+  margin: 0 auto;
+  padding: var(--hp-space-48) var(--hp-padding-mobile);
+}
+
+.stepList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: var(--hp-space-16);
+}
+
+.stepItem {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--hp-space-16);
+  padding: var(--hp-space-16);
+  background: #fff;
+  border: 1px solid var(--hp-gray-200);
+  border-radius: var(--hp-radius);
+  transition: border-color 0.2s ease;
+}
+
+.stepItem:hover {
+  border-color: #a5b4fc;
+}
+
+.stepItem:nth-child(1) .stepNumber { background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); }
+.stepItem:nth-child(2) .stepNumber { background: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%); }
+.stepItem:nth-child(3) .stepNumber { background: linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%); }
+.stepItem:nth-child(4) .stepNumber { background: linear-gradient(135deg, #10b981 0%, #06b6d4 100%); }
+
+.stepNumber {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #fff;
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  border-radius: 50%;
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+}
+
+.stepContent {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-top: 4px;
+}
+
+.stepContent strong {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--hp-gray-900);
+}
+
+.stepContent span {
+  font-size: 0.8125rem;
+  color: var(--hp-gray-500);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   FAQ
+   ═══════════════════════════════════════════════════════════════════════════ */
+.faq {
+  background: #fff;
+}
+
+.faqInner {
+  max-width: var(--hp-max-width);
+  margin: 0 auto;
+  padding: var(--hp-space-48) var(--hp-padding-mobile);
+}
+
+.faqList {
+  display: grid;
+  gap: var(--hp-space-8);
+}
+
+.faqItem {
+  border: 1px solid var(--hp-gray-200);
+  border-radius: var(--hp-radius);
+  overflow: hidden;
+}
+
+.faqQuestion {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--hp-space-16);
+  padding: var(--hp-space-16);
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: var(--hp-gray-900);
+  text-align: left;
+  background: #fff;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.faqQuestion:hover {
+  background: #faf5ff;
+}
+
+.faqQuestion:focus-visible {
+  outline: 2px solid var(--hp-blue-600);
+  outline-offset: -2px;
+}
+
+.faqIcon {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  font-weight: 300;
+  color: var(--hp-gray-500);
+}
+
+.faqAnswer {
+  padding: 0 var(--hp-space-16) var(--hp-space-16);
+  background: linear-gradient(135deg, #faf5ff 0%, #f5f3ff 100%);
+  border-top: 1px solid #e9d5ff;
+}
+
+.faqAnswer p {
+  margin: 0;
+  padding-top: var(--hp-space-12);
+  font-size: 0.875rem;
+  line-height: 1.7;
+  color: var(--hp-gray-700);
+}
+
+.faqAnswerOpen {
+  display: block;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Final CTA
+   ═══════════════════════════════════════════════════════════════════════════ */
+.finalCta {
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+  border-top: none;
+  position: relative;
+  overflow: hidden;
+}
+
+.finalCta::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background:
+    radial-gradient(circle at 20% 50%, rgba(99, 102, 241, 0.15) 0%, transparent 50%),
+    radial-gradient(circle at 80% 50%, rgba(16, 185, 129, 0.1) 0%, transparent 50%);
+  pointer-events: none;
+}
+
+.finalCtaInner {
+  position: relative;
+  z-index: 1;
+  max-width: var(--hp-max-width);
+  margin: 0 auto;
+  padding: var(--hp-space-48) var(--hp-padding-mobile);
+  text-align: center;
+}
+
+.h2Center {
+  margin: 0 0 var(--hp-space-12);
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #fff;
+}
+
+.finalCtaSub {
+  margin: 0 0 var(--hp-space-24);
+  font-size: 0.9375rem;
+  color: #94a3b8;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Footer
+   ═══════════════════════════════════════════════════════════════════════════ */
+.footer {
+  background: #0f172a;
+  border-top: none;
+}
+
+.footerInner {
+  max-width: var(--hp-max-width);
+  margin: 0 auto;
+  padding: var(--hp-space-16) var(--hp-padding-mobile);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--hp-space-16);
+  flex-wrap: wrap;
+}
+
+.footerCopy {
+  font-size: 0.8125rem;
+  color: #64748b;
+}
+
+.footerLink {
+  font-size: 0.8125rem;
+  color: #94a3b8;
+  text-decoration: none;
+}
+
+.footerLink:hover {
+  color: #a5b4fc;
+}
+
+.footerLink:focus-visible {
+  outline: 2px solid var(--hp-blue-600);
+  outline-offset: 2px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   반응형: 768px+ (태블릿/데스크톱)
+   ═══════════════════════════════════════════════════════════════════════════ */
+@media (min-width: 768px) {
+  .headerInner {
+    padding: var(--hp-space-16) var(--hp-padding-desktop);
+  }
+
+  .heroInner {
+    padding: var(--hp-space-64) var(--hp-padding-desktop);
+    grid-template-columns: 1fr 1fr;
+    align-items: center;
+    gap: var(--hp-space-48);
+  }
+
+  .heroText {
+    max-width: none;
+  }
+
+  .proofInner {
+    padding: var(--hp-space-32) var(--hp-padding-desktop);
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--hp-space-32);
+  }
+
+  .featuresInner,
+  .stepsInner,
+  .faqInner,
+  .finalCtaInner {
+    padding-left: var(--hp-padding-desktop);
+    padding-right: var(--hp-padding-desktop);
+  }
+
+  .featureGrid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--hp-space-24);
+  }
+
+  .stepList {
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--hp-space-24);
+  }
+
+  .faqList {
+    max-width: 720px;
+  }
+
+  .footerInner {
+    padding: var(--hp-space-24) var(--hp-padding-desktop);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   반응형: 1024px+ (와이드 데스크톱)
+   ═══════════════════════════════════════════════════════════════════════════ */
+@media (min-width: 1024px) {
+  .h1 {
+    font-size: 2.5rem;
+  }
+
+  .heroInner {
+    padding: var(--hp-space-64) var(--hp-space-48);
+  }
+
+  .miniWorkspace {
+    max-width: 480px;
+  }
+
+  .stepList {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   모션 줄이기 지원
+   ═══════════════════════════════════════════════════════════════════════════ */
+@media (prefers-reduced-motion: reduce) {
+  .btnPrimary:active,
+  .btnSecondary:active {
+    transform: none;
+  }
+}
