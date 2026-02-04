@@ -167,6 +167,29 @@
   max-width: 560px;
 }
 
+/* ───── 슬라이드 애니메이션 ───── */
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(40px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
 .h1 {
   margin: 0 0 var(--hp-space-16);
   font-size: clamp(1.75rem, 4vw, 2.5rem);
@@ -174,6 +197,7 @@
   letter-spacing: -0.03em;
   line-height: 1.2;
   color: var(--hp-gray-900);
+  animation: slideUp 0.6s ease-out both;
 }
 
 .heroSub {
@@ -181,12 +205,90 @@
   font-size: 1rem;
   line-height: 1.7;
   color: var(--hp-gray-500);
+  animation: slideUp 0.6s ease-out 0.1s both;
 }
 
 .heroCta {
   display: flex;
   flex-wrap: wrap;
   gap: var(--hp-space-12);
+  animation: slideUp 0.6s ease-out 0.3s both;
+}
+
+/* ───── 파일 업로드 영역 ───── */
+.uploadArea {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--hp-space-12);
+  margin-bottom: var(--hp-space-16);
+  animation: slideUp 0.6s ease-out 0.2s both;
+}
+
+.fileInputLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--hp-space-8);
+  padding: var(--hp-space-8) var(--hp-space-16);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--hp-gray-700);
+  background: #fff;
+  border: 1px solid var(--hp-gray-300);
+  border-radius: var(--hp-radius-sm);
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.fileInputLabel:hover {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.fileInput {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
+.fileName {
+  font-weight: 400;
+  color: var(--hp-gray-500);
+}
+
+.uploadBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--hp-space-8);
+  padding: var(--hp-space-8) var(--hp-space-16);
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #fff;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  border: none;
+  border-radius: var(--hp-radius-sm);
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+}
+
+.uploadBtn:hover {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+}
+
+.uploadBtn:active {
+  transform: translateY(1px);
+}
+
+.uploadBtn:focus-visible {
+  outline: 2px solid #10b981;
+  outline-offset: 2px;
 }
 
 /* ───── 버튼 공통 ───── */
@@ -245,6 +347,7 @@
 .heroPreview {
   display: flex;
   justify-content: center;
+  animation: slideInRight 0.7s ease-out 0.2s both;
 }
 
 .miniWorkspace {
@@ -817,5 +920,13 @@
   .btnPrimary:active,
   .btnSecondary:active {
     transform: none;
+  }
+
+  .h1,
+  .heroSub,
+  .uploadArea,
+  .heroCta,
+  .heroPreview {
+    animation: none;
   }
 }

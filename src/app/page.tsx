@@ -115,6 +115,23 @@ export default function HomePage() {
                 <br />
                 별도 편집 없이 PDF 사진대지가 바로 출력됩니다.
               </p>
+              {/* 파일 업로드 영역 */}
+              <div className={styles.uploadArea}>
+                <label className={styles.fileInputLabel}>
+                  파일 선택
+                  <input type="file" accept=".xlsx,.xls" className={styles.fileInput} />
+                  <span className={styles.fileName}>선택된 파일 없음</span>
+                </label>
+                <button type="button" className={styles.uploadBtn}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="17,8 12,3 7,8" />
+                    <line x1="12" y1="3" x2="12" y2="15" />
+                  </svg>
+                  엑셀 업로드
+                </button>
+              </div>
+
               <div className={styles.heroCta}>
                 <Link href="/workspace" className={styles.btnPrimary}>
                   작업 공간 열기
