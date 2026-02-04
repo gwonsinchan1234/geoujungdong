@@ -10,20 +10,20 @@ export default function ScrollUnlock(): null {
     const prevHtmlOverflow = html.style.overflow;
     const prevBodyOverflow = body.style.overflow;
     const prevBodyHeight = body.style.height;
-    const prevOverscroll = (body.style as Record<string, string>).overscrollBehavior;
+    const prevOverscroll = (body.style as any).overscrollBehavior;
     const prevTouchAction = body.style.touchAction;
 
     html.style.overflow = "hidden";
     body.style.overflow = "hidden";
     body.style.height = "100%";
-    (body.style as Record<string, string>).overscrollBehavior = "none";
+    (body.style as any).overscrollBehavior = "none";
     body.style.touchAction = "none";
 
     return () => {
       html.style.overflow = prevHtmlOverflow;
       body.style.overflow = prevBodyOverflow;
       body.style.height = prevBodyHeight;
-      (body.style as Record<string, string>).overscrollBehavior = prevOverscroll;
+      (body.style as any).overscrollBehavior = prevOverscroll;
       body.style.touchAction = prevTouchAction;
     };
   }, []);
