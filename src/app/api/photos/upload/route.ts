@@ -1,123 +1,213 @@
-// app/api/photos/upload/route.ts
-// [이유] 사진 업로드를 서버(API)에서 통제(슬롯/개수 제한, 교체, Storage+DB 동기화)하기 위함
+// src/app/api/upload-excel/route.ts
+// [기술/이유]
+// - Next.js App Router Route Handler (Server)
+// - Excel 업로드 → DB 테이블 스키마(신찬님 스크린샷 컬럼)로 안전하게 insert
+// - 날짜/숫자 파싱 실패 행은 저장 금지(재발 방지)
+// - source_fingerprint 로 중복 방지/추적용(선택: DB에 unique 걸어도 됨)
 
-import { NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
+import crypto from "crypto";
+import { parseItemUsageSheet } from "@/lib/excel/parseItemUsageSheet";
 
-export const runtime = "nodejs"; // [이유] 파일 처리 안정성
+export const runtime = "nodejs"; // ✅ 이유: xlsx/crypto 사용은 node runtime이 가장 안전
 
-type PhotoKind = "inbound" | "issue_install";
+const supabase = createClient(
+  process.env.SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY! // ✅ 이유: 서버 전용키. 절대 NEXT_PUBLIC 사용 금지
+);
 
-export async function POST(req: Request) {
+// ✅ 신찬님 테이블(스크린샷) 컬럼명에 맞춘 매핑
+// id(uuid), doc_id(uuid), evidence_no(text), item_name(text),
+// used_at(text), qty(numeric), unit_price(numeric), amount(numeric),
+// category_no(int?), source_row_no(int4), source_fingerprint(text), created_at(timestamptz)
+type DbInsertRow = {
+  doc_id: string;
+  evidence_no: string;
+  item_name: string;
+  used_at: string;
+  qty: number;
+  unit_price: number;
+  amount: number;
+  category_no: number | null;
+  source_row_no: number | null;
+  source_fingerprint: string;
+};
+
+function toIntOrNull(v: unknown): number | null {
+  if (v === null || v === undefined) return null;
+  const n = Number(String(v).trim());
+  return Number.isInteger(n) ? n : null;
+}
+
+/**
+ * category 예시: "2. 안전시설비 등 구매비 등"
+ * -> category_no = 2
+ * 없으면 null
+ */
+function extractCategoryNo(category: string): number | null {
+  const s = String(category ?? "").trim();
+  const m = s.match(/^(\d+)\s*[\.\)]/); // "2." or "2)"
+  if (!m) return null;
+  const n = Number(m[1]);
+  return Number.isInteger(n) ? n : null;
+}
+
+function sha256(input: string): string {
+  return crypto.createHash("sha256").update(input, "utf8").digest("hex");
+}
+
+/**
+ * fingerprint 규칙:
+ * - doc_id + used_at + item_name + qty + unit_price + amount + (source_row_no)
+ * - 같은 행 재업로드 시 "같은 지문"이 나오게 설계
+ */
+function makeFingerprint(r: {
+  doc_id: string;
+  used_at: string;
+  item_name: string;
+  qty: number;
+  unit_price: number;
+  amount: number;
+  source_row_no: number | null;
+}): string {
+  const base = [
+    r.doc_id,
+    r.used_at,
+    r.item_name,
+    String(r.qty),
+    String(r.unit_price),
+    String(r.amount),
+    String(r.source_row_no ?? ""),
+  ].join("|");
+  return sha256(base);
+}
+
+export async function POST(req: NextRequest) {
   try {
-    const form = await req.formData();
+    const formData = await req.formData();
 
-    // 프론트에서 보내는 키 이름을 그대로 사용
-    const expenseItemId = String(form.get("expenseItemId") || "");
-    const kindRaw = String(form.get("kind") || ""); // inbound | issue_install
-    const slotRaw = String(form.get("slot") ?? "");
-    const file = form.get("file") as File | null;
-
-    // 1) 필수값 검사
-    if (!expenseItemId || !kindRaw || !slotRaw || !file) {
-      return NextResponse.json({ ok: false, error: "필수값 누락" }, { status: 400 });
+    // ✅ 필수: docId (UUID)
+    const docId = String(formData.get("docId") ?? "").trim();
+    if (!docId) {
+      return NextResponse.json(
+        { ok: false, error: "docId가 없습니다. formData에 docId(UUID)를 넣어주세요." },
+        { status: 400 }
+      );
     }
 
-    const kind = kindRaw as PhotoKind;
-    const slot = Number(slotRaw);
-
-    // 2) 입력값 유효성(서버 강제)
-    if (!["inbound", "issue_install"].includes(kind)) {
-      return NextResponse.json({ ok: false, error: "kind 오류" }, { status: 400 });
+    // ✅ 필수: file
+    const file = formData.get("file") as File | null;
+    if (!file) {
+      return NextResponse.json({ ok: false, error: "file이 없습니다." }, { status: 400 });
     }
 
-    if (!Number.isFinite(slot) || slot < 0 || slot > 3) {
-      return NextResponse.json({ ok: false, error: "slot 범위 오류(0~3)" }, { status: 400 });
+    const buf = await file.arrayBuffer();
+
+    // ✅ 기존 파서 사용(신찬님이 올려준 1번 코드)
+    const parsed = parseItemUsageSheet(buf);
+
+    if (!parsed.length) {
+      return NextResponse.json(
+        { ok: false, error: "엑셀에서 추출된 실사용 데이터가 0건입니다. (헤더/형식 확인 필요)" },
+        { status: 400 }
+      );
     }
 
-    if (kind === "inbound" && slot !== 0) {
-      return NextResponse.json({ ok: false, error: "반입은 slot=0만 허용" }, { status: 400 });
-    }
+    const rowsToInsert: DbInsertRow[] = [];
+    const skipped: Array<{ evidenceNo: number; reason: string }> = [];
 
-    if (!file.type.startsWith("image/")) {
-      return NextResponse.json({ ok: false, error: "이미지 파일만 허용" }, { status: 400 });
-    }
-
-    // 3) 기존 슬롯 사진 존재 여부(교체 목적)
-    const { data: existing, error: exErr } = await supabaseAdmin
-      .from("expense_item_photos")
-      .select("id, storage_path")
-      .eq("expense_item_id", expenseItemId)
-      .eq("kind", kind)
-      .eq("slot", slot)
-      .maybeSingle();
-
-    if (exErr) throw exErr;
-
-    // 4) issue_install은 최대 4장: "신규 추가"만 차단(교체는 허용)
-    if (kind === "issue_install" && !existing?.id) {
-      const { count, error: countErr } = await supabaseAdmin
-        .from("expense_item_photos")
-        .select("*", { count: "exact", head: true })
-        .eq("expense_item_id", expenseItemId)
-        .eq("kind", "issue_install");
-
-      if (countErr) throw countErr;
-
-      if ((count ?? 0) >= 4) {
-        return NextResponse.json({ ok: false, error: "지급·설치 사진은 최대 4장" }, { status: 400 });
+    for (const r of parsed) {
+      // parseItemUsageSheet가 이미 useDateISO를 만들지만,
+      // 혹시 빈 값이면 저장 금지
+      if (!r.useDateISO) {
+        skipped.push({ evidenceNo: r.evidenceNo, reason: "used_at(사용일자) 없음" });
+        continue;
       }
-    }
 
-    // 5) Storage 경로(슬롯 고정: 같은 슬롯은 항상 같은 파일로 교체)
-    const safeName = file.name.replaceAll(" ", "_");
-    const ext = safeName.includes(".") ? (safeName.split(".").pop() || "jpg") : "jpg";
-    const safeExt = ext.toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 8) || "jpg";
-    const path = `expense_items/${expenseItemId}/${kind}/${slot}.${safeExt}`;
+      // item_name(사용내역) 필수로 봄
+      const itemName = String(r.description ?? "").trim();
+      if (!itemName) {
+        skipped.push({ evidenceNo: r.evidenceNo, reason: "item_name(사용내역) 없음" });
+        continue;
+      }
 
-    // 6) Storage 업로드(upsert=true로 같은 슬롯 교체)
-    const buf = Buffer.from(await file.arrayBuffer());
+      // qty/unit_price/amount 숫자 필수(테이블 numeric)
+      if (r.qty === null || r.unitPrice === null || r.amount === null) {
+        skipped.push({
+          evidenceNo: r.evidenceNo,
+          reason: `숫자 파싱 실패(qty/unit_price/amount). 원본(qty="${r.qtyRaw}", unit_price="${r.unitPriceRaw}", amount="${r.amountRaw}")`,
+        });
+        continue;
+      }
 
-    const { error: upErr } = await supabaseAdmin.storage
-      .from("expense-evidence") // ✅ 버킷명 통일(치명 오류 방지)
-      .upload(path, buf, {
-        upsert: true, // [이유] 같은 슬롯은 교체(덮어쓰기)
-        contentType: file.type,
+      const categoryNo = extractCategoryNo(r.category);
+
+      // source_row_no: 파서에서 absolute row index를 안 넘기고 있으므로
+      // 지금은 evidenceNo로 대체(추적용). 원하면 파서에 excel_row_index를 추가하세요.
+      // (지금 단계에서는 꼬임 방지 위해 최소 변경)
+      const sourceRowNo = toIntOrNull(r.evidenceNo);
+
+      const fp = makeFingerprint({
+        doc_id: docId,
+        used_at: r.useDateISO,
+        item_name: itemName,
+        qty: r.qty,
+        unit_price: r.unitPrice,
+        amount: r.amount,
+        source_row_no: sourceRowNo,
       });
 
-    if (upErr) throw upErr;
-
-    // 7) DB 메타 저장(기존 있으면 update, 없으면 insert)
-    const payload = {
-      expense_item_id: expenseItemId,
-      kind,
-      slot,
-      storage_path: path,
-      original_name: file.name,
-      mime_type: file.type,
-      size_bytes: file.size,
-    };
-
-    let dbRes;
-    if (existing?.id) {
-      dbRes = await supabaseAdmin
-        .from("expense_item_photos")
-        .update(payload)
-        .eq("id", existing.id)
-        .select("*")
-        .single();
-    } else {
-      dbRes = await supabaseAdmin
-        .from("expense_item_photos")
-        .insert(payload)
-        .select("*")
-        .single();
+      rowsToInsert.push({
+        doc_id: docId,
+        evidence_no: String(r.evidenceNo), // ✅ 테이블이 text라서 문자열로
+        item_name: itemName,
+        used_at: r.useDateISO, // ✅ 테이블이 text
+        qty: r.qty,
+        unit_price: r.unitPrice,
+        amount: r.amount,
+        category_no: categoryNo,
+        source_row_no: sourceRowNo,
+        source_fingerprint: fp,
+      });
     }
 
-    if (dbRes.error) throw dbRes.error;
+    if (!rowsToInsert.length) {
+      return NextResponse.json(
+        { ok: false, error: "저장할 데이터가 0건입니다.", skipped: skipped.slice(0, 200) },
+        { status: 400 }
+      );
+    }
 
-    return NextResponse.json({ ok: true, photo: dbRes.data });
+    // ✅ 중복 방지(권장):
+    // DB에 (doc_id, source_fingerprint) unique를 걸어두면 가장 안전합니다.
+    // 지금은 최소 변경으로 insert 시도 → 충돌 나면 에러 메시지로 확인 가능.
+    const { error } = await supabase.from("expense_items").insert(rowsToInsert);
+
+    if (error) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: error.message,
+          hint:
+            "테이블 컬럼명이 이 코드와 정확히 일치하는지 확인하세요. (expense_items: doc_id, evidence_no, item_name, used_at, qty, unit_price, amount, category_no, source_row_no, source_fingerprint)",
+          savedAttempt: rowsToInsert.length,
+          skippedCount: skipped.length,
+          skipped: skipped.slice(0, 80),
+        },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({
+      ok: true,
+      docId,
+      saved: rowsToInsert.length,
+      skippedCount: skipped.length,
+      skipped: skipped.slice(0, 80),
+      msg: `완료: ${rowsToInsert.length}건 저장 (스킵 ${skipped.length}건)`,
+    });
   } catch (e: any) {
-    return NextResponse.json({ ok: false, error: e?.message ?? "서버 오류" }, { status: 500 });
+    return NextResponse.json({ ok: false, error: e?.message ?? "unknown error" }, { status: 500 });
   }
 }

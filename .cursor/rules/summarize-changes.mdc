@@ -1,0 +1,30 @@
+---
+description: 작업 완료 시 수정 사항 요약
+alwaysApply: true
+---
+
+# 작업 완료 시 수정 사항 정리
+
+모든 수정 작업이 끝나면 **반드시** 아래 형식으로 사용자에게 알린다.
+
+## 요약 형식
+
+1. **수정한 파일 목록** (경로 포함)
+2. **각 파일에서 변경된 내용** (핵심만 간단히)
+3. 필요 시 **추가 의견** (주의사항, 후속 작업 등)
+
+### 예시
+
+```
+## 수정 완료
+
+**수정 파일**
+- `src/app/workspace/page.tsx` — 스크롤 애니메이션 추가, motion variants 정의
+- `src/app/workspace/WorkspacePage.module.css` — 진입 애니메이션 키프레임 추가
+
+**변경 요약**
+- page.tsx: scrollReveal, listStagger variants 추가, docHeader/itemSection/photoSection에 motion.section 적용
+- CSS: wsFadeIn, wsContentIn 키프레임 정의
+```
+
+빠르게 무엇이 바뀌었는지 파악할 수 있도록, 항상 끝에 위와 같은 요약을 포함한다.

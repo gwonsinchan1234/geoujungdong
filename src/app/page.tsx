@@ -1,8 +1,56 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import styles from "./HomePage.module.css";
+
+/* ─────────────────────────────────────────────
+   스크롤 진입 애니메이션 (IntersectionObserver)
+───────────────────────────────────────────── */
+function useRevealOnScroll() {
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!("IntersectionObserver" in window)) return;
+
+    const els = Array.from(
+      document.querySelectorAll<HTMLElement>("[data-reveal]")
+    );
+
+    // prefers-reduced-motion 존중
+    const reduceMotion =
+      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+
+    if (reduceMotion) {
+      els.forEach((el) => el.classList.add(styles.revealIn));
+      return;
+    }
+
+    // 요소별 delay 적용
+    els.forEach((el) => {
+      const d = el.getAttribute("data-reveal-delay");
+      if (d) el.style.transitionDelay = `${Number(d)}ms`;
+    });
+
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue;
+          const el = entry.target as HTMLElement;
+          el.classList.add(styles.revealIn);
+          io.unobserve(el);
+        }
+      },
+      {
+        threshold: 0.15,
+        rootMargin: "0px 0px -10% 0px",
+      }
+    );
+
+    els.forEach((el) => io.observe(el));
+
+    return () => io.disconnect();
+  }, []);
+}
 
 /* ─────────────────────────────────────────────
    FAQ 데이터
@@ -84,19 +132,17 @@ export default function HomePage() {
     setOpenFaq((prev) => (prev === index ? null : index));
   }, []);
 
+  // 스크롤 진입 애니메이션 활성화
+  useRevealOnScroll();
+
   return (
     <div className={styles.page}>
       {/* ───── 헤더 ───── */}
       <header className={styles.header}>
         <div className={styles.headerInner}>
           <Link href="/" className={styles.brand} aria-current="page">
-            사진대지
+            PhotoSheet
           </Link>
-          <nav aria-label="주요 메뉴">
-            <Link href="/workspace" className={styles.navLink}>
-              작업 공간
-            </Link>
-          </nav>
         </div>
       </header>
 
@@ -104,7 +150,7 @@ export default function HomePage() {
         {/* ───── Hero 섹션 ───── */}
         <section className={styles.hero} aria-labelledby="hero-heading">
           <div className={styles.heroInner}>
-            <div className={styles.heroText}>
+            <div className={styles.heroText} data-reveal data-reveal-delay="0">
               <h1 id="hero-heading" className={styles.h1}>
                 엑셀 한 행이 곧 하나의 품목.
                 <br />
@@ -116,17 +162,14 @@ export default function HomePage() {
                 별도 편집 없이 PDF 사진대지가 바로 출력됩니다.
               </p>
               <div className={styles.heroCta}>
-                <Link href="/workspace" className={styles.btnPrimary}>
-                  작업 공간 열기
+                <Link href="/workspace?openUpload=1" className={styles.btnPrimary} aria-label="시작하기">
+                  시작하기
                 </Link>
-                <a href="#how-it-works" className={styles.btnSecondary}>
-                  사용 방법 보기
-                </a>
               </div>
             </div>
 
             {/* 미니 프리뷰 UI */}
-            <div className={styles.heroPreview} aria-hidden="true">
+            <div className={styles.heroPreview} aria-hidden="true" data-reveal data-reveal-delay="300">
               <div className={styles.miniWorkspace}>
                 {/* 미니 테이블 */}
                 <div className={styles.miniTable}>
@@ -179,9 +222,9 @@ export default function HomePage() {
         </section>
 
         {/* ───── 신뢰 요소 (Proof) ───── */}
-        <section className={styles.proof} aria-label="핵심 특징">
+        <section className={styles.proof} aria-label="핵심 특징" data-reveal>
           <div className={styles.proofInner}>
-            <div className={styles.proofItem}>
+            <div className={styles.proofItem} data-reveal data-reveal-delay="0">
               <div className={styles.proofIcon}>
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
@@ -196,7 +239,7 @@ export default function HomePage() {
                 <span>행 단위로 품목 자동 인식</span>
               </div>
             </div>
-            <div className={styles.proofItem}>
+            <div className={styles.proofItem} data-reveal data-reveal-delay="100">
               <div className={styles.proofIcon}>
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <rect x="3" y="3" width="18" height="18" rx="2" />
@@ -209,7 +252,7 @@ export default function HomePage() {
                 <span>반입/지급 · 설치 사진 분리</span>
               </div>
             </div>
-            <div className={styles.proofItem}>
+            <div className={styles.proofItem} data-reveal data-reveal-delay="200">
               <div className={styles.proofIcon}>
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
@@ -229,11 +272,11 @@ export default function HomePage() {
         {/* ───── 기능 카드 ───── */}
         <section className={styles.features} aria-labelledby="features-heading">
           <div className={styles.featuresInner}>
-            <h2 id="features-heading" className={styles.h2}>
+            <h2 id="features-heading" className={styles.h2} data-reveal>
               주요 기능
             </h2>
             <div className={styles.featureGrid}>
-              <article className={styles.featureCard}>
+              <article className={styles.featureCard} data-reveal data-reveal-delay="0">
                 <div className={styles.featureIconWrap}>
                   <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
@@ -246,7 +289,7 @@ export default function HomePage() {
                   xlsx/xls 파일을 드래그하거나 선택하면 품목 목록이 자동으로 불러와집니다.
                 </p>
               </article>
-              <article className={styles.featureCard}>
+              <article className={styles.featureCard} data-reveal data-reveal-delay="150">
                 <div className={styles.featureIconWrap}>
                   <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                     <polyline points="9,11 12,14 22,4" />
@@ -258,7 +301,7 @@ export default function HomePage() {
                   출력할 품목만 체크박스로 선택하세요. 전체 선택/해제도 한 번에 가능합니다.
                 </p>
               </article>
-              <article className={styles.featureCard}>
+              <article className={styles.featureCard} data-reveal data-reveal-delay="300">
                 <div className={styles.featureIconWrap}>
                   <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                     <rect x="3" y="3" width="18" height="18" rx="2" />
@@ -278,32 +321,32 @@ export default function HomePage() {
         {/* ───── Steps ───── */}
         <section className={styles.steps} id="how-it-works" aria-labelledby="steps-heading">
           <div className={styles.stepsInner}>
-            <h2 id="steps-heading" className={styles.h2}>
+            <h2 id="steps-heading" className={styles.h2} data-reveal>
               사용 방법
             </h2>
             <ol className={styles.stepList}>
-              <li className={styles.stepItem}>
+              <li className={styles.stepItem} data-reveal data-reveal-delay="0">
                 <span className={styles.stepNumber}>1</span>
                 <div className={styles.stepContent}>
                   <strong>엑셀 파일 업로드</strong>
                   <span>품목이 정리된 사용내역서 엑셀을 업로드합니다.</span>
                 </div>
               </li>
-              <li className={styles.stepItem}>
+              <li className={styles.stepItem} data-reveal data-reveal-delay="150">
                 <span className={styles.stepNumber}>2</span>
                 <div className={styles.stepContent}>
                   <strong>출력할 품목 선택</strong>
                   <span>목록에서 사진대지를 만들 품목을 선택합니다.</span>
                 </div>
               </li>
-              <li className={styles.stepItem}>
+              <li className={styles.stepItem} data-reveal data-reveal-delay="300">
                 <span className={styles.stepNumber}>3</span>
                 <div className={styles.stepContent}>
                   <strong>사진 업로드 및 매칭</strong>
                   <span>각 품목의 반입/지급, 설치 슬롯에 사진을 넣습니다.</span>
                 </div>
               </li>
-              <li className={styles.stepItem}>
+              <li className={styles.stepItem} data-reveal data-reveal-delay="450">
                 <span className={styles.stepNumber}>4</span>
                 <div className={styles.stepContent}>
                   <strong>PDF 출력</strong>
@@ -317,26 +360,27 @@ export default function HomePage() {
         {/* ───── FAQ ───── */}
         <section className={styles.faq} aria-labelledby="faq-heading">
           <div className={styles.faqInner}>
-            <h2 id="faq-heading" className={styles.h2}>
+            <h2 id="faq-heading" className={styles.h2} data-reveal>
               자주 묻는 질문
             </h2>
             <div className={styles.faqList}>
               {FAQ_DATA.map((item, idx) => (
-                <FaqItem
-                  key={idx}
-                  q={item.q}
-                  a={item.a}
-                  isOpen={openFaq === idx}
-                  onToggle={() => toggleFaq(idx)}
-                  id={String(idx)}
-                />
+                <div key={idx} data-reveal data-reveal-delay={idx * 100}>
+                  <FaqItem
+                    q={item.q}
+                    a={item.a}
+                    isOpen={openFaq === idx}
+                    onToggle={() => toggleFaq(idx)}
+                    id={String(idx)}
+                  />
+                </div>
               ))}
             </div>
           </div>
         </section>
 
         {/* ───── 최종 CTA ───── */}
-        <section className={styles.finalCta} aria-labelledby="final-cta-heading">
+        <section className={styles.finalCta} aria-labelledby="final-cta-heading" data-reveal>
           <div className={styles.finalCtaInner}>
             <h2 id="final-cta-heading" className={styles.h2Center}>
               지금 바로 시작하세요

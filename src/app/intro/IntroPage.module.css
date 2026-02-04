@@ -4,11 +4,10 @@
   width: 100%;
   height: 100dvh;
   overflow: hidden;
-  background: #000;
-  color: #fff;
+  background: var(--background);
+  color: var(--foreground);
 }
 
-/* ===== 배경 영상 ===== */
 .bg {
   position: fixed;
   inset: 0;
@@ -20,61 +19,53 @@
   position: absolute;
   inset: 0;
   z-index: 0;
-
   width: 100%;
   height: 100%;
   object-fit: cover;
-
   transform: scale(1.02);
 }
 
-/* “흰/멀건 레이어” 제거 유지 */
-.fallback {
-  display: none;
-}
-
+.fallback,
 .overlay {
   display: none;
 }
 
-/* ===== 콘텐츠 레이어(해상도 무관 핵심) =====
-   - 중앙 컨테이너: width: min(960px, 92vw)
-   - 상하 여백: clamp(20px ~ 56px)
-   - 1366x768에서 타이틀이 잘리면 여백을 줄이도록 설계
-*/
 .content {
   position: relative;
   z-index: 2;
   height: 100%;
   display: grid;
   place-items: center;
-  padding: clamp(20px, 4.5vh, 56px) clamp(16px, 3vw, 28px);
+  padding: var(--space-8) var(--space-4);
+}
+
+@media (min-width: 640px) {
+  .content {
+    padding: var(--space-12) var(--space-6);
+  }
 }
 
 .hero {
   width: min(960px, 92vw);
   text-align: center;
-
-  /* 768 세로에서 상하 잘림 방지: 콘텐츠가 길면 자연스럽게 줄간격/여백이 줄어듦 */
   display: grid;
-  gap: clamp(10px, 1.8vh, 18px);
+  gap: var(--space-4);
 }
 
-/* ===== 고급 페이드/슬라이드 인(과하지 않게) ===== */
-:root {
-  --intro-ease: cubic-bezier(0.22, 1, 0.36, 1);
+@media (min-width: 640px) {
+  .hero {
+    gap: var(--space-6);
+  }
 }
 
 @keyframes intro-fade-up {
   from {
     opacity: 0;
     transform: translateY(12px);
-    filter: blur(2px);
   }
   to {
     opacity: 1;
     transform: translateY(0);
-    filter: blur(0);
   }
 }
 
@@ -84,111 +75,82 @@
 .actions {
   opacity: 0;
   transform: translateY(12px);
-  filter: blur(2px);
-
-  animation-name: intro-fade-up;
-  animation-duration: 900ms;
-  animation-timing-function: var(--intro-ease);
-  animation-fill-mode: forwards;
+  animation: intro-fade-up 0.6s var(--ease-out) forwards;
 }
 
-/* 순차 등장 */
 .kicker {
-  animation-delay: 120ms;
+  animation-delay: 80ms;
 }
 .title {
-  animation-delay: 220ms;
+  animation-delay: 160ms;
 }
 .subtitle {
-  animation-delay: 360ms;
+  animation-delay: 260ms;
 }
 .actions {
-  animation-delay: 500ms;
+  animation-delay: 360ms;
 }
 
-/* ===== 타이포(해상도 대응 핵심: clamp) ===== */
 .kicker {
   margin: 0;
-  font-size: 11px;
-  letter-spacing: 0.22em;
+  font-size: var(--text-xs);
+  line-height: var(--text-xs--line);
+  letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: #ffffff;
+  font-weight: var(--font-medium);
+  color: var(--muted-foreground);
 }
 
 .title {
   margin: 0;
-  font-size: clamp(22px, 2.8vw, 40px);
-  line-height: 1.1;
-  letter-spacing: -0.02em;
-  font-weight: 650;
-  color: #ffffff;
-  text-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+  font-size: clamp(1.5rem, 4vw, 2.5rem);
+  line-height: 1.15;
+  letter-spacing: -0.03em;
+  font-weight: var(--font-bold);
+  color: var(--foreground);
 }
 
 .subtitle {
   margin: 0 auto;
   width: min(720px, 92vw);
-  font-size: clamp(13px, 1.35vw, 16px);
-  line-height: 1.65;
-  color: #ffffff;
-  text-shadow: 0 10px 24px rgba(0, 0, 0, 0.38);
+  font-size: var(--text-sm);
+  line-height: var(--text-sm--line);
+  color: var(--muted-foreground);
 }
 
-/* ===== 버튼(해상도 대응 + 모바일/1366 안전) ===== */
 .actions {
-  margin-top: clamp(6px, 1.2vh, 14px);
+  margin-top: var(--space-2);
   display: flex;
-  gap: 10px;
+  gap: var(--space-3);
   justify-content: center;
   flex-wrap: wrap;
 }
 
 .primaryBtn {
-  padding: 12px 18px;
-  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-3) var(--space-6);
+  border-radius: var(--radius-full);
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
   text-decoration: none;
-  font-weight: 650;
-  font-size: 13px;
-  min-width: 140px;
-  text-align: center;
-  backdrop-filter: blur(6px);
-  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.32);
-}
-
-.primaryBtn {
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  background: #ffffff;
-  color: #000000;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  border: none;
+  box-shadow: var(--shadow-md);
+  transition: transform var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast) var(--ease-out);
 }
 
 .primaryBtn:hover {
   transform: translateY(-1px);
+  box-shadow: var(--shadow-lg);
 }
 
 .primaryBtn:active {
   transform: translateY(0);
 }
 
-.mono {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-}
-
-/* ===== 1366x768 대응: 세로가 낮을 때 “자동으로 조금 더 조밀하게” ===== */
-@media (max-height: 800px) {
-  .content {
-    padding: 18px 18px;
-  }
-
-  .hero {
-    gap: 12px;
-  }
-
-  .title {
-    font-size: clamp(20px, 2.6vw, 36px);
-  }
-}
-
-/* ===== 모션 줄이기 설정에서도 숨김 금지 ===== */
 @media (prefers-reduced-motion: reduce) {
   .kicker,
   .title,
@@ -196,10 +158,8 @@
   .actions {
     opacity: 1;
     transform: none;
-    filter: none;
     animation: none;
   }
-
   .primaryBtn:hover,
   .primaryBtn:active {
     transform: none;
