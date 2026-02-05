@@ -1,0 +1,184 @@
+/* PhotoSheet.module.css
+   A4 세로 사진대지 출력 전용 스타일
+   ───────────────────────────────────
+   규칙:
+   - 반입 4칸 (2x2), 설치 4칸 (2x2) 고정
+   - 사진 없으면 빈칸 유지
+   - 미리보기 = 출력 레이아웃 동일
+*/
+
+/* ═══ 페이지 컨테이너 (A4 세로 비율) ═══ */
+.page {
+  width: 210mm;
+  min-height: 297mm;
+  padding: 10mm;
+  background: #fff;
+  box-sizing: border-box;
+  font-family: "Malgun Gothic", "맑은 고딕", sans-serif;
+}
+
+/* 미리보기용 스케일 */
+.pagePreview {
+  width: 100%;
+  max-width: 600px;
+  min-height: auto;
+  aspect-ratio: 210 / 297;
+  padding: 16px;
+  border: 1px solid #ccc;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+/* ═══ 단일 항목 (NO.1, NO.2, NO.3) ═══ */
+.item {
+  border: 1px solid #000;
+  margin-bottom: 8px;
+  page-break-inside: avoid;
+}
+
+.item:last-child {
+  margin-bottom: 0;
+}
+
+/* NO 헤더 */
+.noHeader {
+  background: #f0f0f0;
+  border-bottom: 1px solid #000;
+  padding: 4px 8px;
+  font-weight: 700;
+  font-size: 14px;
+  text-align: center;
+}
+
+/* 컨텐츠 영역 (반입 | 설치 2열) */
+.content {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+/* 반입/설치 각 열 */
+.column {
+  border-right: 1px solid #000;
+}
+
+.column:last-child {
+  border-right: none;
+}
+
+/* 열 헤더 (반입사진 / 현장 설치 사진) */
+.columnHeader {
+  background: #e8e8e8;
+  border-bottom: 1px solid #000;
+  padding: 4px;
+  font-weight: 600;
+  font-size: 11px;
+  text-align: center;
+}
+
+/* 사진 그리드 (2x2 = 4칸 고정) */
+.photoGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  aspect-ratio: 2 / 1.5;
+  border-bottom: 1px solid #000;
+}
+
+/* 개별 사진 셀 */
+.photoCell {
+  border-right: 1px solid #999;
+  border-bottom: 1px solid #999;
+  background: #fafafa;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  min-height: 60px;
+}
+
+.photoCell:nth-child(2n) {
+  border-right: none;
+}
+
+.photoCell:nth-child(n+3) {
+  border-bottom: none;
+}
+
+/* 사진 이미지 */
+.photoCell img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* 빈 셀 표시 */
+.emptyCell {
+  color: #ccc;
+  font-size: 10px;
+}
+
+/* 정보 행 (날짜, 항목) */
+.infoRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border-bottom: 1px solid #000;
+}
+
+.infoRow:last-child {
+  border-bottom: none;
+}
+
+.infoCell {
+  display: flex;
+  border-right: 1px solid #000;
+}
+
+.infoCell:last-child {
+  border-right: none;
+}
+
+.infoLabel {
+  width: 36px;
+  padding: 4px 6px;
+  background: #e8e8e8;
+  font-weight: 600;
+  font-size: 10px;
+  text-align: center;
+  border-right: 1px solid #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.infoValue {
+  flex: 1;
+  padding: 4px 8px;
+  font-size: 10px;
+  display: flex;
+  align-items: center;
+}
+
+/* ═══ 인쇄 전용 스타일 ═══ */
+@media print {
+  .page {
+    width: 210mm;
+    min-height: 297mm;
+    padding: 10mm;
+    margin: 0;
+    box-shadow: none;
+  }
+
+  .item {
+    page-break-inside: avoid;
+  }
+
+  .pagePreview {
+    width: 210mm;
+    max-width: none;
+    aspect-ratio: auto;
+    min-height: 297mm;
+    padding: 10mm;
+    border: none;
+    box-shadow: none;
+  }
+}

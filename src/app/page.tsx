@@ -399,9 +399,6 @@ export default function HomePage() {
       <footer className={styles.footer}>
         <div className={styles.footerInner}>
           <span className={styles.footerCopy}>© 2025 사진대지 자동 출력</span>
-          <Link href="/workspace" className={styles.footerLink}>
-            작업 공간
-          </Link>
         </div>
       </footer>
     </div>

@@ -78,17 +78,18 @@
   animation: intro-fade-up 0.6s var(--ease-out) forwards;
 }
 
+/* 0.7초 딜레이 추가: 기존 stagger delay + 700ms */
 .kicker {
-  animation-delay: 80ms;
+  animation-delay: 780ms;
 }
 .title {
-  animation-delay: 160ms;
+  animation-delay: 860ms;
 }
 .subtitle {
-  animation-delay: 260ms;
+  animation-delay: 960ms;
 }
 .actions {
-  animation-delay: 360ms;
+  animation-delay: 1060ms;
 }
 
 .kicker {

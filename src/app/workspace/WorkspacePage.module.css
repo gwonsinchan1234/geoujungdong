@@ -76,6 +76,21 @@
     --ws-transition-normal: 200ms ease;
     --ws-transition-slow: 300ms cubic-bezier(0.4, 0, 0.2, 1);
   }
+
+  /* ══════════════════════════════════════════════════════════════════════════
+     PAGE LOAD ANIMATION
+     ══════════════════════════════════════════════════════════════════════════ */
+
+  @keyframes ws-fade-up {
+    from {
+      opacity: 0;
+      transform: translateY(16px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
   
   
   /* ══════════════════════════════════════════════════════════════════════════
@@ -116,6 +131,9 @@
     padding: 0 var(--ws-space-5);
     background: var(--ws-surface-0);
     border-bottom: 1px solid var(--ws-border-light);
+    opacity: 0;
+    animation: ws-fade-up 0.5s ease forwards;
+    animation-delay: 100ms;
   }
   
   .headerLeft {
@@ -264,6 +282,9 @@
     background: var(--ws-surface-0);
     border: 1px solid var(--ws-border-light);
     border-radius: var(--ws-radius-lg);
+    opacity: 0;
+    animation: ws-fade-up 0.5s ease forwards;
+    animation-delay: 200ms;
   }
   
   .toolbarLeft {
@@ -403,6 +424,9 @@
     overflow: hidden;
     display: flex;
     flex-direction: column;
+    opacity: 0;
+    animation: ws-fade-up 0.5s ease forwards;
+    animation-delay: 300ms;
   }
   
   .dataTable {
@@ -480,8 +504,13 @@
   .colSeq {
     width: 60px;
     text-align: center !important;
-    color: var(--ws-text-tertiary) !important;
     font-variant-numeric: tabular-nums;
+  }
+
+  .colName {
+    min-width: 180px;
+    text-align: left !important;
+    font-weight: 500;
   }
   
   .colDate {
@@ -489,11 +518,6 @@
     font-family: var(--ws-font-mono);
     font-size: 12px;
     color: var(--ws-text-secondary) !important;
-  }
-  
-  .colName {
-    min-width: 180px;
-    font-weight: 500;
   }
   
   .colQty,
@@ -511,6 +535,20 @@
   }
   
   /* Total row */
+  .groupHeaderRow {
+    background: var(--ws-surface-2);
+  }
+  
+  .groupHeaderCell {
+    padding: 10px 20px;
+    font-weight: 600;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--ws-text-secondary);
+    border-bottom: 1px solid var(--ws-border-medium);
+  }
+  
   .totalRow {
     background: var(--ws-surface-1);
   }
@@ -525,7 +563,36 @@
   .totalRow .colName {
     color: var(--ws-text-secondary);
   }
-  
+
+  /* 사진 등록 완료된 행 */
+  .rowDone {
+    background: rgba(16, 185, 129, 0.06);
+  }
+
+  .rowDone:hover {
+    background: rgba(16, 185, 129, 0.1);
+  }
+
+  .rowDone.rowActive {
+    background: rgba(16, 185, 129, 0.12);
+  }
+
+  .doneCheck {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    background: var(--ws-success);
+    border-radius: 50%;
+    margin-right: 6px;
+    vertical-align: middle;
+  }
+
+  .doneCheck svg {
+    color: white;
+  }
+
   /* Empty state */
   .emptyRow {
     padding: 48px 16px !important;
@@ -543,6 +610,9 @@
     border: 1px solid var(--ws-border-light);
     border-radius: var(--ws-radius-lg);
     padding: var(--ws-space-4);
+    opacity: 0;
+    animation: ws-fade-up 0.5s ease forwards;
+    animation-delay: 400ms;
   }
   
   .photoAreaHeader {
@@ -596,20 +666,26 @@
   }
   
   .photoGrid {
-    display: grid;
-    grid-template-columns: repeat(5, 1fr);
+    display: flex;
+    flex-direction: column;
     gap: var(--ws-space-3);
   }
-  
+
+  .photoRow {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--ws-space-3);
+  }
+
   @media (max-width: 1280px) {
-    .photoGrid {
+    .photoRow {
       grid-template-columns: repeat(4, 1fr);
     }
   }
   
   @media (max-width: 1024px) {
-    .photoGrid {
-      grid-template-columns: repeat(3, 1fr);
+    .photoRow {
+      grid-template-columns: repeat(4, 1fr);
     }
   }
   
@@ -1014,8 +1090,342 @@
   .errorToast button:hover {
     color: white;
   }
-  
-  
+
+
+  /* ══════════════════════════════════════════════════════════════════════════
+     PREVIEW MODAL
+     ══════════════════════════════════════════════════════════════════════════ */
+
+  .previewOverlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+    padding: var(--ws-space-4);
+  }
+
+  .previewModal {
+    width: 100%;
+    max-width: 900px;
+    max-height: 90vh;
+    background: var(--ws-surface-0);
+    border-radius: var(--ws-radius-xl);
+    box-shadow: var(--ws-shadow-lg);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .previewHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--ws-space-4) var(--ws-space-5);
+    border-bottom: 1px solid var(--ws-border-light);
+  }
+
+  .previewTitle {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--ws-text-primary);
+  }
+
+  .previewActions {
+    display: flex;
+    align-items: center;
+    gap: var(--ws-space-2);
+  }
+
+  .previewExportBtn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    background: var(--ws-accent);
+    border: none;
+    border-radius: var(--ws-radius-md);
+    font-size: 13px;
+    font-weight: 600;
+    color: white;
+    cursor: pointer;
+    transition: all var(--ws-transition-fast);
+  }
+
+  .previewExportBtn:hover {
+    background: var(--ws-accent-light);
+  }
+
+  .previewExportBtn svg {
+    flex-shrink: 0;
+  }
+
+  .previewClose {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    border-radius: var(--ws-radius-md);
+    font-size: 16px;
+    color: var(--ws-text-tertiary);
+    cursor: pointer;
+    transition: all var(--ws-transition-fast);
+  }
+
+  .previewClose:hover {
+    background: var(--ws-surface-1);
+    color: var(--ws-text-primary);
+  }
+
+  .previewContent {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--ws-space-5);
+    background: var(--ws-surface-1);
+  }
+
+  .previewEmpty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 200px;
+    color: var(--ws-text-tertiary);
+  }
+
+  /* Sheet Preview - 엑셀 양식 스타일 */
+  .previewSheet {
+    background: white;
+    border: 2px solid #333;
+    padding: var(--ws-space-4);
+  }
+
+  .sheetHeader {
+    text-align: center;
+    margin-bottom: var(--ws-space-3);
+    padding-bottom: var(--ws-space-2);
+    border-bottom: 2px solid #333;
+  }
+
+  .sheetTitle {
+    font-size: 18px;
+    font-weight: 700;
+    color: #000;
+  }
+
+  .sheetNo {
+    font-size: 14px;
+    font-weight: 700;
+    color: #000;
+    margin-bottom: var(--ws-space-2);
+    padding: 4px 8px;
+    background: #f0f0f0;
+    border: 1px solid #333;
+    display: inline-block;
+  }
+
+  .sheetPhotoArea {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+    border: 1px solid #333;
+  }
+
+  .sheetPhotoColumn {
+    border-right: 1px solid #333;
+  }
+
+  .sheetPhotoColumn:last-child {
+    border-right: none;
+  }
+
+  .sheetPhotoLabel {
+    padding: 8px;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 600;
+    background: #e8e8e8;
+    border-bottom: 1px solid #333;
+    color: #000;
+  }
+
+  .sheetPhotoCells {
+    display: grid;
+    gap: 0;
+    height: 200px;
+    border: 1px solid #ccc;
+    background: #fafafa;
+  }
+
+  /* 1장: 전체 영역 */
+  .sheetPhotoCells.layout1 {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr;
+  }
+
+  /* 2장: 좌우 반반 */
+  .sheetPhotoCells.layout2 {
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr;
+  }
+
+  /* 3장: 위 1장 전체, 아래 2장 */
+  .sheetPhotoCells.layout3 {
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+  }
+
+  .sheetPhotoCells.layout3 .sheetPhotoCell:first-child {
+    grid-column: 1 / -1;
+  }
+
+  /* 4장: 2x2 그리드 */
+  .sheetPhotoCells.layout4 {
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+  }
+
+  .sheetPhotoCell {
+    border: 1px solid #ddd;
+    background: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  .sheetPhotoCell img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .sheetPhotoEmpty {
+    width: 100%;
+    height: 200px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: #999;
+    font-size: 12px;
+    border: 1px solid #ccc;
+    background: #fafafa;
+    box-sizing: border-box;
+  }
+
+  .sheetInfoRow {
+    display: flex;
+    align-items: stretch;
+    border-top: 1px solid #333;
+    font-size: 12px;
+    line-height: 1.4;
+    min-height: 28px;
+  }
+
+  .sheetInfoLabel {
+    width: 50px;
+    padding: 6px 8px;
+    background: #e8e8e8;
+    font-weight: 600;
+    border-right: 1px solid #333;
+    color: #000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+  }
+
+  .sheetInfoValue {
+    flex: 1;
+    padding: 6px 8px;
+    color: #000;
+    display: flex;
+    align-items: center;
+    box-sizing: border-box;
+  }
+
+
+  /* ══════════════════════════════════════════════════════════════════════════
+     SAVE BUTTON
+     ══════════════════════════════════════════════════════════════════════════ */
+
+  .saveButtonArea {
+    display: flex;
+    justify-content: center;
+    padding: var(--ws-space-4) 0;
+    margin-top: var(--ws-space-2);
+  }
+
+  .saveButton {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 14px 32px;
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    border: none;
+    border-radius: var(--ws-radius-lg);
+    font-size: 15px;
+    font-weight: 600;
+    color: white;
+    cursor: pointer;
+    transition: all var(--ws-transition-fast);
+    box-shadow: 0 4px 14px rgba(16, 185, 129, 0.3);
+  }
+
+  .saveButton:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+  }
+
+  .saveButton:active:not(:disabled) {
+    transform: translateY(0);
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+  }
+
+  .saveButton:disabled {
+    background: var(--ws-surface-2);
+    color: var(--ws-text-tertiary);
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+
+  .saveButton svg {
+    flex-shrink: 0;
+  }
+
+
+  @media (max-width: 640px) {
+    .previewModal {
+      max-height: 95vh;
+    }
+
+    .sheetPhotoArea {
+      grid-template-columns: 1fr;
+    }
+
+    .sheetPhotoColumn {
+      border-right: none;
+      border-bottom: 1px solid #333;
+    }
+
+    .sheetPhotoColumn:last-child {
+      border-bottom: none;
+    }
+
+    .sheetPhotoCells {
+      min-height: 150px;
+    }
+  }
+
+
   /* ══════════════════════════════════════════════════════════════════════════
      RESPONSIVE ADJUSTMENTS
      ══════════════════════════════════════════════════════════════════════════ */
@@ -1097,47 +1507,58 @@
       flex-wrap: wrap;
     }
     
-    .photoGrid {
-      grid-template-columns: repeat(2, 1fr);
+    .photoRow {
+      grid-template-columns: repeat(4, 1fr);
     }
   }
-  
+
   @media (max-width: 480px) {
     .header {
       padding: 0 var(--ws-space-3);
     }
-    
+
     .headerBtn {
       padding: 6px 10px;
       font-size: 12px;
     }
-    
+
     .headerBtnPrimary {
       padding: 6px 12px;
       font-size: 12px;
     }
-    
+
     .progressBadge {
       padding: 4px 8px;
       font-size: 11px;
     }
-    
+
     .content {
       padding: var(--ws-space-2);
     }
-    
+
     .dataTable th,
     .dataTable td {
       padding: 8px 10px;
       font-size: 12px;
     }
-    
+
     .photoArea {
       padding: var(--ws-space-3);
     }
-    
-    .photoGrid {
-      grid-template-columns: 1fr 1fr;
+
+    .photoRow {
+      grid-template-columns: repeat(2, 1fr);
       gap: var(--ws-space-2);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .header,
+    .toolbar,
+    .tableContainer,
+    .photoArea {
+      opacity: 1;
+      transform: none;
+      animation: none;
     }
   }
