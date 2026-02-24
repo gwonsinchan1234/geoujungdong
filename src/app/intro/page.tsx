@@ -36,7 +36,7 @@ export default function IntroPage(): React.ReactElement {
           <p className={styles.subtitle}>NO.x · 품명 · 수량 선택 → 반입/지급·설치 사진 업로드 → 템플릿대로 즉시 출력</p>
 
           <div className={styles.actions}>
-            <Link className={styles.primaryBtn} href="/">
+            <Link className={styles.primaryBtn} href="/workspace">
               시작하기
             </Link>
           </div>
