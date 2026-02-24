@@ -4,10 +4,12 @@ import { createClient } from "@supabase/supabase-js";
 
 export const runtime = "nodejs";
 
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+function getSupabase() {
+  const url = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) throw new Error("SUPABASE_URL(또는 NEXT_PUBLIC_SUPABASE_URL)와 SUPABASE_SERVICE_ROLE_KEY가 필요합니다.");
+  return createClient(url, key);
+}
 
 export async function GET(req: NextRequest) {
   try {
@@ -21,6 +23,7 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    const supabase = getSupabase();
     const { data, error } = await supabase
       .from("expense_items")
       .select("*")

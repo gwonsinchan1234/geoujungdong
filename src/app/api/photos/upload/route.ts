@@ -12,10 +12,12 @@ import { parseItemUsageSheet } from "@/lib/excel/parseItemUsageSheet";
 
 export const runtime = "nodejs"; // ✅ 이유: xlsx/crypto 사용은 node runtime이 가장 안전
 
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY! // ✅ 이유: 서버 전용키. 절대 NEXT_PUBLIC 사용 금지
-);
+function getSupabase() {
+  const url = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) throw new Error("SUPABASE_URL(또는 NEXT_PUBLIC_SUPABASE_URL)와 SUPABASE_SERVICE_ROLE_KEY가 필요합니다.");
+  return createClient(url, key);
+}
 
 // ✅ 신찬님 테이블(스크린샷) 컬럼명에 맞춘 매핑
 // id(uuid), doc_id(uuid), evidence_no(text), item_name(text),
@@ -182,6 +184,7 @@ export async function POST(req: NextRequest) {
     // ✅ 중복 방지(권장):
     // DB에 (doc_id, source_fingerprint) unique를 걸어두면 가장 안전합니다.
     // 지금은 최소 변경으로 insert 시도 → 충돌 나면 에러 메시지로 확인 가능.
+    const supabase = getSupabase();
     const { error } = await supabase.from("expense_items").insert(rowsToInsert);
 
     if (error) {

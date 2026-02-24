@@ -1,10 +1,8 @@
 /* PhotoSheet.module.css
-   A4 세로 사진대지 출력 전용 스타일
+   A4 세로 사진대지 출력 전용 (엑셀 행·열 크기 맞춤)
    ───────────────────────────────────
-   규칙:
-   - 반입 4칸 (2x2), 설치 4칸 (2x2) 고정
-   - 사진 없으면 빈칸 유지
-   - 미리보기 = 출력 레이아웃 동일
+   출력 시: 열 95mm+95mm(가용 190mm), 사진영역 높이 52mm, NO 28px, 헤더 22px, 날짜/항목 24px
+   미리보기: 동일 비율로 스케일 (--sheet-col, --photo-h 등 CSS 변수로 전환)
 */
 
 /* ═══ 페이지 컨테이너 (A4 세로 비율) ═══ */
@@ -15,9 +13,14 @@
   background: #fff;
   box-sizing: border-box;
   font-family: "Malgun Gothic", "맑은 고딕", sans-serif;
+  --sheet-col: 95mm;
+  --photo-h: 52mm;
+  --no-h: 28px;
+  --colhead-h: 22px;
+  --inforow-h: 24px;
 }
 
-/* 미리보기용 스케일 */
+/* 미리보기용: 같은 비율, 열/행 크기 비례 */
 .pagePreview {
   width: 100%;
   max-width: 600px;
@@ -27,6 +30,33 @@
   border: 1px solid #ccc;
   background: #fff;
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  box-sizing: border-box;
+  --sheet-col: 1fr;
+  --photo-h: 120px;
+  --no-h: 28px;
+  --colhead-h: 22px;
+  --inforow-h: 24px;
+}
+
+/* 문서 제목 (사진대지(안전시설물) 등) */
+.documentTitle {
+  margin: 0 0 12px 0;
+  padding: 0 0 8px 0;
+  font-size: 18px;
+  font-weight: 700;
+  text-align: center;
+  border-bottom: 1px solid #333;
+}
+
+.pagePreview .documentTitle {
+  font-size: 16px;
+  margin-bottom: 10px;
+}
+
+.emptyMessage {
+  text-align: center;
+  color: #999;
+  padding-top: 100px;
 }
 
 /* ═══ 단일 항목 (NO.1, NO.2, NO.3) ═══ */
@@ -40,7 +70,7 @@
   margin-bottom: 0;
 }
 
-/* NO 헤더 */
+/* NO 헤더 — 행 높이 고정 */
 .noHeader {
   background: #f0f0f0;
   border-bottom: 1px solid #000;
@@ -48,40 +78,92 @@
   font-weight: 700;
   font-size: 14px;
   text-align: center;
+  height: var(--no-h);
+  min-height: var(--no-h);
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-/* 컨텐츠 영역 (반입 | 설치 2열) */
+/* 컨텐츠 영역: 엑셀과 동일하게 열 너비 (출력: 95mm씩, 미리보기: 1fr 1fr) */
 .content {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-}
-
-/* 반입/설치 각 열 */
-.column {
-  border-right: 1px solid #000;
+  grid-template-columns: var(--sheet-col) var(--sheet-col);
 }
 
 .column:last-child {
   border-right: none;
 }
 
-/* 열 헤더 (반입사진 / 현장 설치 사진) */
+/* 반입/설치 각 열 */
+.column {
+  border-right: 1px solid #000;
+  min-width: 0;
+}
+
+/* 열 헤더 (반입사진 / 현장 설치 사진) — 행 높이 고정 */
 .columnHeader {
   background: #e8e8e8;
   border-bottom: 1px solid #000;
-  padding: 4px;
+  padding: 4px 6px;
   font-weight: 600;
   font-size: 11px;
   text-align: center;
+  height: var(--colhead-h);
+  min-height: var(--colhead-h);
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-/* 사진 그리드 (2x2 = 4칸 고정) */
+/* 사진 그리드: 행 높이 고정 (엑셀 셀 높이에 맞춤) */
 .photoGrid {
+  border-bottom: 1px solid #000;
+  background: #fafafa;
+  height: var(--photo-h);
+  min-height: var(--photo-h);
+  box-sizing: border-box;
+}
+
+/* 0장: 빈 영역 하나 */
+.photoGridCount0 {
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-rows: 1fr;
+}
+
+/* 1장: 한 칸 크게 */
+.photoGridCount1 {
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-rows: 1fr;
+}
+
+/* 2장: 가로로 나란히 */
+.photoGridCount2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr;
+}
+
+/* 3장: 위 2개 + 아래 1개 */
+.photoGridCount3 {
   display: grid;
   grid-template-columns: 1fr 1fr;
   grid-template-rows: 1fr 1fr;
-  aspect-ratio: 2 / 1.5;
-  border-bottom: 1px solid #000;
+}
+
+.photoGridCount3 .photoCell:nth-child(3) {
+  grid-column: 1 / -1;
+}
+
+/* 4장: 2x2 */
+.photoGridCount4 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
 }
 
 /* 개별 사진 셀 */
@@ -93,14 +175,24 @@
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  min-height: 60px;
+  min-height: 50px;
 }
 
-.photoCell:nth-child(2n) {
+.photoGridCount0 .photoCell,
+.photoGridCount1 .photoCell {
   border-right: none;
 }
 
-.photoCell:nth-child(n+3) {
+.photoGridCount2 .photoCell:nth-child(2),
+.photoGridCount3 .photoCell:nth-child(2),
+.photoGridCount3 .photoCell:nth-child(3),
+.photoGridCount4 .photoCell:nth-child(2n) {
+  border-right: none;
+}
+
+.photoGridCount2 .photoCell,
+.photoGridCount3 .photoCell:nth-child(n+3),
+.photoGridCount4 .photoCell:nth-child(n+3) {
   border-bottom: none;
 }
 
@@ -117,11 +209,14 @@
   font-size: 10px;
 }
 
-/* 정보 행 (날짜, 항목) */
+/* 정보 행 (날짜, 항목) — 행 높이 고정, 열 너비 반입/설치와 동일 */
 .infoRow {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: var(--sheet-col) var(--sheet-col);
   border-bottom: 1px solid #000;
+  height: var(--inforow-h);
+  min-height: var(--inforow-h);
+  box-sizing: border-box;
 }
 
 .infoRow:last-child {
@@ -131,6 +226,7 @@
 .infoCell {
   display: flex;
   border-right: 1px solid #000;
+  min-width: 0;
 }
 
 .infoCell:last-child {
@@ -139,7 +235,8 @@
 
 .infoLabel {
   width: 36px;
-  padding: 4px 6px;
+  min-width: 36px;
+  padding: 0 6px;
   background: #e8e8e8;
   font-weight: 600;
   font-size: 10px;
@@ -148,14 +245,16 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  box-sizing: border-box;
 }
 
 .infoValue {
   flex: 1;
-  padding: 4px 8px;
+  padding: 0 8px;
   font-size: 10px;
   display: flex;
   align-items: center;
+  min-width: 0;
 }
 
 /* ═══ 인쇄 전용 스타일 ═══ */

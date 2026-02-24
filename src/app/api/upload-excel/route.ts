@@ -2,11 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import * as XLSX from "xlsx";
 import { createClient } from "@supabase/supabase-js";
 
-// 이유: 서버에서만 쓰는 서비스키는 절대 NEXT_PUBLIC로 두지 않음 (보안)
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+// 배포: 빌드 시 env 미주입으로 createClient 실행을 요청 시점으로 지연
+function getSupabase() {
+  const url = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) throw new Error("SUPABASE_URL(또는 NEXT_PUBLIC_SUPABASE_URL)와 SUPABASE_SERVICE_ROLE_KEY가 필요합니다.");
+  return createClient(url, key);
+}
 
 /**
  * 이유: 엑셀 날짜/문자/숫자 혼재를 YYYY-MM-DD로 정규화(가능한 경우만)
@@ -323,6 +325,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 6) Supabase 저장
+    const supabase = getSupabase();
     const { error } = await supabase.from("expense_items").insert(items);
     if (error) {
       return NextResponse.json(

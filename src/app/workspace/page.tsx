@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import React, { Suspense, useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import * as XLSX from "xlsx";
@@ -132,7 +132,10 @@ function normalizeCategoryKey(raw: string): { key: string; label: string; hasNum
   if (!raw) return { key: "", label: "", hasNumber: false };
 
   // 줄바꿈으로 split (병합셀에서 여러 줄이 올 수 있음)
-  const lines = raw.split(/[\r\n]+/).map((l) => l.replace(/\t/g, " ").replace(/\s+/g, " ").trim()).filter(Boolean);
+  const lines = raw
+    .split(/[\r\n]+/)
+    .map((l) => l.replace(/\t/g, " ").replace(/\s+/g, " ").trim())
+    .filter(Boolean);
 
   if (lines.length === 0) return { key: "", label: "", hasNumber: false };
 
@@ -338,7 +341,7 @@ function PhotoDropSlot(props: {
   );
 }
 
-export default function Page() {
+function WorkspacePageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
 
@@ -598,9 +601,6 @@ export default function Page() {
         },
       };
 
-      // 열 너비 설정 (8열: A~H)
-      // 반입: B,C,D,E (4칸) / 설치: F,G,H,I (4칸) 대신
-      // 반입: B,C (2x2) / 설치: D,E (2x2) 로 단순화
       worksheet.columns = [
         { width: 6 },   // A: 라벨 (날짜/항목)
         { width: 11 },  // B: 반입1
@@ -610,7 +610,6 @@ export default function Page() {
         { width: 11 },  // F: 설치2
       ];
 
-      // 스타일 정의
       const thinBorder: Partial<ExcelJS.Borders> = {
         top: { style: "thin" },
         left: { style: "thin" },
@@ -624,17 +623,14 @@ export default function Page() {
         fgColor: { argb: "FFE8E8E8" },
       };
 
-      // 각 품목당 행 수: NO(1) + 헤더(1) + 사진2행(각60px) + 사진2행(각60px) + 날짜(1) + 항목(1) = 8행
       const ROWS_PER_ITEM = 8;
-      const PHOTO_ROW_HEIGHT = 60; // 사진 셀 높이
+      const PHOTO_ROW_HEIGHT = 60;
 
-      // 사진이 있는 품목들을 순회
       for (let idx = 0; idx < itemsWithPhotos.length; idx++) {
         const item = itemsWithPhotos[idx];
         const itemSlots = allItemSlots[item.id] ?? [];
         const startRow = idx * ROWS_PER_ITEM + 1;
 
-        // ═══ NO 행 ═══
         worksheet.mergeCells(startRow, 1, startRow, 6);
         const noCell = worksheet.getCell(startRow, 1);
         noCell.value = `NO.${idx + 1}`;
@@ -643,7 +639,6 @@ export default function Page() {
         noCell.border = thinBorder;
         worksheet.getRow(startRow).height = 20;
 
-        // ═══ 헤더 행 (반입사진 / 설치사진) ═══
         const headerRowNum = startRow + 1;
         worksheet.mergeCells(headerRowNum, 1, headerRowNum, 3);
         worksheet.mergeCells(headerRowNum, 4, headerRowNum, 6);
@@ -664,22 +659,15 @@ export default function Page() {
 
         worksheet.getRow(headerRowNum).height = 18;
 
-        // ═══ 사진 영역 (2x2 그리드 x 2) ═══
-        // 반입: 행1(B,C) 행2(B,C) = 4칸
-        // 설치: 행1(E,F) 행2(E,F) = 4칸
         const photoRow1 = startRow + 2;
         const photoRow2 = startRow + 3;
 
-        // 사진 셀 높이 설정
         worksheet.getRow(photoRow1).height = PHOTO_ROW_HEIGHT;
         worksheet.getRow(photoRow2).height = PHOTO_ROW_HEIGHT;
 
-        // 반입 사진 슬롯 (4칸 고정)
         const incomingSlots = itemSlots.filter(s => s.kind === "incoming");
-        // 설치 사진 슬롯 (4칸 고정)
         const installSlots = itemSlots.filter(s => s.kind === "install");
 
-        // 반입 사진 셀 테두리 (2x2)
         for (let r = 0; r < 2; r++) {
           for (let c = 0; c < 2; c++) {
             const row = photoRow1 + r;
@@ -690,7 +678,6 @@ export default function Page() {
           }
         }
 
-        // 설치 사진 셀 테두리 (2x2)
         for (let r = 0; r < 2; r++) {
           for (let c = 0; c < 2; c++) {
             const row = photoRow1 + r;
@@ -701,11 +688,10 @@ export default function Page() {
           }
         }
 
-        // 라벨 열 (A, D) 병합
         worksheet.mergeCells(photoRow1, 1, photoRow2, 1);
         worksheet.mergeCells(photoRow1, 4, photoRow2, 4);
 
-        // 반입 사진 삽입 (최대 4장)
+        // ✅ 반입 사진 삽입 (최대 4장) — 빌드 통과용 타입 우회 포함
         for (let i = 0; i < 4; i++) {
           const slot = incomingSlots[i];
           const row = photoRow1 + Math.floor(i / 2);
@@ -717,14 +703,20 @@ export default function Page() {
               base64,
               extension: slot.file.type.includes("png") ? "png" : "jpeg",
             });
-            worksheet.addImage(imageId, {
-              tl: { col: col - 1 + 0.05, row: row - 1 + 0.05 },
-              br: { col: col - 0.05, row: row - 0.05 },
-            });
+
+            // NOTE: exceljs 타입 정의(Anchor)가 tl/br을 과도하게 엄격하게 요구하는 빌드 케이스가 있어,
+            // 런타임 동작은 그대로 두고 타입체크만 통과시키기 위해 any 캐스팅을 사용합니다.
+            worksheet.addImage(
+              imageId,
+              {
+                tl: { col: col - 1 + 0.05, row: row - 1 + 0.05 } as any,
+                br: { col: col - 0.05, row: row - 0.05 } as any,
+              } as any
+            );
           }
         }
 
-        // 설치 사진 삽입 (최대 4장)
+        // ✅ 설치 사진 삽입 (최대 4장) — 빌드 통과용 타입 우회 포함
         for (let i = 0; i < 4; i++) {
           const slot = installSlots[i];
           const row = photoRow1 + Math.floor(i / 2);
@@ -736,14 +728,17 @@ export default function Page() {
               base64,
               extension: slot.file.type.includes("png") ? "png" : "jpeg",
             });
-            worksheet.addImage(imageId, {
-              tl: { col: col - 1 + 0.05, row: row - 1 + 0.05 },
-              br: { col: col - 0.05, row: row - 0.05 },
-            });
+
+            worksheet.addImage(
+              imageId,
+              {
+                tl: { col: col - 1 + 0.05, row: row - 1 + 0.05 } as any,
+                br: { col: col - 0.05, row: row - 0.05 } as any,
+              } as any
+            );
           }
         }
 
-        // ═══ 날짜 행 ═══
         const dateRowNum = startRow + 4;
 
         const dateLabelCell1 = worksheet.getCell(dateRowNum, 1);
@@ -774,7 +769,6 @@ export default function Page() {
 
         worksheet.getRow(dateRowNum).height = 18;
 
-        // ═══ 항목 행 ═══
         const itemRowNum = startRow + 5;
 
         const itemLabelCell1 = worksheet.getCell(itemRowNum, 1);
@@ -805,12 +799,10 @@ export default function Page() {
 
         worksheet.getRow(itemRowNum).height = 18;
 
-        // ═══ 구분선 ═══
         worksheet.getRow(startRow + 6).height = 5;
         worksheet.getRow(startRow + 7).height = 5;
       }
 
-      // 파일 다운로드
       const buffer = await workbook.xlsx.writeBuffer();
       const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
       const url = URL.createObjectURL(blob);
@@ -832,7 +824,6 @@ export default function Page() {
       const reader = new FileReader();
       reader.onload = () => {
         const result = reader.result as string;
-        // data:image/jpeg;base64, 부분 제거
         const base64 = result.split(",")[1];
         resolve(base64);
       };
@@ -1213,7 +1204,6 @@ export default function Page() {
         </button>
       </div>
 
-      {/* 히든 파일 인풋 */}
       <input
         ref={excelInputRef}
         type="file"
@@ -1222,14 +1212,12 @@ export default function Page() {
         onChange={handleExcelFile}
       />
 
-      {/* 로딩 오버레이 */}
       {isExcelLoading && (
         <div className={styles.loadingOverlay}>
           <LoadingState label="엑셀 파일 불러오는 중…" />
         </div>
       )}
 
-      {/* 에러 토스트 */}
       <AnimatePresence>
         {excelError && (
           <motion.div
@@ -1244,7 +1232,6 @@ export default function Page() {
         )}
       </AnimatePresence>
 
-      {/* 미리보기 모달 */}
       <AnimatePresence>
         {showPreview && (
           <motion.div
@@ -1294,5 +1281,13 @@ export default function Page() {
         )}
       </AnimatePresence>
     </div>
+  );
+}
+
+export default function Page() {
+  return (
+    <Suspense fallback={<LoadingState label="워크스페이스 불러오는 중…" />}>
+      <WorkspacePageContent />
+    </Suspense>
   );
 }
