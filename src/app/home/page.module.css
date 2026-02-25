@@ -1,0 +1,850 @@
+/* home/page.module.css — KakaoPay-inspired redesign */
+
+/* ── Design tokens ── */
+:root {
+  --yellow: #ffeb00;
+  --dark:   #191c20;
+  --dark2:  #2e3338;
+  --text:   #060b11;
+  --muted:  rgba(6, 11, 17, 0.60);
+  --border: rgba(0, 0, 0, 0.08);
+  --bg:     #ffffff;
+  --bg-gray:#f8f9fa;
+  --w:      1200px;
+}
+
+/* ── Base ── */
+.page {
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+  overflow-x: clip;
+  -webkit-font-smoothing: antialiased;
+  font-family: "Noto Sans KR", "Apple SD Gothic Neo", -apple-system,
+               BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+/* ── Topbar ── */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  height: 64px;
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border);
+}
+
+.topbarInner {
+  max-width: var(--w);
+  margin: 0 auto;
+  padding: 0 28px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.logo {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  background: var(--dark);
+  flex-shrink: 0;
+}
+
+.brandName {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.2px;
+  white-space: nowrap;
+}
+
+.nav {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.navLink {
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: rgba(6, 11, 17, 0.75);
+  text-decoration: none;
+  transition: background 0.15s;
+}
+
+.navLink:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.langSep {
+  width: 1px;
+  height: 18px;
+  background: var(--border);
+  margin: 0 8px;
+}
+
+.langGroup {
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.04);
+  border: 1px solid var(--border);
+}
+
+.langBtn {
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  font-size: 12px;
+  font-weight: 700;
+  color: rgba(6, 11, 17, 0.55);
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+
+.langBtnActive {
+  background: #fff;
+  color: var(--text);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.10);
+}
+
+.ctaTop {
+  margin-left: 10px;
+  height: 36px;
+  padding: 0 18px;
+  border-radius: 10px;
+  background: var(--dark);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  transition: opacity 0.15s;
+}
+
+.ctaTop:hover {
+  opacity: 0.85;
+}
+
+/* ── Hero ── */
+.hero {
+  position: relative;
+  height: 100vh;
+  min-height: 580px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  overflow: hidden;
+  /* Fallback when no video */
+  background: linear-gradient(135deg, #1a1d22 0%, #2e3338 100%);
+}
+
+.heroBg {
+  position: absolute;
+  inset: 0;
+}
+
+.heroVideo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.heroOverlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.52);
+}
+
+.heroCopy {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 22px;
+  padding: 0 24px;
+  max-width: 780px;
+}
+
+.heroKicker {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.heroTitle {
+  margin: 0;
+  font-size: clamp(40px, 6.5vw, 72px);
+  line-height: 1.14;
+  letter-spacing: -0.5px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.heroCtas {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+/* KakaoPay-style dark rounded CTA button */
+.ctaHero {
+  height: 52px;
+  padding: 0 30px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.30);
+  background: rgba(0, 0, 0, 0.30);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.ctaHero:hover {
+  background: rgba(0, 0, 0, 0.50);
+  border-color: rgba(255, 255, 255, 0.50);
+}
+
+
+.muteBtn {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(0, 0, 0, 0.28);
+  color: #fff;
+  font-size: 18px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+
+.muteBtn:hover {
+  background: rgba(0, 0, 0, 0.50);
+}
+
+.scrollHint {
+  position: absolute;
+  bottom: 28px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.scrollDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 255, 255, 0.50);
+  animation: scrollBounce 1.6s ease-in-out infinite;
+}
+
+.scrollLabel {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+}
+
+@keyframes scrollBounce {
+  0%, 100% { transform: translateY(0);  opacity: 0.6; }
+  50%       { transform: translateY(-6px); opacity: 1; }
+}
+
+/* ── Service sections ── */
+.svcRow {
+  background: var(--bg);
+  border-top: 1px solid var(--border);
+}
+
+.svcRowGray {
+  background: var(--bg-gray);
+}
+
+.svcRowDark {
+  background: var(--dark);
+  border-color: transparent;
+}
+
+.svcInner {
+  max-width: var(--w);
+  margin: 0 auto;
+  padding: 96px 28px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 64px;
+  align-items: center;
+}
+
+/* Reverse column order for alternate sections */
+.svcInnerReverse {
+  direction: rtl;
+}
+.svcInnerReverse > * {
+  direction: ltr;
+}
+
+.svcText {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.svcKicker {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.svcKickerLight {
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.svcTitle {
+  margin: 0;
+  font-size: clamp(28px, 2.8vw, 42px);
+  line-height: 1.26;
+  font-weight: 700;
+  letter-spacing: -0.4px;
+  color: var(--text);
+}
+
+.svcTitleLight {
+  color: #fff;
+}
+
+.svcDesc {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.78;
+  color: var(--muted);
+  max-width: 50ch;
+}
+
+.svcDescLight {
+  color: rgba(255, 255, 255, 0.65);
+}
+
+
+/* ── Yellow highlight (KakaoPay underline style) ── */
+.hl {
+  background: none;
+  color: inherit;
+  border-bottom: 5px solid var(--yellow);
+  padding-bottom: 2px;
+}
+
+.hlOnDark {
+  border-bottom-color: var(--yellow);
+}
+
+/* ── Media area ── */
+.svcMedia {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* Left-aligned media (for reversed sections) */
+.svcMediaLeft {
+  justify-content: flex-start;
+}
+
+/* ── Mock app card ── */
+.mockCard {
+  width: min(480px, 100%);
+  border-radius: 20px;
+  overflow: hidden;
+  background: #fff;
+  border: 1px solid var(--border);
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.12);
+}
+
+.mockCardDark {
+  background: var(--dark2);
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.45);
+}
+
+/* Browser / window title bar */
+.mockTitleBar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 14px;
+  background: rgba(0, 0, 0, 0.03);
+  border-bottom: 1px solid var(--border);
+}
+
+.mockTitleBarDark {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.mockTraffic {
+  display: flex;
+  gap: 6px;
+}
+
+.mockDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.dRed    { background: #ff5f57; }
+.dYellow { background: #ffbd2e; }
+.dGreen  { background: #28c840; }
+
+.mockUrlBar {
+  flex: 1;
+  height: 20px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.06);
+  margin-left: 6px;
+}
+
+.mockUrlBarDark {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.mockContent {
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mockTableHead {
+  height: 12px;
+  width: 68%;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.14);
+}
+
+.mockTableRow {
+  height: 10px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.07);
+}
+
+.mockRowShort {
+  width: 52%;
+}
+
+.mockRowDark {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+/* Photo evidence header */
+.mockPhotoHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.03);
+  border: 1px solid var(--border);
+  margin-bottom: 2px;
+}
+
+.mockPhotoHeaderLabel {
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.mockPhotoHeaderBadge {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text);
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.06);
+}
+
+/* Photo evidence grid */
+.mockPhotoGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+/* Individual photo slot with badge */
+.mockPhotoSlot {
+  position: relative;
+  border-radius: 10px;
+  overflow: hidden;
+  aspect-ratio: 1;
+}
+
+.mockPhotoImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* 사전/사후 badge */
+.mockPhotoBadge {
+  position: absolute;
+  bottom: 6px;
+  left: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(4px);
+  padding: 2px 7px;
+  border-radius: 4px;
+  letter-spacing: 0.3px;
+}
+
+.mockPhotoBadgeAfter {
+  background: rgba(6, 11, 17, 0.70);
+}
+
+/* ── Slider ── */
+
+/* 탭 헤더 */
+.sliderTabs {
+  position: relative;
+  display: flex;
+  border-bottom: 1px solid var(--border);
+}
+
+.sliderTab {
+  flex: 1;
+  height: 40px;
+  border: none;
+  background: transparent;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+  cursor: pointer;
+  transition: color 0.2s;
+  letter-spacing: 0.2px;
+}
+
+.sliderTabActive {
+  color: var(--text);
+}
+
+/* 탭 아래 슬라이딩 인디케이터 바 */
+.sliderProgress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--border);
+}
+
+.sliderProgressBar {
+  position: absolute;
+  top: 0;
+  width: 50%;
+  height: 100%;
+  background: var(--text);
+  transition: left 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 2px;
+}
+
+/* 슬라이드 영역 */
+.sliderViewport {
+  overflow: hidden;
+}
+
+.sliderTrack {
+  display: flex;
+  /* 각 pane이 100% 너비, 2개 → 트랙 너비 200% */
+  width: 200%;
+  transition: transform 0.42s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.slidePane {
+  width: 50%; /* 트랙의 50% = 카드 100% */
+  flex-shrink: 0;
+}
+
+/* 도트 인디케이터 */
+.sliderDots {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  padding: 12px 0 14px;
+  border-top: 1px solid var(--border);
+}
+
+.sliderDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0, 0, 0, 0.18);
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.2s, transform 0.2s;
+}
+
+.sliderDotActive {
+  background: var(--text);
+  transform: scale(1.3);
+}
+
+/* ── 엑셀 슬라이드 UI ── */
+
+.excelUploadBtn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  border-radius: 10px;
+  border: 1.5px dashed rgba(0, 0, 0, 0.18);
+  background: rgba(0, 0, 0, 0.02);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: default;
+  margin-bottom: 2px;
+}
+
+.excelUploadIcon {
+  font-size: 15px;
+}
+
+.excelTable {
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  overflow: hidden;
+  font-size: 11px;
+}
+
+.excelHeader {
+  display: grid;
+  grid-template-columns: 2fr 1fr 0.6fr 1fr;
+  background: rgba(0, 0, 0, 0.05);
+  border-bottom: 1px solid var(--border);
+}
+
+.excelHeader span {
+  padding: 7px 8px;
+  font-weight: 700;
+  color: var(--muted);
+  letter-spacing: 0.2px;
+}
+
+.excelRow {
+  display: grid;
+  grid-template-columns: 2fr 1fr 0.6fr 1fr;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  transition: background 0.12s;
+}
+
+.excelRow:last-child {
+  border-bottom: none;
+}
+
+.excelRow:hover {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.excelCell {
+  padding: 7px 8px;
+  color: var(--text);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.excelCellNum {
+  padding: 7px 8px;
+  color: var(--muted);
+  font-weight: 500;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.excelCellTotal {
+  color: var(--text);
+  font-weight: 700;
+}
+
+.excelSumRow {
+  display: grid;
+  grid-template-columns: 2fr 1fr 0.6fr 1fr;
+  background: rgba(0, 0, 0, 0.04);
+  border-top: 1px solid var(--border);
+}
+
+.excelSumRow span {
+  padding: 7px 8px;
+  font-weight: 700;
+  font-size: 11px;
+  color: var(--text);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.excelSumRow span:first-child {
+  text-align: left;
+  color: var(--muted);
+}
+
+/* Preview mock cards */
+.mockPreviewCard {
+  height: 68px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.mockPreviewCardDark {
+  background: rgba(255, 255, 255, 0.09);
+}
+
+/* ── Footer ── */
+.footer {
+  background: var(--bg-gray);
+  border-top: 1px solid var(--border);
+  padding: 38px 0 52px;
+}
+
+.footerInner {
+  max-width: var(--w);
+  margin: 0 auto;
+  padding: 0 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.footerLeft {
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(6, 11, 17, 0.50);
+}
+
+.footerLinks {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.footerLinks a {
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(6, 11, 17, 0.68);
+  text-decoration: none;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.footerLinks a:hover {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: var(--border);
+}
+
+/* ── Responsive ── */
+@media (max-width: 960px) {
+  .svcInner {
+    grid-template-columns: 1fr;
+    padding: 72px 24px;
+    gap: 40px;
+  }
+
+  /* Reset RTL direction on mobile */
+  .svcInnerReverse {
+    direction: ltr;
+  }
+
+  /* On mobile, media always goes below text */
+  .svcMediaLeft {
+    order: 2;
+  }
+
+  .svcMedia {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 640px) {
+  .navLink {
+    display: none;
+  }
+
+  .langSep {
+    display: none;
+  }
+
+  .topbarInner {
+    padding: 0 16px;
+  }
+
+  .heroCopy {
+    gap: 18px;
+  }
+
+  .heroTitle {
+    font-size: clamp(34px, 9vw, 48px);
+  }
+
+  .ctaHero {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .svcInner {
+    padding: 56px 16px;
+    gap: 32px;
+  }
+
+  .footerInner {
+    padding: 0 16px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 14px;
+  }
+}

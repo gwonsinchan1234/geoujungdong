@@ -329,7 +329,30 @@
     height: 20px;
     background: var(--ws-border-light);
   }
-  
+
+  .blankPageBtn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 10px;
+    border-radius: var(--ws-radius-sm);
+    border: 1px dashed var(--ws-border);
+    background: transparent;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--ws-text-secondary);
+    cursor: pointer;
+    transition: all var(--ws-transition-fast);
+    white-space: nowrap;
+  }
+
+  .blankPageBtn:hover {
+    border-color: var(--ws-accent);
+    color: var(--ws-accent);
+    background: var(--ws-accent-bg);
+    border-style: solid;
+  }
+
   .sheetSelect {
     display: flex;
     align-items: center;

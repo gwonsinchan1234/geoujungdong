@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "geoujungdong-local": {
+      "command": "node",
+      "args": ["mcp/server.mjs"]
+    }
+  }
+}

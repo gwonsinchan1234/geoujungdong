@@ -1,224 +1,475 @@
 "use client";
 
-import Link from "next/link";
-import { useState, useCallback, useEffect } from "react";
-import styles from "../HomePage.module.css";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import Image from "next/image";
+import { motion } from "framer-motion";
+import styles from "./page.module.css";
 
-function useRevealOnScroll() {
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (!("IntersectionObserver" in window)) return;
-    const els = Array.from(document.querySelectorAll<HTMLElement>("[data-reveal]"));
-    const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-    if (reduceMotion) {
-      els.forEach((el) => el.classList.add(styles.revealIn));
-      return;
-    }
-    els.forEach((el) => {
-      const d = el.getAttribute("data-reveal-delay");
-      if (d) el.style.transitionDelay = `${Number(d)}ms`;
-    });
-    const io = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          if (!entry.isIntersecting) continue;
-          (entry.target as HTMLElement).classList.add(styles.revealIn);
-          io.unobserve(entry.target);
-        }
-      },
-      { threshold: 0.15, rootMargin: "0px 0px -10% 0px" }
-    );
-    els.forEach((el) => io.observe(el));
-    return () => io.disconnect();
-  }, []);
+type Lang = "KOR" | "ENG";
+
+// ─────────────────────────────────────────────
+// 📸 사진 증빙 섹션 예시 사진 — 여기서만 바꾸면 됩니다.
+//
+// - src: 이미지 URL (외부 URL or /public 안에 넣은 파일 경로)
+//   예) "/photos/before-1.jpg"  또는  "https://example.com/img.jpg"
+// - labelKor / labelEng: 사진 아래 표시될 뱃지
+// ─────────────────────────────────────────────
+const EVIDENCE_PHOTOS = [
+  {
+    src: "https://picsum.photos/seed/site-before-a/300/300",
+    labelKor: "사전",
+    labelEng: "Before",
+    alt: "설치 전 예시",
+  },
+  {
+    src: "https://picsum.photos/seed/site-after-a/300/300",
+    labelKor: "사후",
+    labelEng: "After",
+    alt: "설치 후 예시",
+  },
+  {
+    src: "https://picsum.photos/seed/site-before-b/300/300",
+    labelKor: "사전",
+    labelEng: "Before",
+    alt: "설치 전 예시 2",
+  },
+  {
+    src: "https://picsum.photos/seed/site-after-b/300/300",
+    labelKor: "사후",
+    labelEng: "After",
+    alt: "설치 후 예시 2",
+  },
+] as const;
+// ─────────────────────────────────────────────
+
+const kakaoEase = [0, 0.21, 0.03, 1.01] as const;
+
+function cx(...parts: Array<string | false | null | undefined>) {
+  return parts.filter(Boolean).join(" ");
 }
 
-const FAQ_DATA = [
-  { q: "엑셀 파일 형식은 어떻게 되어야 하나요?", a: "xlsx, xls 모두 지원합니다. 첫 번째 행은 헤더(NO., 품명, 규격, 단위, 수량 등)로, 두 번째 행부터 품목 데이터로 인식합니다." },
-  { q: "한 번에 몇 개 품목까지 처리할 수 있나요?", a: "제한 없이 엑셀에 있는 모든 행을 불러올 수 있습니다. 다만 PDF 출력 시 품목당 1페이지씩 생성되므로, 필요한 품목만 선택해 출력하는 것을 권장합니다." },
-  { q: "사진은 어떤 형식을 지원하나요?", a: "JPG, PNG, WEBP 등 일반적인 이미지 형식을 모두 지원합니다. 각 품목당 반입/지급 사진 1장, 설치 사진 1장을 업로드할 수 있습니다." },
-  { q: "PDF 출력 템플릿을 변경할 수 있나요?", a: "현재는 기본 템플릿(품목 정보 + 반입/지급 사진 + 설치 사진)을 제공합니다. 추후 커스텀 템플릿 기능을 추가할 예정입니다." },
-  { q: "작업 내용이 저장되나요?", a: "브라우저 로컬 스토리지에 임시 저장됩니다. 브라우저를 닫아도 같은 브라우저에서 다시 열면 이전 작업을 이어갈 수 있습니다." },
-];
+function useReducedMotionSafe() {
+  const [reduced, setReduced] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia?.("(prefers-reduced-motion: reduce)");
+    if (!mq) return;
+    const fn = () => setReduced(!!mq.matches);
+    fn();
+    mq.addEventListener?.("change", fn);
+    return () => mq.removeEventListener?.("change", fn);
+  }, []);
+  return reduced;
+}
 
-function FaqItem({ q, a, isOpen, onToggle, id }: { q: string; a: string; isOpen: boolean; onToggle: () => void; id: string }) {
+function Reveal({
+  children,
+  className,
+  delay = 0,
+}: {
+  children: React.ReactNode;
+  className?: string;
+  delay?: number;
+}) {
+  const reduced = useReducedMotionSafe();
+  if (reduced) return <div className={className}>{children}</div>;
   return (
-    <div className={styles.faqItem}>
-      <button type="button" className={styles.faqQuestion} onClick={onToggle} aria-expanded={isOpen} aria-controls={`faq-answer-${id}`} id={`faq-question-${id}`}>
-        <span>{q}</span>
-        <span className={styles.faqIcon} aria-hidden="true">{isOpen ? "−" : "+"}</span>
-      </button>
-      <div id={`faq-answer-${id}`} role="region" aria-labelledby={`faq-question-${id}`} className={`${styles.faqAnswer} ${isOpen ? styles.faqAnswerOpen : ""}`} hidden={!isOpen}>
-        <p>{a}</p>
+    <motion.div
+      className={className}
+      initial={{ opacity: 0, y: 40 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, amount: 0.2 }}
+      transition={{ duration: 1.0, ease: kakaoEase, delay }}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
+// ── 사진 증빙 + 엑셀 입력 슬라이더 목 카드 ──
+function PhotoExcelSlider({ kor }: { kor: boolean }) {
+  const [slide, setSlide] = useState(0);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const goTo = (idx: number) => {
+    setSlide(idx);
+    if (timerRef.current) clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => setSlide(s => (s + 1) % 2), 4000);
+  };
+
+  useEffect(() => {
+    timerRef.current = setInterval(() => setSlide(s => (s + 1) % 2), 4000);
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
+  }, []);
+
+  const TABS = [
+    { label: kor ? "사진 증빙" : "Photos" },
+    { label: kor ? "엑셀 입력" : "Excel" },
+  ];
+
+  const EXCEL_ROWS = [
+    { name: kor ? "소화기 설치" : "Fire ext.", price: "50,000", qty: "4",  total: "200,000" },
+    { name: kor ? "안전모 지급" : "Helmet",   price: "15,000", qty: "10", total: "150,000" },
+    { name: kor ? "안전표지판" : "Sign board", price: "8,000",  qty: "5",  total:  "40,000" },
+  ];
+
+  return (
+    <div className={styles.mockCard}>
+      {/* 브라우저 크롬 */}
+      <div className={styles.mockTitleBar}>
+        <div className={styles.mockTraffic}>
+          <span className={cx(styles.mockDot, styles.dRed)} />
+          <span className={cx(styles.mockDot, styles.dYellow)} />
+          <span className={cx(styles.mockDot, styles.dGreen)} />
+        </div>
+        <div className={styles.mockUrlBar} />
+      </div>
+
+      {/* 슬라이드 탭 */}
+      <div className={styles.sliderTabs}>
+        {TABS.map((t, i) => (
+          <button
+            key={i}
+            type="button"
+            className={cx(styles.sliderTab, slide === i && styles.sliderTabActive)}
+            onClick={() => goTo(i)}
+          >
+            {t.label}
+          </button>
+        ))}
+        {/* 진행 바 */}
+        <div className={styles.sliderProgress}>
+          <div
+            className={styles.sliderProgressBar}
+            style={{ left: `${slide * 50}%` }}
+          />
+        </div>
+      </div>
+
+      {/* 슬라이드 트랙 */}
+      <div className={styles.sliderViewport}>
+        <div
+          className={styles.sliderTrack}
+          style={{ transform: `translateX(-${slide * 50}%)` }}
+        >
+          {/* Slide 0 — 사진 증빙 */}
+          <div className={styles.slidePane}>
+            <div className={styles.mockContent}>
+              <div className={styles.mockPhotoHeader}>
+                <span className={styles.mockPhotoHeaderLabel}>{kor ? "항목명" : "Item"}</span>
+                <span className={styles.mockPhotoHeaderBadge}>{kor ? "소화기 설치" : "Fire extinguisher"}</span>
+              </div>
+              <div className={styles.mockPhotoGrid}>
+                {EVIDENCE_PHOTOS.map((photo, i) => {
+                  const isAfter = photo.labelKor === "사후";
+                  return (
+                    <div key={i} className={styles.mockPhotoSlot}>
+                      <Image
+                        src={photo.src}
+                        alt={photo.alt}
+                        width={300}
+                        height={300}
+                        className={styles.mockPhotoImg}
+                        unoptimized
+                      />
+                      <span className={cx(styles.mockPhotoBadge, isAfter && styles.mockPhotoBadgeAfter)}>
+                        {kor ? photo.labelKor : photo.labelEng}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          {/* Slide 1 — 엑셀 입력 */}
+          <div className={styles.slidePane}>
+            <div className={styles.mockContent}>
+              <div className={styles.excelUploadBtn}>
+                <span className={styles.excelUploadIcon}>📂</span>
+                {kor ? "엑셀 파일 자동 가져오기" : "Import from Excel"}
+              </div>
+              <div className={styles.excelTable}>
+                <div className={styles.excelHeader}>
+                  <span>{kor ? "항목명" : "Item"}</span>
+                  <span>{kor ? "단가" : "Price"}</span>
+                  <span>{kor ? "수량" : "Qty"}</span>
+                  <span>{kor ? "금액" : "Total"}</span>
+                </div>
+                {EXCEL_ROWS.map((row, i) => (
+                  <div key={i} className={styles.excelRow}>
+                    <span className={styles.excelCell}>{row.name}</span>
+                    <span className={styles.excelCellNum}>{row.price}</span>
+                    <span className={styles.excelCellNum}>{row.qty}</span>
+                    <span className={cx(styles.excelCellNum, styles.excelCellTotal)}>{row.total}</span>
+                  </div>
+                ))}
+                <div className={styles.excelSumRow}>
+                  <span>{kor ? "합계" : "Sum"}</span>
+                  <span />
+                  <span />
+                  <span>390,000</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 도트 인디케이터 */}
+      <div className={styles.sliderDots}>
+        {TABS.map((_, i) => (
+          <button
+            key={i}
+            type="button"
+            className={cx(styles.sliderDot, slide === i && styles.sliderDotActive)}
+            onClick={() => goTo(i)}
+            aria-label={`Slide ${i + 1}`}
+          />
+        ))}
       </div>
     </div>
   );
 }
 
 export default function HomePage() {
-  const [openFaq, setOpenFaq] = useState<number | null>(null);
-  const toggleFaq = useCallback((index: number) => { setOpenFaq((prev) => (prev === index ? null : index)); }, []);
-  useRevealOnScroll();
+  const [lang, setLang] = useState<Lang>("KOR");
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const [videoReady, setVideoReady] = useState(false);
+  const [isMuted, setIsMuted] = useState(true);
+
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v) return;
+    const onLoaded = () => setVideoReady(true);
+    const onError = () => setVideoReady(false);
+    v.addEventListener("loadeddata", onLoaded);
+    v.addEventListener("error", onError);
+    return () => {
+      v.removeEventListener("loadeddata", onLoaded);
+      v.removeEventListener("error", onError);
+    };
+  }, []);
+
+  const toggleMute = useCallback(() => {
+    const v = videoRef.current;
+    if (!v) return;
+    v.muted = !v.muted;
+    setIsMuted(v.muted);
+  }, []);
+
+  const kor = lang === "KOR";
 
   return (
     <div className={styles.page}>
-      <header className={styles.header}>
-        <div className={styles.headerInner}>
-          <Link href="/home" className={styles.brand} aria-current="page">PhotoSheet</Link>
+
+      {/* ── TOPBAR ── */}
+      <header className={styles.topbar}>
+        <div className={styles.topbarInner}>
+          <div className={styles.brand}>
+            <div className={styles.logo} aria-hidden />
+            <span className={styles.brandName}>
+              {kor ? "안전관리비 자동화" : "Safety Cost Automation"}
+            </span>
+          </div>
+
+          <nav className={styles.nav}>
+            <a className={styles.navLink} href="#s1">{kor ? "서비스" : "Services"}</a>
+            <a className={styles.navLink} href="#footer">{kor ? "정책" : "Policy"}</a>
+            <div className={styles.langSep} aria-hidden />
+            <div className={styles.langGroup}>
+              <button
+                type="button"
+                className={cx(styles.langBtn, lang === "KOR" && styles.langBtnActive)}
+                onClick={() => setLang("KOR")}
+              >KOR</button>
+              <button
+                type="button"
+                className={cx(styles.langBtn, lang === "ENG" && styles.langBtnActive)}
+                onClick={() => setLang("ENG")}
+              >ENG</button>
+            </div>
+            <a className={styles.ctaTop} href="/workspace/fill">
+              {kor ? "시작하기" : "Get started"}
+            </a>
+          </nav>
         </div>
       </header>
 
-      <main id="main">
-        <section className={styles.hero} aria-labelledby="hero-heading">
-          <div className={styles.heroInner}>
-            <div className={styles.heroText} data-reveal data-reveal-delay="0">
-              <h1 id="hero-heading" className={styles.h1}>
-                엑셀 한 행이 곧 하나의 품목.
-                <br />
-                사진대지, 자동으로 완성됩니다.
-              </h1>
-              <p className={styles.heroSub}>
-                항목별 사용내역서 엑셀을 올리고, 품목마다 반입·설치 사진만 매칭하세요.
-                <br />
-                별도 편집 없이 PDF 사진대지가 바로 출력됩니다.
-              </p>
-              <div className={styles.heroCta}>
-                <Link href="/workspace?openUpload=1" className={styles.btnPrimary} aria-label="시작하기">시작하기</Link>
+      {/* ── HERO ── */}
+      <section className={styles.hero} aria-label="Hero">
+        <div className={styles.heroBg} aria-hidden>
+          <video
+            ref={videoRef}
+            className={styles.heroVideo}
+            src="/main.mp4"
+            autoPlay muted loop playsInline preload="metadata"
+          />
+          <div className={styles.heroOverlay} />
+        </div>
+
+        <div className={styles.heroCopy}>
+          <motion.p
+            className={styles.heroKicker}
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, ease: "easeOut", delay: 0.15 }}
+          >
+            {kor ? "안전관리비 자동화 시스템" : "Safety Cost Automation System"}
+          </motion.p>
+
+          <motion.h1
+            className={styles.heroTitle}
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.9, ease: "easeOut", delay: 0.3 }}
+          >
+            {kor ? <>안전관리비 정산을,<br />체계적으로 관리합니다.</> : <>Evidence docs,<br />automated with ease</>}
+          </motion.h1>
+
+          <motion.div
+            className={styles.heroCtas}
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, ease: "easeOut", delay: 0.5 }}
+          >
+            <a className={styles.ctaHero} href="/workspace/fill">
+              {kor ? "시작하기" : "Get started"}
+            </a>
+            {videoReady && (
+              <button
+                type="button"
+                className={styles.muteBtn}
+                onClick={toggleMute}
+                aria-label="Toggle mute"
+              >
+                {isMuted ? "🔇" : "🔊"}
+              </button>
+            )}
+          </motion.div>
+        </div>
+
+        <div className={styles.scrollHint} aria-hidden>
+          <div className={styles.scrollDot} />
+          <span className={styles.scrollLabel}>Scroll</span>
+        </div>
+      </section>
+
+      {/* ── SERVICE 1: 엑셀 자동화 ── */}
+      <section id="s1" className={styles.svcRow}>
+        <div className={styles.svcInner}>
+          <Reveal className={styles.svcText}>
+            <p className={styles.svcKicker}>{kor ? "엑셀 자동화" : "Excel import"}</p>
+            <h2 className={styles.svcTitle}>
+              {kor
+                ? <>안전관리비 증빙 편하고 빠르게<br/><mark className={styles.hl}>한 번에</mark> 관리해요</>
+                : <>Manage all your docs<br /><mark className={styles.hl}>at once</mark></>
+              }
+            </h2>
+            <p className={styles.svcDesc}>
+              {kor
+                ? "템플릿이 달라도 걱정 없어요. 헤더를 자동 감지하고 항목을 정규화해 일관된 데이터로 만들어 드려요. (임시)"
+                : "Templates vary. We detect headers, normalize fields, and build stable item rows. (임시)"
+              }
+            </p>
+          </Reveal>
+
+          <Reveal className={styles.svcMedia} delay={0.1}>
+            <div className={styles.mockCard}>
+              <div className={styles.mockTitleBar}>
+                <div className={styles.mockTraffic}>
+                  <span className={cx(styles.mockDot, styles.dRed)} />
+                  <span className={cx(styles.mockDot, styles.dYellow)} />
+                  <span className={cx(styles.mockDot, styles.dGreen)} />
+                </div>
+                <div className={styles.mockUrlBar} />
+              </div>
+              <div className={styles.mockContent}>
+                <div className={styles.mockTableHead} />
+                <div className={styles.mockTableRow} />
+                <div className={styles.mockTableRow} />
+                <div className={styles.mockTableRow} />
+                <div className={cx(styles.mockTableRow, styles.mockRowShort)} />
               </div>
             </div>
-            <div className={styles.heroPreview} aria-hidden="true" data-reveal data-reveal-delay="300">
-              <div className={styles.miniWorkspace}>
-                <div className={styles.miniTable}>
-                  <div className={styles.miniTableHeader}>
-                    <span>NO.</span><span>품명</span><span>규격</span><span>수량</span>
-                  </div>
-                  <div className={styles.miniTableRow}><span>1</span><span>LED 투광기</span><span>100W</span><span>10</span></div>
-                  <div className={`${styles.miniTableRow} ${styles.miniTableRowActive}`}><span>2</span><span>배전반</span><span>3상 4선</span><span>1</span></div>
-                  <div className={styles.miniTableRow}><span>3</span><span>접지동봉</span><span>Φ14×1500</span><span>5</span></div>
+          </Reveal>
+        </div>
+      </section>
+
+      {/* ── SERVICE 2: 사진 증빙 (역방향) ── */}
+      <section className={cx(styles.svcRow, styles.svcRowGray)}>
+        <div className={cx(styles.svcInner, styles.svcInnerReverse)}>
+          <Reveal className={styles.svcText}>
+            <p className={styles.svcKicker}>{kor ? "사진 증빙" : "Photo evidence"}</p>
+            <h2 className={styles.svcTitle}>
+              {kor
+                ? <>항목별 사진 첨부,<br /><mark className={styles.hl}>규칙대로</mark> 딱 맞게</>
+                : <>Photo per item,<br /><mark className={styles.hl}>exactly right</mark></>
+              }
+            </h2>
+            <p className={styles.svcDesc}>
+              {kor
+                ? "사전·사후 슬롯이 클라이언트와 서버에서 이중으로 검증돼 실수를 원천 차단합니다. (임시)"
+                : "Pre/post slots are validated client + server. Mistakes blocked before they happen. (임시)"
+              }
+            </p>
+          </Reveal>
+
+          <Reveal className={cx(styles.svcMedia, styles.svcMediaLeft)} delay={0.1}>
+            <PhotoExcelSlider kor={kor} />
+          </Reveal>
+        </div>
+      </section>
+
+      {/* ── SERVICE 3: 미리보기 (다크) ── */}
+      <section className={cx(styles.svcRow, styles.svcRowDark)}>
+        <div className={styles.svcInner}>
+          <Reveal className={styles.svcText}>
+            <p className={cx(styles.svcKicker, styles.svcKickerLight)}>{kor ? "미리보기" : "Preview"}</p>
+            <h2 className={cx(styles.svcTitle, styles.svcTitleLight)}>
+              {kor
+                ? <>조회부터 출력까지<br /><mark className={cx(styles.hl, styles.hlOnDark)}>모바일에서 바로</mark></>
+                : <>From preview to print,<br /><mark className={cx(styles.hl, styles.hlOnDark)}>right on mobile</mark></>
+              }
+            </h2>
+            <p className={cx(styles.svcDesc, styles.svcDescLight)}>
+              {kor
+                ? "한 행 = 한 항목. 사진이 섞이지 않고, 모바일에서 즉시 확인 가능해요. (임시)"
+                : "One row = one item. Photos never mix. Preview instantly on mobile. (임시)"
+              }
+            </p>
+          </Reveal>
+
+          <Reveal className={styles.svcMedia} delay={0.1}>
+            <div className={cx(styles.mockCard, styles.mockCardDark)}>
+              <div className={cx(styles.mockTitleBar, styles.mockTitleBarDark)}>
+                <div className={styles.mockTraffic}>
+                  <span className={cx(styles.mockDot, styles.dRed)} />
+                  <span className={cx(styles.mockDot, styles.dYellow)} />
+                  <span className={cx(styles.mockDot, styles.dGreen)} />
                 </div>
-                <div className={styles.miniPhotoSlots}>
-                  <div className={styles.miniSlot}>
-                    <div className={styles.miniSlotIcon}>
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="M21 15l-5-5L5 21" />
-                      </svg>
-                    </div>
-                    <span className={styles.miniSlotLabel}>반입/지급</span>
-                  </div>
-                  <div className={`${styles.miniSlot} ${styles.miniSlotFilled}`}>
-                    <div className={styles.miniSlotThumb} />
-                    <span className={styles.miniSlotLabel}>설치</span>
-                    <span className={styles.miniSlotCheck}>✓</span>
-                  </div>
-                </div>
+                <div className={cx(styles.mockUrlBar, styles.mockUrlBarDark)} />
+              </div>
+              <div className={styles.mockContent}>
+                <div className={cx(styles.mockPreviewCard, styles.mockPreviewCardDark)} />
+                <div className={cx(styles.mockPreviewCard, styles.mockPreviewCardDark)} />
+                <div className={cx(styles.mockTableRow, styles.mockRowDark)} />
               </div>
             </div>
-          </div>
-        </section>
+          </Reveal>
+        </div>
+      </section>
 
-        <section className={styles.proof} aria-label="핵심 특징" data-reveal>
-          <div className={styles.proofInner}>
-            <div className={styles.proofItem} data-reveal data-reveal-delay="0">
-              <div className={styles.proofIcon}>
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                  <polyline points="14,2 14,8 20,8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /><polyline points="10,9 9,9 8,9" />
-                </svg>
-              </div>
-              <div className={styles.proofText}><strong>엑셀 한 행 = 한 품목</strong><span>행 단위로 품목 자동 인식</span></div>
-            </div>
-            <div className={styles.proofItem} data-reveal data-reveal-delay="100">
-              <div className={styles.proofIcon}>
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="M21 15l-5-5L5 21" />
-                </svg>
-              </div>
-              <div className={styles.proofText}><strong>사진 슬롯 매핑</strong><span>반입/지급 · 설치 사진 분리</span></div>
-            </div>
-            <div className={styles.proofItem} data-reveal data-reveal-delay="200">
-              <div className={styles.proofIcon}>
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                  <polyline points="14,2 14,8 20,8" /><path d="M12 18v-6" /><path d="M9 15l3 3 3-3" />
-                </svg>
-              </div>
-              <div className={styles.proofText}><strong>PDF 자동 출력</strong><span>템플릿 기반 즉시 다운로드</span></div>
-            </div>
-          </div>
-        </section>
-
-        <section className={styles.features} aria-labelledby="features-heading">
-          <div className={styles.featuresInner}>
-            <h2 id="features-heading" className={styles.h2} data-reveal>주요 기능</h2>
-            <div className={styles.featureGrid}>
-              <article className={styles.featureCard} data-reveal data-reveal-delay="0">
-                <div className={styles.featureIconWrap}>
-                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17,8 12,3 7,8" /><line x1="12" y1="3" x2="12" y2="15" />
-                  </svg>
-                </div>
-                <h3 className={styles.featureTitle}>엑셀 업로드</h3>
-                <p className={styles.featureDesc}>xlsx/xls 파일을 드래그하거나 선택하면 품목 목록이 자동으로 불러와집니다.</p>
-              </article>
-              <article className={styles.featureCard} data-reveal data-reveal-delay="150">
-                <div className={styles.featureIconWrap}>
-                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                    <polyline points="9,11 12,14 22,4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
-                  </svg>
-                </div>
-                <h3 className={styles.featureTitle}>품목 선택</h3>
-                <p className={styles.featureDesc}>출력할 품목만 체크박스로 선택하세요. 전체 선택/해제도 한 번에 가능합니다.</p>
-              </article>
-              <article className={styles.featureCard} data-reveal data-reveal-delay="300">
-                <div className={styles.featureIconWrap}>
-                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                    <rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="M21 15l-5-5L5 21" />
-                  </svg>
-                </div>
-                <h3 className={styles.featureTitle}>사진 매핑</h3>
-                <p className={styles.featureDesc}>각 품목에 반입/지급 사진, 설치 사진을 슬롯에 드래그하여 매칭합니다.</p>
-              </article>
-            </div>
-          </div>
-        </section>
-
-        <section className={styles.steps} id="how-it-works" aria-labelledby="steps-heading">
-          <div className={styles.stepsInner}>
-            <h2 id="steps-heading" className={styles.h2} data-reveal>사용 방법</h2>
-            <ol className={styles.stepList}>
-              <li className={styles.stepItem} data-reveal data-reveal-delay="0"><span className={styles.stepNumber}>1</span><div className={styles.stepContent}><strong>엑셀 파일 업로드</strong><span>품목이 정리된 사용내역서 엑셀을 업로드합니다.</span></div></li>
-              <li className={styles.stepItem} data-reveal data-reveal-delay="150"><span className={styles.stepNumber}>2</span><div className={styles.stepContent}><strong>출력할 품목 선택</strong><span>목록에서 사진대지를 만들 품목을 선택합니다.</span></div></li>
-              <li className={styles.stepItem} data-reveal data-reveal-delay="300"><span className={styles.stepNumber}>3</span><div className={styles.stepContent}><strong>사진 업로드 및 매칭</strong><span>각 품목의 반입/지급, 설치 슬롯에 사진을 넣습니다.</span></div></li>
-              <li className={styles.stepItem} data-reveal data-reveal-delay="450"><span className={styles.stepNumber}>4</span><div className={styles.stepContent}><strong>PDF 출력</strong><span>버튼 클릭으로 사진대지 PDF를 다운로드합니다.</span></div></li>
-            </ol>
-          </div>
-        </section>
-
-        <section className={styles.faq} aria-labelledby="faq-heading">
-          <div className={styles.faqInner}>
-            <h2 id="faq-heading" className={styles.h2} data-reveal>자주 묻는 질문</h2>
-            <div className={styles.faqList}>
-              {FAQ_DATA.map((item, idx) => (
-                <div key={idx} data-reveal data-reveal-delay={idx * 100}>
-                  <FaqItem q={item.q} a={item.a} isOpen={openFaq === idx} onToggle={() => toggleFaq(idx)} id={String(idx)} />
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <section className={styles.finalCta} aria-labelledby="final-cta-heading" data-reveal>
-          <div className={styles.finalCtaInner}>
-            <h2 id="final-cta-heading" className={styles.h2Center}>지금 바로 시작하세요</h2>
-            <p className={styles.finalCtaSub}>엑셀 업로드부터 PDF 출력까지, 한 화면에서 완료됩니다.</p>
-            <Link href="/workspace" className={styles.btnPrimary}>작업 공간 열기</Link>
-          </div>
-        </section>
-      </main>
-
-      <footer className={styles.footer}>
+      {/* ── FOOTER ── */}
+      <footer id="footer" className={styles.footer}>
         <div className={styles.footerInner}>
-          <span className={styles.footerCopy}>© 2025 사진대지 자동 출력</span>
+          <div className={styles.footerLeft}>
+            © {new Date().getFullYear()} {kor ? "안전관리비 자동화 시스템" : "Safety Cost Automation System"}
+          </div>
+          <div className={styles.footerLinks}>
+            <a href="#">{kor ? "이용약관" : "Terms"}</a>
+            <a href="#">{kor ? "개인정보처리방침" : "Privacy"}</a>
+            <a href="#">{kor ? "관련 사이트" : "Related sites"}</a>
+          </div>
         </div>
       </footer>
     </div>
