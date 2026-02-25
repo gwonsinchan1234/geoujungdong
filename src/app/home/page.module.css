@@ -142,6 +142,69 @@
   opacity: 0.85;
 }
 
+/* 로그인 버튼 (outline) */
+.loginBtn {
+  margin-left: 10px;
+  height: 36px;
+  padding: 0 16px;
+  border-radius: 10px;
+  background: transparent;
+  border: 1.5px solid var(--border);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.loginBtn:hover {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: rgba(0, 0, 0, 0.18);
+}
+
+/* 로그인 상태 — 유저 영역 */
+.userArea {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 10px;
+}
+
+.userAvatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--dark);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  cursor: default;
+}
+
+.logoutBtn {
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 8px;
+  border: 1.5px solid var(--border);
+  background: transparent;
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(6, 11, 17, 0.65);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.logoutBtn:hover {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: rgba(0, 0, 0, 0.18);
+}
+
 /* ── Hero ── */
 .hero {
   position: relative;
@@ -741,6 +804,269 @@
   background: rgba(255, 255, 255, 0.09);
 }
 
+/* ── Badge Strip ── */
+.badgeStrip {
+  overflow: hidden;
+  background: var(--bg-gray);
+  border-bottom: 1px solid var(--border);
+  padding: 14px 0;
+}
+
+.badgeTrack {
+  display: flex;
+  gap: 10px;
+  width: max-content;
+  animation: marquee 30s linear infinite;
+}
+
+.badge {
+  flex-shrink: 0;
+  padding: 6px 16px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
+/* ── How It Works ── */
+.howRow {
+  background: var(--bg-gray);
+  border-top: 1px solid var(--border);
+  padding: 100px 28px;
+}
+
+.howInner {
+  max-width: var(--w);
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.howSteps {
+  margin-top: 32px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+}
+
+.howStep {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 36px 28px;
+  border-radius: 20px;
+  background: #fff;
+  border: 1px solid var(--border);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.04);
+}
+
+.howNum {
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: rgba(6, 11, 17, 0.22);
+  font-variant-numeric: tabular-nums;
+}
+
+.howStepTitle {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.howStepDesc {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.75;
+  color: var(--muted);
+  white-space: pre-line;
+}
+
+/* ── Features Grid ── */
+.featRow {
+  background: var(--bg);
+  border-top: 1px solid var(--border);
+}
+
+.featInner {
+  max-width: var(--w);
+  margin: 0 auto;
+  padding: 100px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.featGrid {
+  margin-top: 32px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+
+.featCard {
+  padding: 28px;
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  background: var(--bg-gray);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: box-shadow 0.2s, transform 0.2s;
+}
+
+.featCard:hover {
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+  transform: translateY(-2px);
+}
+
+.featIcon {
+  font-size: 26px;
+  line-height: 1;
+}
+
+.featTitle {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.featDesc {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.75;
+  color: var(--muted);
+  white-space: pre-line;
+}
+
+/* ── FAQ ── */
+.faqRow {
+  background: var(--bg-gray);
+  border-top: 1px solid var(--border);
+}
+
+.faqInner {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 100px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.faqList {
+  margin-top: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.faqItem {
+  border-radius: 14px;
+  background: #fff;
+  border: 1px solid var(--border);
+  overflow: hidden;
+  cursor: pointer;
+  transition: border-color 0.2s;
+  user-select: none;
+}
+
+.faqItem:hover { border-color: rgba(0, 0, 0, 0.16); }
+.faqItemOpen  { border-color: rgba(0, 0, 0, 0.12); }
+
+.faqQ {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 20px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  gap: 16px;
+}
+
+.faqChevron {
+  font-size: 20px;
+  font-weight: 300;
+  color: var(--muted);
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.faqA {
+  margin: 0;
+  padding: 0 20px 18px;
+  padding-top: 14px;
+  font-size: 14px;
+  line-height: 1.78;
+  color: var(--muted);
+  border-top: 1px solid var(--border);
+}
+
+/* ── Bottom CTA ── */
+.ctaRow {
+  background: var(--dark);
+  padding: 120px 28px;
+}
+
+.ctaInner {
+  max-width: 640px;
+  margin: 0 auto;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+.ctaTitle {
+  margin: 0;
+  font-size: clamp(32px, 4vw, 54px);
+  font-weight: 700;
+  color: #fff;
+  line-height: 1.2;
+  letter-spacing: -0.4px;
+}
+
+.ctaDesc {
+  margin: 0;
+  font-size: 16px;
+  color: rgba(255, 255, 255, 0.62);
+  line-height: 1.7;
+}
+
+.ctaBtn {
+  margin-top: 8px;
+  height: 54px;
+  padding: 0 36px;
+  border-radius: 14px;
+  background: var(--yellow);
+  color: var(--dark);
+  font-size: 15px;
+  font-weight: 800;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.15s, transform 0.15s;
+}
+
+.ctaBtn:hover {
+  opacity: 0.9;
+  transform: translateY(-2px);
+}
+
 /* ── Footer ── */
 .footer {
   background: var(--bg-gray);
@@ -789,6 +1115,9 @@
 
 /* ── Responsive ── */
 @media (max-width: 960px) {
+  .howSteps { grid-template-columns: 1fr; }
+  .featGrid  { grid-template-columns: 1fr 1fr; }
+
   .svcInner {
     grid-template-columns: 1fr;
     padding: 72px 24px;
@@ -840,6 +1169,11 @@
     padding: 56px 16px;
     gap: 32px;
   }
+
+  .howRow, .featRow, .faqRow { padding: 64px 16px; }
+  .ctaRow   { padding: 80px 16px; }
+  .howSteps { gap: 16px; }
+  .featGrid { grid-template-columns: 1fr; gap: 14px; }
 
   .footerInner {
     padding: 0 16px;

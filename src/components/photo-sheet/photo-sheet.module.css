@@ -1,0 +1,345 @@
+/* photo-sheet.module.css
+   미리보기 + 출력 동일 컴포넌트 사용 → @media print 대응 포함 */
+
+/* ── 시트 뷰 ──────────────────────────────────────────────────── */
+.sheetView {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.sheetTitle {
+  font-size: 15px;
+  font-weight: 700;
+  color: #111827;
+  text-align: center;
+  padding: 10px 0 14px;
+  border-bottom: 2px solid #111827;
+  margin-bottom: 12px;
+  letter-spacing: 0.5px;
+}
+
+.blockList {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.emptySheet {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  color: #9ca3af;
+  font-size: 14px;
+}
+
+/* ── 블록 카드 ────────────────────────────────────────────────── */
+.blockCard {
+  border: 1.5px solid #374151;
+  border-radius: 4px;
+  overflow: hidden;
+  background: #fff;
+  animation: fadeUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* NO.XX 헤더 */
+.blockHeader {
+  background: #111827;
+  padding: 6px 12px;
+}
+
+.blockNo {
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: 0.5px;
+}
+
+/* 섹션 헤더 (반입사진 | 지급사진) */
+.sectionHeaders {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border-bottom: 1px solid #d1d5db;
+}
+
+.sectionHeader {
+  font-size: 11px;
+  font-weight: 700;
+  color: #374151;
+  text-align: center;
+  padding: 5px 0;
+  background: #f3f4f6;
+  letter-spacing: 0.3px;
+}
+
+.sectionHeader:first-child {
+  border-right: 1px solid #d1d5db;
+}
+
+/* 그리드 영역 */
+.gridsRow {
+  display: grid;
+  grid-template-columns: 1fr 3px 1fr;
+  min-height: 220px;
+}
+
+.gridWrap {
+  padding: 8px;
+  display: flex;
+  align-items: stretch;
+}
+
+.gridDivider {
+  background: #d1d5db;
+  width: 1px;
+  margin: 0;
+}
+
+/* ── 사진 그리드 (동적 레이아웃 핵심) ────────────────────────── */
+.photoGrid {
+  width: 100%;
+  flex: 1;
+  display: grid;
+  gap: 4px;
+}
+
+/* 0장: 빈 상태 */
+.grid0 {
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+}
+
+/* 1장: 전체 꽉 채움 */
+.grid1 {
+  grid-template-columns: 1fr;
+  grid-template-rows: 1fr;
+}
+
+/* 2장: 좌우 반씩 */
+.grid2 {
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr;
+}
+
+/* 3장: 상단 2 + 하단 1 전체폭 */
+.grid3 {
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+}
+
+.grid3 .photoCell:nth-child(3),
+.grid3 .emptySlot:nth-child(3) {
+  grid-column: 1 / -1;
+}
+
+/* 4장: 2×2 */
+.grid4 {
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+}
+
+/* ── 사진 셀 ──────────────────────────────────────────────────── */
+.photoCell {
+  position: relative;
+  overflow: hidden;
+  border-radius: 3px;
+  background: #e5e7eb;
+  min-height: 90px;
+}
+
+.photoImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: opacity 0.2s;
+}
+
+/* Next.js Image는 fill이면 absolute position 자동 */
+.photoCell img[style*="position: absolute"] {
+  object-fit: cover;
+}
+
+/* 삭제 버튼 */
+.deleteBtn {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.15s;
+  z-index: 2;
+}
+
+.photoCell:hover .deleteBtn {
+  opacity: 1;
+}
+
+/* ── 빈 슬롯 (편집 모드) ─────────────────────────────────────── */
+.emptySlot {
+  border: 1.5px dashed #d1d5db;
+  border-radius: 3px;
+  background: #fafafa;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  cursor: pointer;
+  min-height: 90px;
+  transition: border-color 0.15s, background 0.15s, transform 0.15s;
+}
+
+.emptySlot:hover {
+  border-color: #6b7280;
+  background: #f3f4f6;
+  transform: scale(1.02);
+}
+
+.emptySlot:active {
+  transform: scale(0.97);
+}
+
+.addIcon {
+  font-size: 22px;
+  font-weight: 300;
+  color: #9ca3af;
+  line-height: 1;
+}
+
+.addLabel {
+  font-size: 10px;
+  color: #9ca3af;
+  font-weight: 500;
+}
+
+/* 출력용 빈 슬롯 (테두리만) */
+.emptySlotPrint {
+  border: 1px solid #e5e7eb;
+  border-radius: 3px;
+  width: 100%;
+  height: 100%;
+  min-height: 90px;
+  background: #fff;
+}
+
+/* ── 하단 라벨 (날짜 + 항목) ─────────────────────────────────── */
+.blockFooter {
+  display: grid;
+  grid-template-columns: 1fr 1px 1fr;
+  border-top: 1px solid #d1d5db;
+  background: #f9fafb;
+}
+
+.footerSide {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 8px;
+  padding: 7px 10px;
+  align-items: baseline;
+}
+
+.footerDivider {
+  background: #d1d5db;
+}
+
+.footerLabel {
+  font-size: 10px;
+  font-weight: 700;
+  color: #6b7280;
+  white-space: nowrap;
+}
+
+.footerValue {
+  font-size: 11px;
+  color: #111827;
+  font-weight: 500;
+  word-break: keep-all;
+  border-radius: 3px;
+  padding: 1px 2px;
+  margin: -1px -2px;
+}
+
+/* 편집 가능 상태: 호버 시 배경 힌트 */
+.footerEditable {
+  cursor: text;
+  transition: background 0.15s;
+}
+
+.footerEditable:hover {
+  background: #e5e7eb;
+}
+
+/* 인라인 편집 input */
+.footerInput {
+  font-size: 11px;
+  color: #111827;
+  font-weight: 500;
+  border: none;
+  border-bottom: 1.5px solid #2563eb;
+  outline: none;
+  background: transparent;
+  padding: 0 0 1px;
+  width: 100%;
+  min-width: 0;
+  word-break: keep-all;
+}
+
+/* 값 없을 때 플레이스홀더 */
+.footerPlaceholder {
+  color: #d1d5db;
+}
+
+/* ── 출력 전용 (@media print) ────────────────────────────────── */
+@media print {
+  .blockCard {
+    break-inside: avoid;
+    animation: none;
+    border: 1.5px solid #374151 !important;
+  }
+
+  .emptySlot {
+    display: none;
+  }
+
+  .deleteBtn {
+    display: none;
+  }
+
+  .photoGrid {
+    gap: 2px;
+  }
+}
+
+/* ── 반응형 ──────────────────────────────────────────────────── */
+@media (max-width: 480px) {
+  .gridsRow {
+    min-height: 180px;
+  }
+
+  .gridWrap {
+    padding: 6px;
+  }
+
+  .photoCell,
+  .emptySlot {
+    min-height: 70px;
+  }
+}

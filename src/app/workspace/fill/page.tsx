@@ -2,6 +2,9 @@
 
 import React, { useRef, useState, useCallback, useEffect } from "react";
 import * as XLSX from "xlsx";
+import { supabase } from "@/lib/supabaseClient";
+import PhotoSheetView from "@/components/photo-sheet/PhotoSheetView";
+import type { PhotoBlock, OnSlotClick, OnPhotoDelete, OnMetaUpdate } from "@/components/photo-sheet/types";
 import styles from "./page.module.css";
 
 type ParsedCell = {
@@ -52,6 +55,9 @@ function trimSheet(sheet: ParsedSheet, sheetIdx: number, formValues: Record<stri
 }
 
 const A4_W = 680;
+
+const PHOTO_KEYWORDS = ["사진대지", "보호구", "시설물", "위험성", "건강관리"];
+const isPhotoSheet = (name: string) => PHOTO_KEYWORDS.some(k => name.includes(k));
 
 function PreviewSheet({
   sheet, sheetIdx, formValues,
@@ -114,7 +120,69 @@ export default function FillPage() {
   } | null>(null);
   const [editValue, setEditValue] = useState("");
 
+  // 사진대지
+  const docIdRef    = useRef<string>("");
+  const [photoBlocks, setPhotoBlocks] = useState<Record<string, PhotoBlock[]>>({});
+  const [photoSlot,   setPhotoSlot]   = useState<{
+    blockId: string; side: "left" | "right"; slotIndex: number;
+  } | null>(null);
+  const [photoUploading, setPhotoUploading] = useState(false);
+
   const mkKey = (sheetIdx: number, cell: string) => `${sheetIdx}__${cell.toUpperCase()}`;
+
+  const fetchPhotoBlocks = useCallback(async (id: string) => {
+    const res  = await fetch(`/api/photo-blocks?docId=${id}`);
+    const json = await res.json();
+    if (!json.ok) return;
+    const grouped: Record<string, PhotoBlock[]> = {};
+    for (const block of json.blocks as PhotoBlock[]) {
+      if (!grouped[block.sheet_name]) grouped[block.sheet_name] = [];
+      grouped[block.sheet_name].push(block);
+    }
+    setPhotoBlocks(grouped);
+  }, []);
+
+  const handleSlotClick: OnSlotClick = useCallback((blockId, side, slotIndex) => {
+    setPhotoSlot({ blockId, side, slotIndex });
+  }, []);
+
+  const handlePhotoDelete: OnPhotoDelete = useCallback(async (photoId) => {
+    await fetch("/api/photo-blocks/photos", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ photoId }),
+    });
+    await fetchPhotoBlocks(docIdRef.current);
+  }, [fetchPhotoBlocks]);
+
+  const handleMetaUpdate: OnMetaUpdate = useCallback(async (blockId, fields) => {
+    const res  = await fetch("/api/photo-blocks", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: blockId, ...fields }),
+    });
+    const json = await res.json();
+    if (json.ok) await fetchPhotoBlocks(docIdRef.current);
+  }, [fetchPhotoBlocks]);
+
+  const handlePhotoUpload = useCallback(async (file: File) => {
+    if (!photoSlot) return;
+    const { blockId, side, slotIndex } = photoSlot;
+    setPhotoSlot(null);
+    setPhotoUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("blockId",    blockId);
+      fd.append("side",       side);
+      fd.append("slotIndex",  String(slotIndex));
+      fd.append("file",       file);
+      const res  = await fetch("/api/photo-blocks/photos", { method: "POST", body: fd });
+      const json = await res.json();
+      if (json.ok) await fetchPhotoBlocks(docIdRef.current);
+    } finally {
+      setPhotoUploading(false);
+    }
+  }, [photoSlot, fetchPhotoBlocks]);
 
   // 바텀시트 포커스 + 배경 스크롤 잠금
   useEffect(() => {
@@ -253,6 +321,23 @@ export default function FillPage() {
       if (!res.ok) throw new Error("parse failed");
       const { sheets: parsed } = await res.json() as { sheets: ParsedSheet[] };
       setSheets(parsed); setActiveSheet(0); setFormValues({}); setSelectedCell(null);
+      setPhotoBlocks({});
+
+      // 사진대지 시트가 있으면 photo_blocks 최초 저장
+      const hasPhoto = parsed.some((s: ParsedSheet) => isPhotoSheet(s.name));
+      if (hasPhoto) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const newDocId = crypto.randomUUID();
+          docIdRef.current = newDocId;
+          const pfd = new FormData();
+          pfd.append("docId", newDocId);
+          pfd.append("file",  file);
+          const pres  = await fetch("/api/photo-blocks/import", { method: "POST", body: pfd });
+          const pjson = await pres.json();
+          if (pjson.ok) await fetchPhotoBlocks(newDocId);
+        }
+      }
     } catch (err) { console.error(err); alert("엑셀 파일을 읽는 중 오류가 났습니다."); }
     finally { setLoading(false); }
   }, []);
@@ -388,7 +473,22 @@ table{border-collapse:collapse;table-layout:fixed;background:#fff}td{box-sizing:
               </button>
             ))}
           </div>
-          {sheet && (
+          {sheet && isPhotoSheet(sheet.name) ? (
+            <div className={styles.viewport}>
+              {photoUploading && (
+                <div className={styles.overlay}>
+                  <div className={styles.spinner} /><span>사진 업로드 중…</span>
+                </div>
+              )}
+              <PhotoSheetView
+                sheetName={sheet.name}
+                blocks={photoBlocks[sheet.name] ?? []}
+                onSlotClick={handleSlotClick}
+                onPhotoDelete={handlePhotoDelete}
+                onMetaUpdate={handleMetaUpdate}
+              />
+            </div>
+          ) : sheet && (
             <div className={styles.viewport}>
               <table className={styles.table}>
                 <colgroup>{sheet.colWidths.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
@@ -437,7 +537,7 @@ table{border-collapse:collapse;table-layout:fixed;background:#fff}td{box-sizing:
               인쇄 미리보기 <span className={styles.previewCount}>{sheets.length}개 시트</span>
             </span>
             <div className={styles.previewHeaderActions}>
-              <button type="button" className={styles.previewPrintBtn} onClick={handlePrint}>
+              <button type="button" className={styles.previewPrintBtn} onClick={() => window.print()}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
                   <polyline points="6 9 6 2 18 2 18 9" />
                   <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
@@ -452,13 +552,66 @@ table{border-collapse:collapse;table-layout:fixed;background:#fff}td{box-sizing:
               </button>
             </div>
           </div>
-          <div className={styles.previewScroll}>
-            {sheets.map((s, i) => (
-              <PreviewSheet key={i} sheet={s} sheetIdx={i} formValues={formValues} />
-            ))}
+          <div className={styles.previewScroll} id="previewScrollContent">
+            {sheets.map((s, i) =>
+              isPhotoSheet(s.name) ? (
+                <div key={i} className={styles.previewPage}>
+                  <div className={styles.previewPageName}>{s.name}</div>
+                  <div className={styles.previewPhotoWrap}>
+                    <PhotoSheetView
+                      sheetName={s.name}
+                      blocks={photoBlocks[s.name] ?? []}
+                      readOnly
+                    />
+                  </div>
+                </div>
+              ) : (
+                <PreviewSheet key={i} sheet={s} sheetIdx={i} formValues={formValues} />
+              )
+            )}
           </div>
         </div>
       )}
+
+      {/* ── 사진 바텀시트 ── */}
+      {photoSlot && <div className={styles.backdrop} onClick={() => setPhotoSlot(null)} />}
+      <div className={`${styles.bottomSheet} ${photoSlot ? styles.bottomSheetOpen : ""}`}>
+        <div className={styles.sheetHandle} />
+        <div className={styles.sheetHeader}>
+          <div className={styles.sheetCellInfo}>
+            <span className={styles.sheetCellRef}>사진 추가</span>
+            <span className={styles.sheetSheetName}>
+              {photoSlot?.side === "left" ? "반입사진" : "지급/설치사진"} · 슬롯 {(photoSlot?.slotIndex ?? 0) + 1}
+            </span>
+          </div>
+          <button type="button" className={styles.sheetClose} onClick={() => setPhotoSlot(null)}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+        <div className={styles.photoActions}>
+          <label className={styles.photoActionBtn}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+              <circle cx="12" cy="13" r="4"/>
+            </svg>
+            카메라 촬영
+            <input type="file" accept="image/*" capture="environment" hidden
+              onChange={e => { const f = e.target.files?.[0]; e.target.value = ""; if (f) handlePhotoUpload(f); }} />
+          </label>
+          <label className={styles.photoActionBtn}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
+              <polyline points="21 15 16 10 5 21"/>
+            </svg>
+            갤러리에서 선택
+            <input type="file" accept="image/*" hidden
+              onChange={e => { const f = e.target.files?.[0]; e.target.value = ""; if (f) handlePhotoUpload(f); }} />
+          </label>
+          <button type="button" className={styles.sheetCancel} onClick={() => setPhotoSlot(null)}>취소</button>
+        </div>
+      </div>
 
       {/* ── BACKDROP ── */}
       {editingCell && <div className={styles.backdrop} onClick={handleCancel} />}
