@@ -9,7 +9,8 @@ const nextConfig: NextConfig = {
     ],
   },
   async redirects() {
-    return [{ source: "/", destination: "/intro", permanent: false }];
+    // 루트 접속 시 인트로 대신 홈으로 리다이렉트
+    return [{ source: "/", destination: "/home", permanent: false }];
   },
 };
 
