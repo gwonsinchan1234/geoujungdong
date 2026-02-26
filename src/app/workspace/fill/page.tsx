@@ -143,16 +143,18 @@ export default function FillPage() {
 
   const mkKey = (sheetIdx: number, cell: string) => `${sheetIdx}__${cell.toUpperCase()}`;
 
-  const fetchPhotoBlocks = useCallback(async (id: string) => {
+  const fetchPhotoBlocks = useCallback(async (id: string): Promise<PhotoBlock[]> => {
     const res  = await fetch(`/api/photo-blocks?docId=${id}`);
     const json = await res.json();
-    if (!json.ok) return;
+    if (!json.ok) return [];
+    const blocks = json.blocks as PhotoBlock[];
     const grouped: Record<string, PhotoBlock[]> = {};
-    for (const block of json.blocks as PhotoBlock[]) {
+    for (const block of blocks) {
       if (!grouped[block.sheet_name]) grouped[block.sheet_name] = [];
       grouped[block.sheet_name].push(block);
     }
     setPhotoBlocks(grouped);
+    return blocks;
   }, []);
 
   const handleSlotClick: OnSlotClick = useCallback((blockId, side, slotIndex) => {
@@ -346,24 +348,33 @@ export default function FillPage() {
         const lsKey   = `photoDocId_${file.name}`;
         const savedDocId = localStorage.getItem(lsKey);
 
-        if (savedDocId) {
-          // 이미 저장된 docId → 블록만 다시 조회
-          docIdRef.current = savedDocId;
-          await fetchPhotoBlocks(savedDocId);
-        } else {
-          // 최초 업로드 → import 후 localStorage에 저장
-          const newDocId = crypto.randomUUID();
-          docIdRef.current = newDocId;
+        const doImport = async (docId: string) => {
           const pfd = new FormData();
-          pfd.append("docId",  newDocId);
+          pfd.append("docId",  docId);
           pfd.append("userId", userId);
           pfd.append("file",   file);
           const pres  = await fetch("/api/photo-blocks/import", { method: "POST", body: pfd });
           const pjson = await pres.json();
           if (pjson.ok) {
-            localStorage.setItem(lsKey, newDocId);
-            await fetchPhotoBlocks(newDocId);
+            localStorage.setItem(lsKey, docId);
+            await fetchPhotoBlocks(docId);
           }
+        };
+
+        if (savedDocId) {
+          // 저장된 docId로 조회 — 비어있으면 재import
+          docIdRef.current = savedDocId;
+          const existing = await fetchPhotoBlocks(savedDocId);
+          if (existing.length === 0) {
+            localStorage.removeItem(lsKey);
+            const newDocId = crypto.randomUUID();
+            docIdRef.current = newDocId;
+            await doImport(newDocId);
+          }
+        } else {
+          const newDocId = crypto.randomUUID();
+          docIdRef.current = newDocId;
+          await doImport(newDocId);
         }
       }
     } catch (err) { console.error(err); alert("엑셀 파일을 읽는 중 오류가 났습니다."); }
