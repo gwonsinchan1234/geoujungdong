@@ -1,5 +1,5 @@
 // src/app/api/photo-blocks/photos/route.ts
-// POST   → 사진 업로드 (Storage + block_photos INSERT)
+// POST   → 메타 저장만 (Storage 업로드는 클라이언트 직접 처리)
 // DELETE → 사진 삭제 (Storage + block_photos DELETE)
 
 import { NextRequest, NextResponse } from "next/server";
@@ -24,21 +24,21 @@ async function getSupabase() {
   );
 }
 
-// ── POST: 사진 업로드 ─────────────────────────────────────────────
+// ── POST: 메타 저장 (클라이언트가 Storage에 직접 업로드 후 호출) ──
 export async function POST(req: NextRequest) {
   try {
     const supabase = await getSupabase();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ ok: false, error: "로그인 필요" }, { status: 401 });
 
-    const formData  = await req.formData();
-    const blockId   = String(formData.get("blockId")   ?? "");
-    const side      = String(formData.get("side")      ?? "");   // 'left' | 'right'
-    const slotIndex = Number(formData.get("slotIndex") ?? -1);
-    const file      = formData.get("file") as File | null;
+    const { blockId, side, slotIndex, storagePath } =
+      await req.json() as { blockId: string; side: string; slotIndex: number; storagePath: string };
 
-    if (!blockId || !side || slotIndex < 0 || slotIndex > 3 || !file) {
-      return NextResponse.json({ ok: false, error: "blockId / side / slotIndex / file 필요" }, { status: 400 });
+    if (!blockId || !side || slotIndex < 0 || slotIndex > 3 || !storagePath) {
+      return NextResponse.json(
+        { ok: false, error: "blockId / side / slotIndex / storagePath 필요" },
+        { status: 400 }
+      );
     }
 
     // 블록 소유권 확인
@@ -51,17 +51,6 @@ export async function POST(req: NextRequest) {
 
     if (!block) return NextResponse.json({ ok: false, error: "블록 없음 또는 권한 없음" }, { status: 403 });
 
-    // Storage 경로: {userId}/{blockId}/{side}/{slotIndex}.{ext}
-    const ext  = file.name.split(".").pop() ?? "jpg";
-    const path = `${user.id}/${blockId}/${side}/${slotIndex}.${ext}`;
-
-    const arrayBuffer = await file.arrayBuffer();
-    const { error: upErr } = await supabase.storage
-      .from("expense-evidence")
-      .upload(path, arrayBuffer, { contentType: file.type, upsert: true });
-
-    if (upErr) return NextResponse.json({ ok: false, error: upErr.message }, { status: 500 });
-
     // DB upsert (같은 슬롯 재업로드 시 덮어씀)
     const { error: dbErr } = await supabase
       .from("block_photos")
@@ -69,7 +58,7 @@ export async function POST(req: NextRequest) {
         block_id:     blockId,
         side,
         slot_index:   slotIndex,
-        storage_path: path,
+        storage_path: storagePath,
       }, { onConflict: "block_id,side,slot_index" });
 
     if (dbErr) return NextResponse.json({ ok: false, error: dbErr.message }, { status: 500 });
@@ -77,11 +66,11 @@ export async function POST(req: NextRequest) {
     // signed URL 즉시 반환 (10분)
     const { data: signed } = await supabase.storage
       .from("expense-evidence")
-      .createSignedUrl(path, 600);
+      .createSignedUrl(storagePath, 600);
 
     return NextResponse.json({ ok: true, url: signed?.signedUrl ?? "" });
-  } catch (e: any) {
-    return NextResponse.json({ ok: false, error: e?.message }, { status: 500 });
+  } catch (e: unknown) {
+    return NextResponse.json({ ok: false, error: (e as Error)?.message }, { status: 500 });
   }
 }
 
@@ -121,7 +110,7 @@ export async function DELETE(req: NextRequest) {
     await supabase.from("block_photos").delete().eq("id", photoId);
 
     return NextResponse.json({ ok: true });
-  } catch (e: any) {
-    return NextResponse.json({ ok: false, error: e?.message }, { status: 500 });
+  } catch (e: unknown) {
+    return NextResponse.json({ ok: false, error: (e as Error)?.message }, { status: 500 });
   }
 }

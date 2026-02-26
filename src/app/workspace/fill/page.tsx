@@ -9,6 +9,31 @@ import { parseExcelBuffer } from "@/lib/parseExcel";
 import type { ParsedCell, ParsedSheet } from "@/lib/parseExcel";
 import styles from "./page.module.css";
 
+// 이미지 압축: 최대 maxPx, JPEG quality
+async function compressImage(file: File, maxPx: number, quality: number): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const scale = Math.min(1, maxPx / Math.max(img.width, img.height));
+      const w = Math.round(img.width * scale);
+      const h = Math.round(img.height * scale);
+      const canvas = document.createElement("canvas");
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext("2d")!;
+      ctx.drawImage(img, 0, 0, w, h);
+      canvas.toBlob(
+        blob => blob ? resolve(blob) : reject(new Error("compress failed")),
+        "image/jpeg",
+        quality
+      );
+    };
+    img.onerror = reject;
+    img.src = url;
+  });
+}
+
 function colLetter(col: number): string {
   let r = "";
   while (col > 0) { col--; r = String.fromCharCode(65 + (col % 26)) + r; col = Math.floor(col / 26); }
@@ -159,12 +184,26 @@ export default function FillPage() {
     setPhotoSlot(null);
     setPhotoUploading(true);
     try {
-      const fd = new FormData();
-      fd.append("blockId",    blockId);
-      fd.append("side",       side);
-      fd.append("slotIndex",  String(slotIndex));
-      fd.append("file",       file);
-      const res  = await fetch("/api/photo-blocks/photos", { method: "POST", body: fd });
+      // 1. 압축 (1920px, JPEG 0.8)
+      const compressed = await compressImage(file, 1920, 0.8);
+
+      // 2. 사용자 확인
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("로그인 필요");
+
+      // 3. Supabase Storage 직접 업로드
+      const path = `${user.id}/${blockId}/${side}/${slotIndex}.jpg`;
+      const { error: upErr } = await supabase.storage
+        .from("expense-evidence")
+        .upload(path, compressed, { contentType: "image/jpeg", upsert: true });
+      if (upErr) throw upErr;
+
+      // 4. 서버에 메타만 저장
+      const res  = await fetch("/api/photo-blocks/photos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ blockId, side, slotIndex, storagePath: path }),
+      });
       const json = await res.json();
       if (json.ok) await fetchPhotoBlocks(docIdRef.current);
     } finally {
