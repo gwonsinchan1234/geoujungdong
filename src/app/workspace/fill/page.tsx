@@ -377,7 +377,11 @@ export default function FillPage() {
           await doImport(newDocId);
         }
       }
-    } catch (err) { console.error(err); alert("엑셀 파일을 읽는 중 오류가 났습니다."); }
+    } catch (err) {
+      console.error("[handleFile]", err);
+      const detail = err instanceof Error ? err.message : String(err);
+      alert(`엑셀 파일을 읽는 중 오류가 났습니다.\n${detail}`);
+    }
     finally { setLoading(false); }
   }, []);
 

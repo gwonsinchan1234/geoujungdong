@@ -17,6 +17,23 @@ const nextConfig: NextConfig = {
     // 루트 접속 시 인트로 대신 홈으로 리다이렉트
     return [{ source: "/", destination: "/home", permanent: false }];
   },
+  webpack(config, { isServer }) {
+    // ExcelJS 브라우저 빌드: Node.js 전용 모듈 빈 모듈로 대체
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        path: false,
+        stream: false,
+        crypto: false,
+        os: false,
+        net: false,
+        tls: false,
+        zlib: false,
+      };
+    }
+    return config;
+  },
 };
 
 export default nextConfig;
