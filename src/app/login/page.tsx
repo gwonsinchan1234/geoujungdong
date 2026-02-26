@@ -45,11 +45,11 @@ function LoginForm() {
     try {
       if (tab === "login") {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) { setError(toKoreanError(error.message)); return; }
+        if (error) { setError(`[${error.status ?? "?"}] ${error.message}`); return; }
         router.replace(next);
       } else {
         const { error } = await supabase.auth.signUp({ email, password });
-        if (error) { setError(toKoreanError(error.message)); return; }
+        if (error) { setError(`[${error.status ?? "?"}] ${error.message}`); return; }
         setSuccess("회원가입 완료! 이메일을 확인하거나 바로 로그인해 보세요.");
         setTab("login");
       }
