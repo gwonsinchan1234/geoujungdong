@@ -1,6 +1,7 @@
 import { createBrowserClient } from "@supabase/ssr";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+// v2 — env 없으면 null 반환, crash 없음
 let _client: SupabaseClient | null = null;
 
 function getSupabaseClient(): SupabaseClient | null {
