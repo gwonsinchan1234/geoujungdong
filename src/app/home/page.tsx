@@ -2,10 +2,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import type { User } from "@supabase/supabase-js";
-import { supabase } from "@/lib/supabaseClient";
 import styles from "./page.module.css";
 
 type Lang = "KOR" | "ENG";
@@ -290,21 +287,6 @@ export default function HomePage() {
   const [videoReady, setVideoReady] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
-  const [user, setUser] = useState<User | null>(null);
-  const router = useRouter();
-
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => setUser(user ?? null));
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
-      setUser(session?.user ?? null);
-    });
-    return () => subscription.unsubscribe();
-  }, []);
-
-  const handleLogout = useCallback(async () => {
-    await supabase.auth.signOut();
-    router.refresh();
-  }, [router]);
 
   useEffect(() => {
     const v = videoRef.current;
@@ -357,32 +339,12 @@ export default function HomePage() {
                 onClick={() => setLang("ENG")}
               >ENG</button>
             </div>
-            {user ? (
-              <div className={styles.userArea}>
-                <div className={styles.userAvatar} title={user.email}>
-                  {user.email?.[0].toUpperCase() ?? "U"}
-                </div>
-                <button
-                  type="button"
-                  className={styles.logoutBtn}
-                  onClick={handleLogout}
-                >
-                  {kor ? "로그아웃" : "Sign out"}
-                </button>
-                <a className={styles.ctaTop} href="/workspace/fill">
-                  {kor ? "시작하기" : "Get started"}
-                </a>
-              </div>
-            ) : (
-              <>
-                <a className={styles.loginBtn} href="/login">
-                  {kor ? "로그인" : "Sign in"}
-                </a>
-                <a className={styles.ctaTop} href="/workspace/fill">
-                  {kor ? "시작하기" : "Get started"}
-                </a>
-              </>
-            )}
+            <a className={styles.loginBtn} href="/login">
+              {kor ? "로그인" : "Sign in"}
+            </a>
+            <a className={styles.ctaTop} href="/workspace/fill">
+              {kor ? "시작하기" : "Get started"}
+            </a>
           </nav>
         </div>
       </header>
