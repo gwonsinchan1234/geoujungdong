@@ -555,20 +555,20 @@ table{border-collapse:collapse;table-layout:fixed;background:#fff}td{box-sizing:
           <div className={styles.previewScroll} id="previewScrollContent">
             {sheets.map((s, i) =>
               isPhotoSheet(s.name) ? (
-                <div key={i} className={styles.previewPage}>
-                  <div className={styles.previewPageName}>{s.name}</div>
-                  <div className={styles.previewPhotoWrap}>
-                    <PhotoSheetView
-                      sheetName={s.name}
-                      blocks={photoBlocks[s.name] ?? []}
-                      readOnly
-                    />
-                  </div>
+                <div key={i} className={styles.previewPhotoWrap}>
+                  <PhotoSheetView
+                    sheetName={s.name}
+                    blocks={photoBlocks[s.name] ?? []}
+                    a4Mode
+                  />
                 </div>
               ) : (
                 <PreviewSheet key={i} sheet={s} sheetIdx={i} formValues={formValues} />
               )
             )}
+            <button type="button" className={styles.previewCloseBottom} onClick={() => setShowPreview(false)}>
+              닫기
+            </button>
           </div>
         </div>
       )}

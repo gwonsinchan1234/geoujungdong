@@ -8,13 +8,22 @@ type Props = {
   sheetName:      string;
   blocks:         PhotoBlock[];
   readOnly?:      boolean;
+  a4Mode?:        boolean;   // 인쇄 미리보기 — A4 페이지 단위로 렌더
   onSlotClick?:   OnSlotClick;
   onPhotoDelete?: OnPhotoDelete;
   onMetaUpdate?:  OnMetaUpdate;
 };
 
+// 배열을 n개씩 묶음
+function chunk<T>(arr: T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+  return out;
+}
+
 export default function PhotoSheetView({
-  sheetName, blocks, readOnly, onSlotClick, onPhotoDelete, onMetaUpdate,
+  sheetName, blocks, readOnly, a4Mode,
+  onSlotClick, onPhotoDelete, onMetaUpdate,
 }: Props) {
   if (!blocks.length) {
     return (
@@ -24,6 +33,29 @@ export default function PhotoSheetView({
     );
   }
 
+  // ── A4 미리보기 모드: 2블록씩 A4 페이지로 분리 ──
+  if (a4Mode) {
+    const pages = chunk(blocks, 3);
+    return (
+      <div className={styles.sheetView}>
+        {pages.map((pageBlocks, pi) => (
+          <div key={pi} className={styles.a4PageWrap}>
+            <div className={styles.a4PageTitle}>{sheetName}</div>
+            {pageBlocks.map((block) => (
+              <div key={block.id} className={styles.a4Block}>
+                <PhotoBlockCard
+                  block={block}
+                  readOnly
+                />
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  // ── 일반 모드 (모바일 편집) ──
   return (
     <div className={styles.sheetView}>
       <div className={styles.sheetTitle}>{sheetName}</div>

@@ -56,14 +56,9 @@ export default function PhotoGrid({
     photo: photos.find(p => p.slot_index === i) ?? null,
   }));
 
-  // 채워진 슬롯 수 기준으로 그리드 결정
-  const filledCount = photos.length;
-  const editGridClass = GRID_CLASS[Math.min(filledCount, 4)] ?? "grid4";
-
-  // 빈 슬롯 보여줄지: 사진이 4장 미만일 때 + 슬롯이 연속으로 채워진 경우만
-  const slotsToShow = filledCount < 4
-    ? slots                            // 4장 미만: 전체 슬롯 표시
-    : slots.filter(s => s.photo);      // 4장: 채워진 것만
+  // 편집 모드는 항상 4슬롯 표시 → grid4(2×2) 고정
+  const editGridClass = "grid4";
+  const slotsToShow = slots;
 
   return (
     <div className={`${styles.photoGrid} ${styles[editGridClass]}`}>

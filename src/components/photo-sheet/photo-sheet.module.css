@@ -86,7 +86,7 @@
 /* 그리드 영역 */
 .gridsRow {
   display: grid;
-  grid-template-columns: 1fr 3px 1fr;
+  grid-template-columns: 1fr 1px 1fr; /* sectionHeaders(1fr 1fr)와 정확히 맞춤 */
   min-height: 220px;
 }
 
@@ -94,12 +94,12 @@
   padding: 8px;
   display: flex;
   align-items: stretch;
+  min-width: 0;
 }
 
 .gridDivider {
   background: #d1d5db;
   width: 1px;
-  margin: 0;
 }
 
 /* ── 사진 그리드 (동적 레이아웃 핵심) ────────────────────────── */
@@ -172,13 +172,13 @@
   position: absolute;
   top: 4px;
   right: 4px;
-  width: 22px;
-  height: 22px;
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
   border: none;
   background: rgba(0, 0, 0, 0.55);
   color: #fff;
-  font-size: 10px;
+  font-size: 11px;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -188,8 +188,22 @@
   z-index: 2;
 }
 
-.photoCell:hover .deleteBtn {
-  opacity: 1;
+/* 데스크탑: hover 시 표시 */
+@media (hover: hover) {
+  .photoCell:hover .deleteBtn {
+    opacity: 1;
+  }
+}
+
+/* 모바일(터치): 항상 표시 */
+@media (hover: none) {
+  .deleteBtn {
+    opacity: 1;
+    width: 30px;
+    height: 30px;
+    font-size: 12px;
+    background: rgba(0, 0, 0, 0.65);
+  }
 }
 
 /* ── 빈 슬롯 (편집 모드) ─────────────────────────────────────── */
@@ -203,8 +217,10 @@
   justify-content: center;
   gap: 4px;
   cursor: pointer;
-  min-height: 90px;
+  min-height: 100px;
   transition: border-color 0.15s, background 0.15s, transform 0.15s;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
 .emptySlot:hover {
@@ -214,7 +230,9 @@
 }
 
 .emptySlot:active {
-  transform: scale(0.97);
+  transform: scale(0.96);
+  background: #e5e7eb;
+  border-color: #374151;
 }
 
 .addIcon {
@@ -307,12 +325,84 @@
   color: #d1d5db;
 }
 
+/* ── A4 미리보기 / 출력 전용 ─────────────────────────────────── */
+
+/* A4 페이지 래퍼 — 2블록씩 묶어서 페이지 나눔 */
+.a4PageWrap {
+  break-after: page;
+  page-break-after: always;
+  padding-bottom: 0;
+  /* 화면 미리보기: 개별 흰 카드로 표시 */
+  background: #fff;
+  box-shadow: 0 4px 32px rgba(0, 0, 0, 0.5);
+  padding: 16px 22px 22px;
+  box-sizing: border-box;
+}
+.a4PageWrap:last-child {
+  break-after: avoid;
+  page-break-after: avoid;
+}
+
+/* 페이지 상단 시트 제목 */
+.a4PageTitle {
+  font-size: 13px;
+  font-weight: 700;
+  text-align: center;
+  color: #111827;
+  padding: 6px 0 10px;
+  border-bottom: 2px solid #111827;
+  margin-bottom: 10px;
+  letter-spacing: 0.4px;
+}
+
+/* A4 모드 블록 사이 간격 */
+.a4Block {
+  margin-bottom: 10px;
+}
+.a4Block:last-child {
+  margin-bottom: 0;
+}
+
+/* A4 모드: 사진 그리드 영역만 고정, 여백 없음 */
+.a4Block .gridsRow {
+  height: 200px;
+  min-height: unset;
+  overflow: hidden;
+}
+
+.a4Block .gridWrap {
+  padding: 0;
+  overflow: hidden;
+}
+
+.a4Block .photoGrid {
+  height: 100%;
+  overflow: hidden;
+  gap: 1px;
+}
+
+.a4Block .photoCell,
+.a4Block .emptySlot,
+.a4Block .emptySlotPrint {
+  min-height: unset;
+  aspect-ratio: unset;
+  overflow: hidden;
+  border-radius: 0;
+}
+
 /* ── 출력 전용 (@media print) ────────────────────────────────── */
 @media print {
   .blockCard {
     break-inside: avoid;
     animation: none;
     border: 1.5px solid #374151 !important;
+  }
+
+  /* 인쇄 시 a4PageWrap 흰 카드 그림자/패딩 제거 */
+  .a4PageWrap {
+    box-shadow: none !important;
+    padding: 0 !important;
+    background: #fff !important;
   }
 
   .emptySlot {
@@ -331,7 +421,7 @@
 /* ── 반응형 ──────────────────────────────────────────────────── */
 @media (max-width: 480px) {
   .gridsRow {
-    min-height: 180px;
+    min-height: 200px;
   }
 
   .gridWrap {
@@ -340,6 +430,41 @@
 
   .photoCell,
   .emptySlot {
-    min-height: 70px;
+    min-height: 90px;
+  }
+
+  .addIcon {
+    font-size: 26px;
+  }
+
+  .addLabel {
+    font-size: 11px;
+  }
+
+  .blockHeader {
+    padding: 8px 12px;
+  }
+
+  .blockNo {
+    font-size: 14px;
+  }
+
+  .sectionHeader {
+    font-size: 12px;
+    padding: 7px 0;
+  }
+
+  .footerSide {
+    padding: 8px 10px;
+    gap: 3px 8px;
+  }
+
+  .footerLabel {
+    font-size: 11px;
+  }
+
+  .footerValue,
+  .footerInput {
+    font-size: 12px;
   }
 }

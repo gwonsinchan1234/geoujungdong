@@ -313,6 +313,31 @@
 }
 .previewPrintBtn:hover { background: #1d4ed8; }
 
+/* 스크롤 끝 닫기 버튼 */
+.previewCloseBottom {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 160px;
+  height: 48px;
+  border: none;
+  border-radius: 14px;
+  background: #333;
+  color: #f9fafb;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.12s;
+  margin: 8px auto 0;
+  flex-shrink: 0;
+}
+.previewCloseBottom:hover  { background: #444; }
+.previewCloseBottom:active { transform: scale(0.97); }
+
+@media print {
+  .previewCloseBottom { display: none !important; }
+}
+
 .previewClose {
   width: 34px;
   height: 34px;
@@ -366,11 +391,9 @@
   left: 0;
 }
 
-/* 사진대지 미리보기 래퍼 — A4 폭 고정 */
+/* 사진대지 미리보기 래퍼 — A4 폭 고정, 배경 없음 (a4PageWrap이 개별 흰 카드) */
 .previewPhotoWrap {
-  width: 680px;
-  background: #fff;
-  padding: 12px;
+  width: 700px;
   box-sizing: border-box;
 }
 
@@ -420,10 +443,8 @@
   .previewPhotoWrap {
     width: 100%;
     padding: 0;
+    box-shadow: none !important;
   }
-
-  /* 사진 그리드 내 삭제 버튼 숨김 */
-  .deleteBtn { display: none !important; }
 }
 
 /* ── Backdrop ──────────────────────────────────────────────────── */

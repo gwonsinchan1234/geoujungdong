@@ -1114,6 +1114,8 @@
 }
 
 /* ── Responsive ── */
+
+/* 960px 이하 — 서비스 섹션 단열 */
 @media (max-width: 960px) {
   .howSteps { grid-template-columns: 1fr; }
   .featGrid  { grid-template-columns: 1fr 1fr; }
@@ -1124,52 +1126,44 @@
     gap: 40px;
   }
 
-  /* Reset RTL direction on mobile */
-  .svcInnerReverse {
-    direction: ltr;
-  }
-
-  /* On mobile, media always goes below text */
-  .svcMediaLeft {
-    order: 2;
-  }
-
-  .svcMedia {
-    justify-content: flex-start;
-  }
+  .svcInnerReverse { direction: ltr; }
+  .svcMediaLeft    { order: 2; }
+  .svcMedia        { justify-content: flex-start; }
 }
 
-@media (max-width: 640px) {
-  .navLink {
-    display: none;
+/* 768px 이하 — 헤더 압축: 단일 행 유지 */
+@media (max-width: 768px) {
+  .topbarInner {
+    padding: 0 16px;
+    gap: 6px;
   }
 
+  /* 텍스트 nav 링크 + 구분선 숨김 */
+  .navLink,
   .langSep {
     display: none;
   }
 
-  .topbarInner {
-    padding: 0 16px;
+  .nav {
+    gap: 4px;
   }
 
-  .heroCopy {
-    gap: 18px;
+  .ctaTop,
+  .loginBtn {
+    margin-left: 4px;
+    height: 34px;
+    padding: 0 14px;
+    font-size: 13px;
   }
+}
 
-  .heroTitle {
-    font-size: clamp(34px, 9vw, 48px);
-  }
+/* 640px 이하 — 히어로/섹션 패딩 */
+@media (max-width: 640px) {
+  .heroCopy  { gap: 18px; }
+  .heroTitle { font-size: clamp(34px, 9vw, 48px); }
+  .ctaHero   { width: 100%; justify-content: center; }
 
-  .ctaHero {
-    width: 100%;
-    justify-content: center;
-  }
-
-  .svcInner {
-    padding: 56px 16px;
-    gap: 32px;
-  }
-
+  .svcInner { padding: 56px 16px; gap: 32px; }
   .howRow, .featRow, .faqRow { padding: 64px 16px; }
   .ctaRow   { padding: 80px 16px; }
   .howSteps { gap: 16px; }
@@ -1180,5 +1174,26 @@
     flex-direction: column;
     align-items: flex-start;
     gap: 14px;
+  }
+}
+
+/* 480px 이하 — 소형 폰: 브랜드명 숨김, 버튼 최소화 */
+@media (max-width: 480px) {
+  .brandName { display: none; }
+
+  /* 매우 좁은 화면: 로그인 버튼 / 로그아웃 버튼 숨기고 시작하기 + 아바타만 */
+  .loginBtn  { display: none; }
+  .logoutBtn { display: none; }
+
+  .ctaTop {
+    padding: 0 12px;
+    font-size: 12px;
+    height: 32px;
+    border-radius: 8px;
+  }
+
+  .langBtn {
+    padding: 0 7px;
+    font-size: 11px;
   }
 }
