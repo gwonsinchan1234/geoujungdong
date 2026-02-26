@@ -4,14 +4,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { randomUUID } from "crypto";
 
-function makeSupabase() {
-  const cookieStore = cookies();
+async function makeSupabase() {
+  const cookieStore = await cookies();
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        getAll() { return cookieStore.getAll(); },
+        getAll() {
+          return cookieStore.getAll();
+        },
         setAll() {},
       },
     }
@@ -20,7 +22,7 @@ function makeSupabase() {
 
 // POST /api/templates/upload — xlsx 업로드 → Storage + DB
 export async function POST(request: NextRequest) {
-  const supabase = makeSupabase();
+  const supabase = await makeSupabase();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 

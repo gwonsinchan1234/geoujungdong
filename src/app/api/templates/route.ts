@@ -3,14 +3,16 @@ import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
-function makeSupabase() {
-  const cookieStore = cookies();
+async function makeSupabase() {
+  const cookieStore = await cookies();
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        getAll() { return cookieStore.getAll(); },
+        getAll() {
+          return cookieStore.getAll();
+        },
         setAll() {},
       },
     }
@@ -19,7 +21,7 @@ function makeSupabase() {
 
 // GET /api/templates — 내 양식 목록
 export async function GET() {
-  const supabase = makeSupabase();
+  const supabase = await makeSupabase();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -35,7 +37,7 @@ export async function GET() {
 
 // DELETE /api/templates?id=xxx — 양식 삭제
 export async function DELETE(request: NextRequest) {
-  const supabase = makeSupabase();
+  const supabase = await makeSupabase();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
