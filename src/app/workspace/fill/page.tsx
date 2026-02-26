@@ -346,19 +346,32 @@ export default function FillPage() {
       setSheets(parsed); setActiveSheet(0); setFormValues({}); setSelectedCell(null);
       setPhotoBlocks({});
 
-      // 사진대지 시트가 있으면 photo_blocks 최초 저장
+      // 사진대지 시트가 있으면 photo_blocks 저장/복원
       const hasPhoto = parsed.some((s: ParsedSheet) => isPhotoSheet(s.name));
       if (hasPhoto) {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
-          const newDocId = crypto.randomUUID();
-          docIdRef.current = newDocId;
-          const pfd = new FormData();
-          pfd.append("docId", newDocId);
-          pfd.append("file",  file);
-          const pres  = await fetch("/api/photo-blocks/import", { method: "POST", body: pfd });
-          const pjson = await pres.json();
-          if (pjson.ok) await fetchPhotoBlocks(newDocId);
+          const lsKey       = `photoDocId_${file.name}`;
+          const savedDocId  = localStorage.getItem(lsKey);
+
+          if (savedDocId) {
+            // 이미 저장된 docId → 블록만 다시 조회
+            docIdRef.current = savedDocId;
+            await fetchPhotoBlocks(savedDocId);
+          } else {
+            // 최초 업로드 → import 후 localStorage에 저장
+            const newDocId = crypto.randomUUID();
+            docIdRef.current = newDocId;
+            const pfd = new FormData();
+            pfd.append("docId", newDocId);
+            pfd.append("file",  file);
+            const pres  = await fetch("/api/photo-blocks/import", { method: "POST", body: pfd });
+            const pjson = await pres.json();
+            if (pjson.ok) {
+              localStorage.setItem(lsKey, newDocId);
+              await fetchPhotoBlocks(newDocId);
+            }
+          }
         }
       }
     } catch (err) { console.error(err); alert("엑셀 파일을 읽는 중 오류가 났습니다."); }
