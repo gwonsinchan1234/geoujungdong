@@ -1,12 +1,11 @@
 // app/api/photos/list/route.ts
-// [이유] 특정 expenseItemId에 매칭된 사진 목록을 가져와 슬롯 UI에 뿌리기 위함(버킷이 비공개면 signed URL 필요)
-
 import { NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 
 export const runtime = "nodejs";
 
 export async function GET(req: Request) {
+  const supabaseAdmin = getSupabaseAdmin();
   try {
     const { searchParams } = new URL(req.url);
     const expenseItemId = String(searchParams.get("expenseItemId") || "");
@@ -15,7 +14,6 @@ export async function GET(req: Request) {
       return NextResponse.json({ ok: false, error: "expenseItemId 누락" }, { status: 400 });
     }
 
-    // 1) DB 메타 조회
     const { data, error } = await supabaseAdmin
       .from("expense_item_photos")
       .select("id, expense_item_id, kind, slot, storage_path, original_name, mime_type, size_bytes, created_at")
@@ -25,21 +23,19 @@ export async function GET(req: Request) {
 
     if (error) throw error;
 
-    // 2) 버킷이 Private이면 화면 표시용 signed URL 발급
     const photos = await Promise.all(
       (data ?? []).map(async (row) => {
         const { data: signed, error: sErr } = await supabaseAdmin.storage
           .from("expense-evidence")
-          .createSignedUrl(row.storage_path, 60 * 10); // 10분
+          .createSignedUrl(row.storage_path, 60 * 10);
 
         if (sErr) throw sErr;
-
         return { ...row, url: signed.signedUrl };
       })
     );
 
     return NextResponse.json({ ok: true, photos });
-  } catch (e: any) {
-    return NextResponse.json({ ok: false, error: e?.message ?? "서버 오류" }, { status: 500 });
+  } catch (e: unknown) {
+    return NextResponse.json({ ok: false, error: (e as Error)?.message ?? "서버 오류" }, { status: 500 });
   }
 }

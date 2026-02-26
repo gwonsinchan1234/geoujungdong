@@ -1,7 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 
 async function makeSupabase() {
   const cookieStore = await cookies();
@@ -10,9 +10,7 @@ async function makeSupabase() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        getAll() {
-          return cookieStore.getAll();
-        },
+        getAll() { return cookieStore.getAll(); },
         setAll() {},
       },
     }
@@ -21,6 +19,7 @@ async function makeSupabase() {
 
 // GET /api/templates — 내 양식 목록
 export async function GET() {
+  const supabaseAdmin = getSupabaseAdmin();
   const supabase = await makeSupabase();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -37,6 +36,7 @@ export async function GET() {
 
 // DELETE /api/templates?id=xxx — 양식 삭제
 export async function DELETE(request: NextRequest) {
+  const supabaseAdmin = getSupabaseAdmin();
   const supabase = await makeSupabase();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -44,7 +44,6 @@ export async function DELETE(request: NextRequest) {
   const id = request.nextUrl.searchParams.get("id");
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
 
-  // 소유 확인 + storage_path 조회
   const { data: tmpl, error: findErr } = await supabaseAdmin
     .from("user_templates")
     .select("storage_path")
@@ -54,10 +53,8 @@ export async function DELETE(request: NextRequest) {
 
   if (findErr || !tmpl) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  // Storage 삭제
   await supabaseAdmin.storage.from("user-templates").remove([tmpl.storage_path]);
 
-  // DB 삭제
   const { error: delErr } = await supabaseAdmin
     .from("user_templates")
     .delete()

@@ -9,8 +9,5 @@ export function getSupabaseAdmin() {
   );
 }
 
-/** API Route 등에서 사용하는 싱글톤 인스턴스 */
-export const supabaseAdmin = getSupabaseAdmin();
-
 /** 비로그인 개발 모드용 고정 user_id */
 export const DEV_USER_ID = "00000000-0000-0000-0000-000000000001";

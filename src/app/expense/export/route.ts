@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import ExcelJS from "exceljs";
 import path from "path";
-import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 
 /**
  * [목표]
@@ -37,8 +37,8 @@ type PhotoRow = {
   storage_path: string;
 };
 
-async function fetchImageBuffer(storagePath: string) {
-  const { data: signed, error } = await supabaseAdmin.storage
+async function fetchImageBuffer(admin: ReturnType<typeof getSupabaseAdmin>, storagePath: string) {
+  const { data: signed, error } = await admin.storage
     .from(BUCKET)
     .createSignedUrl(storagePath, 60 * 10);
 
@@ -123,12 +123,13 @@ function cloneWorksheetLikeTemplate(
 
 export async function GET(req: Request) {
   try {
+    const admin = getSupabaseAdmin();
     const { searchParams } = new URL(req.url);
     const docId = searchParams.get("docId");
     if (!docId) return NextResponse.json({ error: "docId required" }, { status: 400 });
 
     // 1) doc 조회
-    const { data: doc, error: docErr } = await supabaseAdmin
+    const { data: doc, error: docErr } = await admin
       .from("expense_docs")
       .select("*")
       .eq("id", docId)
@@ -137,7 +138,7 @@ export async function GET(req: Request) {
     if (docErr) return NextResponse.json({ error: docErr.message }, { status: 500 });
 
     // 2) items 조회
-    const { data: items, error: itemErr } = await supabaseAdmin
+    const { data: items, error: itemErr } = await admin
       .from("expense_items")
       .select("*")
       .eq("doc_id", docId)
@@ -216,7 +217,7 @@ export async function GET(req: Request) {
       const photoWs = cloneWorksheetLikeTemplate(wb, photoTemplateWs, finalName);
 
       // 해당 item의 사진 메타 조회
-      const { data: photos, error: pErr } = await supabaseAdmin
+      const { data: photos, error: pErr } = await admin
         .from("expense_item_photos")
         .select("kind, slot, storage_path")
         .eq("expense_item_id", it.id);
@@ -233,23 +234,23 @@ export async function GET(req: Request) {
 
       // 사진 삽입
       if (inbound) {
-        const { buf, ext } = await fetchImageBuffer(inbound.storage_path);
+        const { buf, ext } = await fetchImageBuffer(admin, inbound.storage_path);
         addImageToRange(wb, photoWs, buf, ext, PHOTO_RANGES.inbound);
       }
       if (install0) {
-        const { buf, ext } = await fetchImageBuffer(install0.storage_path);
+        const { buf, ext } = await fetchImageBuffer(admin, install0.storage_path);
         addImageToRange(wb, photoWs, buf, ext, PHOTO_RANGES.install0);
       }
       if (install1) {
-        const { buf, ext } = await fetchImageBuffer(install1.storage_path);
+        const { buf, ext } = await fetchImageBuffer(admin, install1.storage_path);
         addImageToRange(wb, photoWs, buf, ext, PHOTO_RANGES.install1);
       }
       if (install2) {
-        const { buf, ext } = await fetchImageBuffer(install2.storage_path);
+        const { buf, ext } = await fetchImageBuffer(admin, install2.storage_path);
         addImageToRange(wb, photoWs, buf, ext, PHOTO_RANGES.install2);
       }
       if (install3) {
-        const { buf, ext } = await fetchImageBuffer(install3.storage_path);
+        const { buf, ext } = await fetchImageBuffer(admin, install3.storage_path);
         addImageToRange(wb, photoWs, buf, ext, PHOTO_RANGES.install3);
       }
 

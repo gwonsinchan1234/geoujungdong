@@ -1,7 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import { randomUUID } from "crypto";
 
 async function makeSupabase() {
@@ -22,6 +22,7 @@ async function makeSupabase() {
 
 // POST /api/templates/upload — xlsx 업로드 → Storage + DB
 export async function POST(request: NextRequest) {
+  const admin = getSupabaseAdmin();
   const supabase = await makeSupabase();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -37,7 +38,7 @@ export async function POST(request: NextRequest) {
   const buf = await file.arrayBuffer();
 
   // Storage 업로드
-  const { error: uploadErr } = await supabaseAdmin.storage
+  const { error: uploadErr } = await admin.storage
     .from("user-templates")
     .upload(storagePath, buf, {
       contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -47,14 +48,14 @@ export async function POST(request: NextRequest) {
   if (uploadErr) return NextResponse.json({ error: uploadErr.message }, { status: 500 });
 
   // DB 저장
-  const { data: tmpl, error: dbErr } = await supabaseAdmin
+  const { data: tmpl, error: dbErr } = await admin
     .from("user_templates")
     .insert({ user_id: user.id, name, storage_path: storagePath, file_size: file.size })
     .select("id, name, file_size, created_at")
     .single();
 
   if (dbErr) {
-    await supabaseAdmin.storage.from("user-templates").remove([storagePath]);
+    await admin.storage.from("user-templates").remove([storagePath]);
     return NextResponse.json({ error: dbErr.message }, { status: 500 });
   }
 
