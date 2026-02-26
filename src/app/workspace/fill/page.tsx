@@ -145,7 +145,7 @@ export default function FillPage() {
 
   const fetchPhotoBlocks = useCallback(async (id: string): Promise<PhotoBlock[]> => {
     const res  = await fetch(`/api/photo-blocks?docId=${id}`);
-    const json = await res.json();
+    const json = res.ok ? await res.json().catch(() => ({ ok: false })) : { ok: false };
     if (!json.ok) return [];
     const blocks = json.blocks as PhotoBlock[];
     const grouped: Record<string, PhotoBlock[]> = {};
@@ -340,41 +340,45 @@ export default function FillPage() {
       setSheets(parsed); setActiveSheet(0); setFormValues({}); setSelectedCell(null);
       setPhotoBlocks({});
 
-      // 사진대지 시트가 있으면 photo_blocks 저장/복원
+      // 사진대지 시트가 있으면 photo_blocks 저장/복원 (실패해도 엑셀 표시에 영향 없음)
       const hasPhoto = parsed.some((s: ParsedSheet) => isPhotoSheet(s.name));
       if (hasPhoto) {
-        const { data: { user } } = await supabase.auth.getUser();
-        const userId  = user?.id ?? "";
-        const lsKey   = `photoDocId_${file.name}`;
-        const savedDocId = localStorage.getItem(lsKey);
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
+          const userId  = user?.id ?? "";
+          const lsKey   = `photoDocId_${file.name}`;
+          const savedDocId = localStorage.getItem(lsKey);
 
-        const doImport = async (docId: string) => {
-          const pfd = new FormData();
-          pfd.append("docId",  docId);
-          pfd.append("userId", userId);
-          pfd.append("file",   file);
-          const pres  = await fetch("/api/photo-blocks/import", { method: "POST", body: pfd });
-          const pjson = await pres.json();
-          if (pjson.ok) {
-            localStorage.setItem(lsKey, docId);
-            await fetchPhotoBlocks(docId);
-          }
-        };
+          const doImport = async (docId: string) => {
+            const pfd = new FormData();
+            pfd.append("docId",  docId);
+            pfd.append("userId", userId);
+            pfd.append("file",   file);
+            const pres  = await fetch("/api/photo-blocks/import", { method: "POST", body: pfd });
+            const pjson = pres.ok ? await pres.json().catch(() => ({ ok: false })) : { ok: false };
+            if (pjson.ok) {
+              localStorage.setItem(lsKey, docId);
+              await fetchPhotoBlocks(docId);
+            }
+          };
 
-        if (savedDocId) {
-          // 저장된 docId로 조회 — 비어있으면 재import
-          docIdRef.current = savedDocId;
-          const existing = await fetchPhotoBlocks(savedDocId);
-          if (existing.length === 0) {
-            localStorage.removeItem(lsKey);
+          if (savedDocId) {
+            docIdRef.current = savedDocId;
+            const existing = await fetchPhotoBlocks(savedDocId);
+            if (existing.length === 0) {
+              localStorage.removeItem(lsKey);
+              const newDocId = crypto.randomUUID();
+              docIdRef.current = newDocId;
+              await doImport(newDocId);
+            }
+          } else {
             const newDocId = crypto.randomUUID();
             docIdRef.current = newDocId;
             await doImport(newDocId);
           }
-        } else {
-          const newDocId = crypto.randomUUID();
-          docIdRef.current = newDocId;
-          await doImport(newDocId);
+        } catch (photoErr) {
+          console.warn("[photo-blocks import]", photoErr);
+          // 사진 import 실패는 무시 — 엑셀 내용은 정상 표시
         }
       }
     } catch (err) {
