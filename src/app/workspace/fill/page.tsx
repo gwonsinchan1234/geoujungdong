@@ -187,23 +187,15 @@ export default function FillPage() {
       // 1. 압축 (1920px, JPEG 0.8)
       const compressed = await compressImage(file, 1920, 0.8);
 
-      // 2. 사용자 확인
+      // 2. 서버에서 Storage 업로드 + 메타 저장 (인증 불필요)
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("로그인 필요");
-
-      // 3. Supabase Storage 직접 업로드
-      const path = `${user.id}/${blockId}/${side}/${slotIndex}.jpg`;
-      const { error: upErr } = await supabase.storage
-        .from("expense-evidence")
-        .upload(path, compressed, { contentType: "image/jpeg", upsert: true });
-      if (upErr) throw upErr;
-
-      // 4. 서버에 메타만 저장
-      const res  = await fetch("/api/photo-blocks/photos", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ blockId, side, slotIndex, storagePath: path }),
-      });
+      const fd = new FormData();
+      fd.append("blockId",   blockId);
+      fd.append("side",      side);
+      fd.append("slotIndex", String(slotIndex));
+      fd.append("userId",    user?.id ?? "");
+      fd.append("file",      new File([compressed], "photo.jpg", { type: "image/jpeg" }));
+      const res  = await fetch("/api/photo-blocks/photos", { method: "POST", body: fd });
       const json = await res.json();
       if (json.ok) await fetchPhotoBlocks(docIdRef.current);
     } finally {
@@ -350,27 +342,27 @@ export default function FillPage() {
       const hasPhoto = parsed.some((s: ParsedSheet) => isPhotoSheet(s.name));
       if (hasPhoto) {
         const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          const lsKey       = `photoDocId_${file.name}`;
-          const savedDocId  = localStorage.getItem(lsKey);
+        const userId  = user?.id ?? "";
+        const lsKey   = `photoDocId_${file.name}`;
+        const savedDocId = localStorage.getItem(lsKey);
 
-          if (savedDocId) {
-            // 이미 저장된 docId → 블록만 다시 조회
-            docIdRef.current = savedDocId;
-            await fetchPhotoBlocks(savedDocId);
-          } else {
-            // 최초 업로드 → import 후 localStorage에 저장
-            const newDocId = crypto.randomUUID();
-            docIdRef.current = newDocId;
-            const pfd = new FormData();
-            pfd.append("docId", newDocId);
-            pfd.append("file",  file);
-            const pres  = await fetch("/api/photo-blocks/import", { method: "POST", body: pfd });
-            const pjson = await pres.json();
-            if (pjson.ok) {
-              localStorage.setItem(lsKey, newDocId);
-              await fetchPhotoBlocks(newDocId);
-            }
+        if (savedDocId) {
+          // 이미 저장된 docId → 블록만 다시 조회
+          docIdRef.current = savedDocId;
+          await fetchPhotoBlocks(savedDocId);
+        } else {
+          // 최초 업로드 → import 후 localStorage에 저장
+          const newDocId = crypto.randomUUID();
+          docIdRef.current = newDocId;
+          const pfd = new FormData();
+          pfd.append("docId",  newDocId);
+          pfd.append("userId", userId);
+          pfd.append("file",   file);
+          const pres  = await fetch("/api/photo-blocks/import", { method: "POST", body: pfd });
+          const pjson = await pres.json();
+          if (pjson.ok) {
+            localStorage.setItem(lsKey, newDocId);
+            await fetchPhotoBlocks(newDocId);
           }
         }
       }
