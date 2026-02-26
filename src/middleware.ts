@@ -25,12 +25,12 @@ export async function middleware(request: NextRequest) {
   // 세션 refresh (쿠키 갱신)
   const { data: { user } } = await supabase.auth.getUser();
 
-  // /workspace/* 경로는 인증 필요
-  if (request.nextUrl.pathname.startsWith("/workspace") && !user) {
-    const loginUrl = new URL("/login", request.url);
-    loginUrl.searchParams.set("next", request.nextUrl.pathname);
-    return NextResponse.redirect(loginUrl);
-  }
+  // /workspace/* 경로는 인증 필요 (임시 비활성화)
+  // if (request.nextUrl.pathname.startsWith("/workspace") && !user) {
+  //   const loginUrl = new URL("/login", request.url);
+  //   loginUrl.searchParams.set("next", request.nextUrl.pathname);
+  //   return NextResponse.redirect(loginUrl);
+  // }
 
   return response;
 }
