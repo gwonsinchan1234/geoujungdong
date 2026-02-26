@@ -2,7 +2,10 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
+import type { User } from "@supabase/supabase-js";
+import { supabase } from "@/lib/supabaseClient";
 import styles from "./page.module.css";
 
 type Lang = "KOR" | "ENG";
@@ -231,11 +234,77 @@ function PhotoExcelSlider({ kor }: { kor: boolean }) {
   );
 }
 
+// ─── 추가 섹션 데이터 ─────────────────────────────────────────────
+const BADGES     = [".xlsx 지원", "셀병합 완벽 지원", "사진대지", "A4 인쇄 최적화", "모바일 편집", "키보드 탐색", "실시간 미리보기", "xlsx 다운로드"];
+const BADGES_EN  = [".xlsx support", "Merged cells", "Photo sheets", "A4 print", "Mobile editing", "Keyboard nav", "Live preview", "xlsx download"];
+
+const STEPS_KOR = [
+  { num: "01", title: "엑셀 업로드",    desc: "기존 양식(.xlsx)을 그대로 업로드하세요.\n폰트·색상·셀병합이 모두 유지됩니다." },
+  { num: "02", title: "셀 수정",        desc: "셀을 탭하면 바텀시트가 올라옵니다.\nPC에서는 키보드로 엑셀처럼 탐색하세요." },
+  { num: "03", title: "출력 · 다운로드", desc: "A4 미리보기로 확인 후 바로 인쇄하거나\n수정된 xlsx 파일을 다운로드하세요." },
+];
+const STEPS_EN = [
+  { num: "01", title: "Upload Excel",   desc: "Upload your existing .xlsx file.\nFonts, colors, merged cells all preserved." },
+  { num: "02", title: "Edit cells",     desc: "Tap any cell to open the bottom sheet.\nOn desktop, navigate like Excel." },
+  { num: "03", title: "Print · Save",   desc: "Preview on A4, then print or download\nthe updated xlsx file." },
+];
+
+const FEATURES_KOR = [
+  { icon: "⊞",  title: "셀병합 완벽 지원",   desc: "rowSpan·colSpan 구조 그대로 렌더링.\n병합 셀이 깨지지 않습니다." },
+  { icon: "📐", title: "사진대지 크기 통일", desc: "동일 형식 시트의 열 너비를 자동 통일해\n출력물 레이아웃을 일관되게 유지합니다." },
+  { icon: "📱", title: "모바일 바텀시트",    desc: "터치 한 번으로 바텀시트가 올라와\n셀 값을 빠르게 입력할 수 있습니다." },
+  { icon: "🖨️", title: "A4 인쇄 최적화",    desc: "모든 시트를 A4 비율로 자동 스케일해\n실제 인쇄 결과를 미리 확인합니다." },
+  { icon: "⬇️", title: "xlsx 다운로드",     desc: "수정 내용이 반영된 엑셀 파일을\n즉시 로컬로 저장합니다." },
+  { icon: "⌨️", title: "키보드 단축키",     desc: "방향키·Tab·F2·Ctrl+PageDown으로\n엑셀처럼 시트를 탐색합니다." },
+];
+const FEATURES_EN = [
+  { icon: "⊞",  title: "Merged cells",        desc: "rowSpan·colSpan rendered perfectly.\nNo broken merged cells." },
+  { icon: "📐", title: "Uniform layouts",      desc: "Column widths auto-synced across sheets\nfor consistent print output." },
+  { icon: "📱", title: "Mobile bottom sheet",  desc: "One tap opens a bottom sheet\nfor fast cell value input." },
+  { icon: "🖨️", title: "A4 print preview",    desc: "All sheets auto-scaled to A4.\nSee the exact result before printing." },
+  { icon: "⬇️", title: "xlsx download",       desc: "Edited content saved immediately\nto a local xlsx file." },
+  { icon: "⌨️", title: "Keyboard shortcuts",  desc: "Navigate with Arrow·Tab·F2·Ctrl+PageDown\njust like Excel." },
+];
+
+const FAQS_KOR = [
+  { q: "기존 엑셀 서식 그대로 써도 되나요?",
+    a: "네. xlsx 파일을 그대로 업로드하면 폰트, 색상, 셀병합, 행 높이, 열 너비가 모두 유지됩니다." },
+  { q: "인쇄하면 셀이 깨지지 않나요?",
+    a: "A4 기준 자동 스케일링으로 실제 인쇄 결과를 미리보기에서 확인할 수 있습니다. 전체 시트를 한 번에 출력합니다." },
+  { q: "수정한 내용이 서버에 저장되나요?",
+    a: "아니요. 모든 편집은 브라우저에서만 이루어지며, 다운로드 버튼을 누르면 수정된 xlsx 파일이 로컬에 저장됩니다. 서버에는 어떤 파일도 저장되지 않습니다." },
+];
+const FAQS_EN = [
+  { q: "Can I use my existing Excel format?",
+    a: "Yes. Upload any .xlsx file and fonts, colors, merged cells, row heights, and column widths are all preserved." },
+  { q: "Will cells break when printing?",
+    a: "No. All sheets are auto-scaled to A4 proportions. Preview the exact result before printing." },
+  { q: "Is my data saved on the server?",
+    a: "No. All editing happens in the browser only. The downloaded xlsx file is saved locally. Nothing is stored on the server." },
+];
+// ──────────────────────────────────────────────────────────────────
+
 export default function HomePage() {
   const [lang, setLang] = useState<Lang>("KOR");
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [videoReady, setVideoReady] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
+  const [openFaq, setOpenFaq] = useState<number | null>(null);
+  const [user, setUser] = useState<User | null>(null);
+  const router = useRouter();
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => setUser(user ?? null));
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
+      setUser(session?.user ?? null);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const handleLogout = useCallback(async () => {
+    await supabase.auth.signOut();
+    router.refresh();
+  }, [router]);
 
   useEffect(() => {
     const v = videoRef.current;
@@ -288,9 +357,32 @@ export default function HomePage() {
                 onClick={() => setLang("ENG")}
               >ENG</button>
             </div>
-            <a className={styles.ctaTop} href="#">
-              {kor ? "시작하기" : "Get started"}
-            </a>
+            {user ? (
+              <div className={styles.userArea}>
+                <div className={styles.userAvatar} title={user.email}>
+                  {user.email?.[0].toUpperCase() ?? "U"}
+                </div>
+                <button
+                  type="button"
+                  className={styles.logoutBtn}
+                  onClick={handleLogout}
+                >
+                  {kor ? "로그아웃" : "Sign out"}
+                </button>
+                <a className={styles.ctaTop} href="/workspace/fill">
+                  {kor ? "시작하기" : "Get started"}
+                </a>
+              </div>
+            ) : (
+              <>
+                <a className={styles.loginBtn} href="/login">
+                  {kor ? "로그인" : "Sign in"}
+                </a>
+                <a className={styles.ctaTop} href="/workspace/fill">
+                  {kor ? "시작하기" : "Get started"}
+                </a>
+              </>
+            )}
           </nav>
         </div>
       </header>
@@ -332,11 +424,8 @@ export default function HomePage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, ease: "easeOut", delay: 0.5 }}
           >
-            <a className={styles.ctaHero} href="#">
+            <a className={styles.ctaHero} href="/workspace/fill">
               {kor ? "시작하기" : "Get started"}
-            </a>
-            <a className={cx(styles.ctaHero, styles.ctaHeroOutline)} href="#">
-              {kor ? "워크스페이스" : "Workspace"}
             </a>
             {videoReady && (
               <button
@@ -357,6 +446,15 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* ── BADGE STRIP ── */}
+      <div className={styles.badgeStrip} aria-hidden>
+        <div className={styles.badgeTrack}>
+          {[...(kor ? BADGES : BADGES_EN), ...(kor ? BADGES : BADGES_EN)].map((b, i) => (
+            <span key={i} className={styles.badge}>{b}</span>
+          ))}
+        </div>
+      </div>
+
       {/* ── SERVICE 1: 엑셀 자동화 ── */}
       <section id="s1" className={styles.svcRow}>
         <div className={styles.svcInner}>
@@ -374,7 +472,6 @@ export default function HomePage() {
                 : "Templates vary. We detect headers, normalize fields, and build stable item rows. (임시)"
               }
             </p>
-            <a className={styles.svcLink} href="#">{kor ? "자세히 보기 →" : "Learn more →"}</a>
           </Reveal>
 
           <Reveal className={styles.svcMedia} delay={0.1}>
@@ -416,7 +513,6 @@ export default function HomePage() {
                 : "Pre/post slots are validated client + server. Mistakes blocked before they happen. (임시)"
               }
             </p>
-            <a className={styles.svcLink} href="#">{kor ? "자세히 보기 →" : "Learn more →"}</a>
           </Reveal>
 
           <Reveal className={cx(styles.svcMedia, styles.svcMediaLeft)} delay={0.1}>
@@ -442,9 +538,6 @@ export default function HomePage() {
                 : "One row = one item. Photos never mix. Preview instantly on mobile. (임시)"
               }
             </p>
-            <a className={cx(styles.svcLink, styles.svcLinkLight)} href="#">
-              {kor ? "자세히 보기 →" : "Learn more →"}
-            </a>
           </Reveal>
 
           <Reveal className={styles.svcMedia} delay={0.1}>
@@ -465,6 +558,87 @@ export default function HomePage() {
             </div>
           </Reveal>
         </div>
+      </section>
+
+      {/* ── HOW IT WORKS ── */}
+      <section className={styles.howRow}>
+        <div className={styles.howInner}>
+          <Reveal>
+            <p className={styles.svcKicker}>{kor ? "사용 방법" : "How it works"}</p>
+            <h2 className={styles.svcTitle}>{kor ? "3단계로 끝납니다" : "Done in 3 steps"}</h2>
+          </Reveal>
+          <div className={styles.howSteps}>
+            {(kor ? STEPS_KOR : STEPS_EN).map((step, i) => (
+              <Reveal key={i} delay={i * 0.1} className={styles.howStep}>
+                <div className={styles.howNum}>{step.num}</div>
+                <h3 className={styles.howStepTitle}>{step.title}</h3>
+                <p className={styles.howStepDesc}>{step.desc}</p>
+              </Reveal>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── FEATURES GRID ── */}
+      <section className={styles.featRow}>
+        <div className={styles.featInner}>
+          <Reveal>
+            <p className={styles.svcKicker}>{kor ? "핵심 기능" : "Features"}</p>
+            <h2 className={styles.svcTitle}>{kor ? "꼭 필요한 기능만 담았습니다" : "Only what you need"}</h2>
+          </Reveal>
+          <div className={styles.featGrid}>
+            {(kor ? FEATURES_KOR : FEATURES_EN).map((f, i) => (
+              <Reveal key={i} delay={i * 0.06} className={styles.featCard}>
+                <span className={styles.featIcon}>{f.icon}</span>
+                <h3 className={styles.featTitle}>{f.title}</h3>
+                <p className={styles.featDesc}>{f.desc}</p>
+              </Reveal>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── FAQ ── */}
+      <section className={styles.faqRow}>
+        <div className={styles.faqInner}>
+          <Reveal>
+            <p className={styles.svcKicker}>{kor ? "자주 묻는 질문" : "FAQ"}</p>
+            <h2 className={styles.svcTitle}>{kor ? "궁금한 점이 있으신가요?" : "Got questions?"}</h2>
+          </Reveal>
+          <div className={styles.faqList}>
+            {(kor ? FAQS_KOR : FAQS_EN).map((faq, i) => (
+              <Reveal key={i} delay={i * 0.08}>
+                <div
+                  className={cx(styles.faqItem, openFaq === i && styles.faqItemOpen)}
+                  onClick={() => setOpenFaq(openFaq === i ? null : i)}
+                >
+                  <div className={styles.faqQ}>
+                    <span>{faq.q}</span>
+                    <span className={styles.faqChevron}>{openFaq === i ? "−" : "+"}</span>
+                  </div>
+                  {openFaq === i && <p className={styles.faqA}>{faq.a}</p>}
+                </div>
+              </Reveal>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── BOTTOM CTA ── */}
+      <section className={styles.ctaRow}>
+        <Reveal className={styles.ctaInner}>
+          <h2 className={styles.ctaTitle}>
+            {kor ? "지금 바로 시작해보세요" : "Get started today"}
+          </h2>
+          <p className={styles.ctaDesc}>
+            {kor
+              ? "업로드 하나로 안전관리비 정산을 끝내세요."
+              : "One upload. All your safety docs done."}
+          </p>
+          <a className={styles.ctaBtn} href="/workspace/fill">
+            {kor ? "무료로 시작하기" : "Start for free"}
+          </a>
+        </Reveal>
       </section>
 
       {/* ── FOOTER ── */}
