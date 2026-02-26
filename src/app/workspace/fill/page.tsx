@@ -5,21 +5,9 @@ import * as XLSX from "xlsx";
 import { supabase } from "@/lib/supabaseClient";
 import PhotoSheetView from "@/components/photo-sheet/PhotoSheetView";
 import type { PhotoBlock, OnSlotClick, OnPhotoDelete, OnMetaUpdate } from "@/components/photo-sheet/types";
+import { parseExcelBuffer } from "@/lib/parseExcel";
+import type { ParsedCell, ParsedSheet } from "@/lib/parseExcel";
 import styles from "./page.module.css";
-
-type ParsedCell = {
-  value:   string;
-  style:   Record<string, string>;
-  rowSpan: number;
-  colSpan: number;
-  skip:    boolean;
-};
-
-type ParsedSheet = {
-  name:      string;
-  rows:      Array<{ height: number; cells: ParsedCell[] }>;
-  colWidths: number[];
-};
 
 function colLetter(col: number): string {
   let r = "";
@@ -315,11 +303,7 @@ export default function FillPage() {
     try {
       const buf = await file.arrayBuffer();
       setRawBuf(buf); setFileName(file.name);
-      const fd = new FormData();
-      fd.append("file", file);
-      const res = await fetch("/api/parse-excel", { method: "POST", body: fd });
-      if (!res.ok) throw new Error("parse failed");
-      const { sheets: parsed } = await res.json() as { sheets: ParsedSheet[] };
+      const parsed = await parseExcelBuffer(buf);
       setSheets(parsed); setActiveSheet(0); setFormValues({}); setSelectedCell(null);
       setPhotoBlocks({});
 
