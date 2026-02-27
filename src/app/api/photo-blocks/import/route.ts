@@ -1,5 +1,5 @@
 // src/app/api/photo-blocks/import/route.ts
-// Excel 사진대지 시트 → photo_blocks 최초 1회 저장 (인증 불필요 — admin 클라이언트 사용)
+// 항목별세부내역 → 사진대지 블록 생성 (항목별세부내역이 단일 원본)
 
 import { NextRequest, NextResponse } from "next/server";
 import ExcelJS from "exceljs";
@@ -7,7 +7,7 @@ import { getSupabaseAdmin, DEV_USER_ID } from "@/lib/supabaseAdmin";
 
 export const runtime = "nodejs";
 
-const PHOTO_SHEET_KEYWORDS = ["사진대지", "보호구", "시설물", "위험성", "건강관리"];
+const PHOTO_SHEET_KEYWORDS = ["사진대지", "사진", "보호구", "시설물", "위험성", "건강관리", "교육"];
 const INSTALL_KEYWORDS = ["설치", "현장"];
 
 type PhotoBlockRow = {
@@ -23,6 +23,7 @@ type PhotoBlockRow = {
   sort_order:   number;
 };
 
+// ── 셀 텍스트 추출 ──────────────────────────────────────────
 function cellText(ws: ExcelJS.Worksheet, row: number, col: number): string {
   const v = ws.getRow(row).getCell(col).value;
   if (v == null) return "";
@@ -35,76 +36,78 @@ function cellText(ws: ExcelJS.Worksheet, row: number, col: number): string {
   return String(v);
 }
 
-function scanCells(ws: ExcelJS.Worksheet): Array<{ r: number; c: number; text: string }> {
-  const result: Array<{ r: number; c: number; text: string }> = [];
-  ws.eachRow((row, ri) => {
-    row.eachCell({ includeEmpty: false }, (cell, ci) => {
-      const text = cellText(ws, ri, ci).trim();
-      if (text) result.push({ r: ri, c: ci, text });
-    });
-  });
-  return result;
-}
-
+// NO.1 / NO.10 형태 파싱
 function parseNoNumber(text: string): number | null {
   const m = text.replace(/\s/g, "").toUpperCase().match(/^NO\.?(\d+)$/);
   return m ? parseInt(m[1], 10) : null;
 }
 
-function isDateLike(text: string): boolean {
-  return /\d{2,4}[.\-\/]\d{1,2}[.\-\/]\d{1,2}/.test(text);
+// "2.안전시설물 사진대지" → 2
+function sheetItemNumber(sheetName: string): number | null {
+  const m = sheetName.match(/^(\d+)\./);
+  return m ? parseInt(m[1]) : null;
 }
 
-function isLabelLike(text: string): boolean {
-  return text.length > 1 && /[가-힣a-zA-Z]/.test(text);
+// ── 항목별세부내역 파싱 ───────────────────────────────────────
+// 반환: NO번호 → { itemNumber, date, label }
+type NoDetail = { itemNumber: number; date: string; label: string };
+
+function parseDetailSheet(wb: ExcelJS.Workbook): Map<number, NoDetail> {
+  const result = new Map<number, NoDetail>();
+  const ws = wb.getWorksheet("항목별세부내역");
+  if (!ws) return result;
+
+  let currentItem = 0;
+
+  ws.eachRow((_, ri) => {
+    // 1열: 항목 헤더 "2. 안전시설비 등" 감지
+    const col1 = cellText(ws, ri, 1).trim();
+    const headerMatch = col1.replace(/\s/g, "").match(/^(\d+)\./);
+    if (headerMatch) currentItem = parseInt(headerMatch[1]);
+
+    // 7열: 증빙번호 NO.XX
+    const col7 = cellText(ws, ri, 7).trim();
+    const no = parseNoNumber(col7);
+    if (no === null || currentItem === 0) return;
+
+    const date  = cellText(ws, ri, 2).trim();
+    const name  = cellText(ws, ri, 3).trim();
+    const qty   = cellText(ws, ri, 4).trim();
+    // 수량이 있으면 "품목명 [수량EA]" 형식
+    const label = qty ? `${name} [${qty}EA]` : name;
+
+    result.set(no, { itemNumber: currentItem, date, label });
+  });
+
+  return result;
 }
 
-function parsePhotoSheet(
-  ws: ExcelJS.Worksheet,
-  sheetName: string,
-  docId: string,
-  userId: string
-): PhotoBlockRow[] {
-  const cells = scanCells(ws);
-  const blocks: PhotoBlockRow[] = [];
+// ── 사진대지 시트에서 NO → right_header 매핑 (시트별 독립) ──────
+// 블록 레이아웃: NO셀 바로 아래 행, NO열+4 위치에 right_header 텍스트가 있음
+//   예) NO.1 at (r4, c2) → right_header at (r5, c6)
+// 시트별로 분리하여 타 시트의 중복 NO가 오염하지 않도록 함
+function buildRightHeaderMap(ws: ExcelJS.Worksheet): Map<number, string> {
+  const noToHeader = new Map<number, string>();
 
-  const noPositions = cells
-    .map(c => ({ ...c, no: parseNoNumber(c.text) }))
-    .filter(c => c.no !== null) as Array<{ r: number; c: number; text: string; no: number }>;
+  ws.eachRow((_row, ri) => {
+    ws.getRow(ri).eachCell({ includeEmpty: false }, (_cell, ci) => {
+      const text = cellText(ws, ri, ci).trim();
+      const no = parseNoNumber(text);
+      if (no === null || noToHeader.has(no)) return;
 
-  for (let i = 0; i < noPositions.length; i++) {
-    const noCell = noPositions[i];
-    const nextNoRow = noPositions[i + 1]?.r ?? ws.rowCount + 1;
-    const blockCells = cells.filter(c => c.r > noCell.r && c.r < nextNoRow);
+      // 바로 아래 행, 오른쪽 4번째 열 → right_header
+      const headerText = cellText(ws, ri + 1, ci + 4).trim();
+      noToHeader.set(
+        no,
+        INSTALL_KEYWORDS.some(k => headerText.includes(k)) ? "현장 설치 사진" : "지급 사진"
+      );
+    });
+  });
 
-    const rightHeaderCell = blockCells.find(c =>
-      c.text.includes("지급") || INSTALL_KEYWORDS.some(k => c.text.includes(k))
-    );
-    const right_header = rightHeaderCell
-      ? (INSTALL_KEYWORDS.some(k => rightHeaderCell.text.includes(k)) ? "현장 설치 사진" : "지급 사진")
-      : "지급 사진";
-
-    const dateCells = blockCells.filter(c => isDateLike(c.text));
-    const left_date  = dateCells[0]?.text ?? "";
-    const right_date = dateCells[1]?.text ?? dateCells[0]?.text ?? "";
-
-    const labelCells = blockCells.filter(c =>
-      isLabelLike(c.text) &&
-      !isDateLike(c.text) &&
-      parseNoNumber(c.text) === null &&
-      !c.text.includes("반입") &&
-      !c.text.includes("지급") &&
-      !c.text.includes("설치") &&
-      !c.text.includes("사진")
-    );
-    const left_label  = labelCells[0]?.text ?? "";
-    const right_label = labelCells[1]?.text ?? labelCells[0]?.text ?? "";
-
-    blocks.push({ doc_id: docId, user_id: userId, sheet_name: sheetName, no: noCell.no!, right_header, left_date, right_date, left_label, right_label, sort_order: i });
-  }
-  return blocks;
+  return noToHeader;
 }
 
+// ── POST 핸들러 ──────────────────────────────────────────────
 export async function POST(req: NextRequest) {
   try {
     const supabase = getSupabaseAdmin();
@@ -121,23 +124,66 @@ export async function POST(req: NextRequest) {
     const wb  = new ExcelJS.Workbook();
     await wb.xlsx.load(new Uint8Array(buf) as unknown as ExcelJS.Buffer);
 
+    // 사진대지 시트 목록
     const photoSheets = wb.worksheets.filter(ws =>
       PHOTO_SHEET_KEYWORDS.some(k => ws.name.includes(k))
     );
-
     if (!photoSheets.length) {
-      return NextResponse.json({ ok: false, error: `사진대지 시트를 찾지 못했습니다.`, sheets: wb.worksheets.map(ws => ws.name) }, { status: 400 });
+      return NextResponse.json(
+        { ok: false, error: "사진대지 시트를 찾지 못했습니다.", sheets: wb.worksheets.map(ws => ws.name) },
+        { status: 400 }
+      );
     }
 
-    const allBlocks: PhotoBlockRow[] = [];
+    // ① 항목별세부내역 → NO별 상세 (단일 원본)
+    const noDetails = parseDetailSheet(wb);
+    if (!noDetails.size) {
+      return NextResponse.json({ ok: false, error: "항목별세부내역에서 NO.XX 데이터를 찾지 못했습니다." }, { status: 400 });
+    }
+
+    // ② 항목번호 → (시트명, right_header맵) 매핑
+    const itemToSheetName = new Map<number, string>();
+    const sheetHeaderMaps = new Map<string, Map<number, string>>();
     for (const ws of photoSheets) {
-      allBlocks.push(...parsePhotoSheet(ws, ws.name, docId, userId));
+      const n = sheetItemNumber(ws.name);
+      if (n != null) itemToSheetName.set(n, ws.name);
+      // 시트별로 독립 파싱 → 타 시트 중복 NO에 오염되지 않음
+      sheetHeaderMaps.set(ws.name, buildRightHeaderMap(ws));
+    }
+
+    // ③ 항목별세부내역 기준으로 블록 생성
+    const allBlocks: PhotoBlockRow[] = [];
+    const sortCounters = new Map<string, number>();
+
+    // NO 순서대로 정렬하여 처리
+    for (const [no, detail] of [...noDetails.entries()].sort((a, b) => a[0] - b[0])) {
+      const sheetName = itemToSheetName.get(detail.itemNumber);
+      if (!sheetName) continue;  // 해당 항목의 사진대지 시트가 없으면 건너뜀
+
+      const sortOrder = sortCounters.get(sheetName) ?? 0;
+      sortCounters.set(sheetName, sortOrder + 1);
+
+      const right_header = sheetHeaderMaps.get(sheetName)?.get(no) ?? "지급 사진";
+
+      allBlocks.push({
+        doc_id:       docId,
+        user_id:      userId,
+        sheet_name:   sheetName,
+        no,
+        right_header,
+        left_date:    detail.date,
+        right_date:   detail.date,   // 기본값 동일, 사용자가 수정 가능
+        left_label:   detail.label,
+        right_label:  detail.label,
+        sort_order:   sortOrder,
+      });
     }
 
     if (!allBlocks.length) {
-      return NextResponse.json({ ok: false, error: "NO.XX 블록을 찾지 못했습니다." }, { status: 400 });
+      return NextResponse.json({ ok: false, error: "생성할 블록이 없습니다." }, { status: 400 });
     }
 
+    // 이미 저장된 블록 중복 제외
     const { data: existing } = await supabase
       .from("photo_blocks")
       .select("no, sheet_name")
