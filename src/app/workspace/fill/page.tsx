@@ -234,6 +234,8 @@ export default function FillPage() {
   const [photoSlot,     setPhotoSlot]     = useState<{
     blockId: string; side: "left" | "right"; slotIndex: number;
   } | null>(null);
+  // iOS 갤러리 picker 닫힐 때 backdrop click이 먼저 발생해 state가 null이 되는 문제 방어용
+  const photoSlotRef = useRef<{ blockId: string; side: "left" | "right"; slotIndex: number } | null>(null);
   const [photoUploading, setPhotoUploading] = useState(false);
   const [photoSaving,    setPhotoSaving]    = useState(false);
   const [saveToast,      setSaveToast]      = useState(false);
@@ -268,6 +270,7 @@ export default function FillPage() {
 
   // ── 슬롯 클릭 ────────────────────────────────────────────────
   const handleSlotClick: OnSlotClick = useCallback((blockId, side, slotIndex) => {
+    photoSlotRef.current = { blockId, side, slotIndex };
     setPhotoSlot({ blockId, side, slotIndex });
   }, []);
 
@@ -306,8 +309,11 @@ export default function FillPage() {
   // ── 사진 업로드: private Storage → signed URL ───────────────────
   // 프론트 슬롯 중복 체크(1차) + 서버 중복 체크(2차) + DB UNIQUE(3차)
   const handlePhotoUpload = useCallback(async (file: File) => {
-    if (!photoSlot) return;
-    const { blockId, side, slotIndex } = photoSlot;
+    // ref 우선 (iOS: gallery picker 닫힐 때 backdrop이 먼저 state를 null로 만드는 문제 방어)
+    const slot = photoSlotRef.current ?? photoSlot;
+    if (!slot) return;
+    const { blockId, side, slotIndex } = slot;
+    photoSlotRef.current = null;
     setPhotoSlot(null);
 
     // 현재 블록 찾기
