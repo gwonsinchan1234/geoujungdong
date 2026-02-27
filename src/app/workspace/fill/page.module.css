@@ -271,11 +271,13 @@
 
 .viewportPhoto {
   flex: 1;
-  min-height: 280px;
-  overflow: auto;
+  min-height: 0;          /* flex 자식 스크롤 활성화에 필수 */
+  overflow-y: auto;
+  overflow-x: hidden;
   padding: 16px;
   background: #f0f2f5;
   -webkit-overflow-scrolling: touch;
+  position: relative;     /* saveToast absolute 기준점 */
 }
 .viewportPhoto::-webkit-scrollbar { width: 6px; height: 6px; }
 .viewportPhoto::-webkit-scrollbar-track { background: #e5e7eb; }
