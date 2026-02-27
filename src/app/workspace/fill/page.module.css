@@ -115,6 +115,54 @@
 }
 .downloadBtn:hover { background: #15803d; }
 
+/* 저장 버튼 (사진대지 탭 활성 시) */
+.saveBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 14px;
+  border-radius: 10px;
+  border: none;
+  background: #7c3aed;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s, opacity 0.15s;
+}
+.saveBtn:hover:not(:disabled) { background: #6d28d9; }
+.saveBtn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.saveBtnSpinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255,255,255,0.4);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+/* 저장 완료 토스트 */
+.saveToast {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(22, 163, 74, 0.95);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 20px;
+  border-radius: 20px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+  z-index: 200;
+  pointer-events: none;
+  animation: fadeUp 0.3s cubic-bezier(0.16,1,0.3,1) both;
+  white-space: nowrap;
+}
+
 /* ── Content ───────────────────────────────────────────────────── */
 
 .content {
@@ -220,6 +268,43 @@
 .viewport::-webkit-scrollbar-track { background: #e5e7eb; }
 .viewport::-webkit-scrollbar-thumb { background: #9ca3af; border-radius: 3px; }
 .viewport::-webkit-scrollbar-corner { background: #e5e7eb; }
+
+.viewportPhoto {
+  flex: 1;
+  min-height: 280px;
+  overflow: auto;
+  padding: 16px;
+  background: #f0f2f5;
+  -webkit-overflow-scrolling: touch;
+}
+.viewportPhoto::-webkit-scrollbar { width: 6px; height: 6px; }
+.viewportPhoto::-webkit-scrollbar-track { background: #e5e7eb; }
+.viewportPhoto::-webkit-scrollbar-thumb { background: #9ca3af; border-radius: 3px; }
+
+.photoEmpty {
+  padding: 24px 20px;
+  margin-bottom: 16px;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  text-align: center;
+}
+.photoEmpty p { margin: 0 0 8px; font-size: 14px; color: #374151; }
+.photoEmptyHint { font-size: 12px !important; color: #6b7280 !important; line-height: 1.5 !important; margin-bottom: 16px !important; }
+.photoRetryBtn {
+  display: inline-flex;
+  align-items: center;
+  padding: 10px 20px;
+  border-radius: 10px;
+  border: none;
+  background: #2563eb;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.photoRetryBtn:hover { background: #1d4ed8; }
 
 .table {
   border-collapse: collapse;
