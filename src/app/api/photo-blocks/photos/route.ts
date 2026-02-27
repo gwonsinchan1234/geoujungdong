@@ -63,13 +63,31 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, error: "file 필요" }, { status: 400 });
     }
 
-    // ── 1. 블록 upsert (자연키: doc_id, sheet_name, no) ─────────────
-    const { data: block, error: blockErr } = await supabase
+    // ── 1. 블록 SELECT → INSERT or UPDATE (UNIQUE 제약 없이 안전하게) ──
+    const { data: existingBlock } = await supabase
       .from("photo_blocks")
-      .upsert(
-        {
+      .select("id")
+      .eq("doc_id",     docId)
+      .eq("sheet_name", sheetName)
+      .eq("no",         blockNo)
+      .maybeSingle();
+
+    let blockId: string;
+    if (existingBlock) {
+      // 이미 있으면 메타 업데이트
+      const { error: upErr } = await supabase
+        .from("photo_blocks")
+        .update({ right_header: rightHeader, left_date: leftDate, right_date: rightDate, left_label: leftLabel, right_label: rightLabel, sort_order: sortOrder })
+        .eq("id", existingBlock.id);
+      if (upErr) return NextResponse.json({ ok: false, error: upErr.message }, { status: 500 });
+      blockId = existingBlock.id as string;
+    } else {
+      // 없으면 새로 삽입 (user_id는 null — DEV_USER_ID가 auth.users에 없을 수 있음)
+      const { data: inserted, error: insErr } = await supabase
+        .from("photo_blocks")
+        .insert({
           doc_id:       docId,
-          user_id:      userId,
+          user_id:      null,
           sheet_name:   sheetName,
           no:           blockNo,
           right_header: rightHeader,
@@ -78,16 +96,12 @@ export async function POST(req: NextRequest) {
           left_label:   leftLabel,
           right_label:  rightLabel,
           sort_order:   sortOrder,
-        },
-        { onConflict: "doc_id,sheet_name,no" }
-      )
-      .select("id")
-      .single();
-
-    if (blockErr) {
-      return NextResponse.json({ ok: false, error: blockErr.message }, { status: 500 });
+        })
+        .select("id")
+        .single();
+      if (insErr) return NextResponse.json({ ok: false, error: insErr.message }, { status: 500 });
+      blockId = inserted.id as string;
     }
-    const blockId = block.id as string;
 
     // ── 2. 슬롯 중복 검증 (서버 이중 방어) ─────────────────────────
     const { data: existing } = await supabase
