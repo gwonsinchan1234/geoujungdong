@@ -325,27 +325,22 @@ export default function FillPage() {
     }
 
     setPhotoUploading(true);
+    let pId  = "";    // pending photo id (밖에서 finally가 접근 가능하게)
+    let pUrl = "";    // local object URL
     try {
-      const compressed = await compressImage(file, 1920, 0.8);
+      // 압축 실패 시 원본 그대로 사용
+      let compressed: Blob;
+      try { compressed = await compressImage(file, 1920, 0.8); }
+      catch { compressed = file; }
 
-      // ② 로컬 미리보기 즉시 표시 (서버 응답 전에 보여주기)
-      const localUrl   = URL.createObjectURL(compressed);
-      const pendingId  = `pending_${Date.now()}`;
-      const pendingPhoto: BlockPhoto = {
-        id:           pendingId,
-        block_id:     blockId,
-        side,
-        slot_index:   slotIndex,
-        storage_path: "",
-        url:          localUrl,
-      };
+      // ① 로컬 미리보기 즉시 표시
+      pUrl = URL.createObjectURL(compressed);
+      pId  = `pending_${Date.now()}`;
+      const pendingPhoto: BlockPhoto = { id: pId, block_id: blockId, side, slot_index: slotIndex, storage_path: "", url: pUrl };
       setPhotoBlocks(prev => {
         const next = { ...prev };
         for (const name of Object.keys(next)) {
-          next[name] = next[name].map(b => {
-            if (b.id !== blockId) return b;
-            return { ...b, photos: [...b.photos, pendingPhoto] };
-          });
+          next[name] = next[name].map(b => b.id !== blockId ? b : { ...b, photos: [...b.photos, pendingPhoto] });
         }
         return next;
       });
@@ -364,52 +359,51 @@ export default function FillPage() {
       fd.append("slotIndex",   String(slotIndex));
       fd.append("file",        new File([compressed], "photo.jpg", { type: "image/jpeg" }));
 
-      const res = await fetch("/api/photo-blocks/photos", { method: "POST", body: fd });
-      const json = await res.json() as {
-        ok:           boolean;
-        photoId?:     string;
-        blockId?:     string;
-        storagePath?: string;
-        signedUrl?:   string;
-        error?:       string;
-      };
+      const res  = await fetch("/api/photo-blocks/photos", { method: "POST", body: fd });
+      const json = await res.json() as { ok: boolean; photoId?: string; blockId?: string; storagePath?: string; signedUrl?: string; error?: string };
 
       if (!json.ok) {
         // 서버 실패 → pending 제거
         setPhotoBlocks(prev => {
           const next = { ...prev };
           for (const name of Object.keys(next)) {
-            next[name] = next[name].map(b => ({
-              ...b, photos: b.photos.filter(p => p.id !== pendingId),
-            }));
+            next[name] = next[name].map(b => ({ ...b, photos: b.photos.filter(p => p.id !== pId) }));
           }
           return next;
         });
-        URL.revokeObjectURL(localUrl);
-        alert(json.error ?? "사진 업로드에 실패했습니다.");
+        URL.revokeObjectURL(pUrl);
+        pUrl = "";
+        alert(`업로드 실패: ${json.error ?? "서버 오류"}`);
         return;
       }
 
-      // ③ pending → 실제 photo로 교체 (localUrl 유지 — signed URL 만료 전까지 표시)
+      // ② pending → 실제 photo로 교체 (signedUrl 없으면 localUrl 유지)
       setPhotoBlocks(prev => {
         const next = { ...prev };
         for (const name of Object.keys(next)) {
           next[name] = next[name].map(b => ({
             ...b,
-            photos: b.photos.map(p =>
-              p.id !== pendingId ? p : {
-                id:           json.photoId!,
-                block_id:     json.blockId!,
-                side,
-                slot_index:   slotIndex,
-                storage_path: json.storagePath!,
-                url:          json.signedUrl || localUrl,  // signedUrl 없으면 localUrl 유지
-              }
-            ),
+            photos: b.photos.map(p => p.id !== pId ? p : {
+              id: json.photoId!, block_id: json.blockId!, side, slot_index: slotIndex,
+              storage_path: json.storagePath!, url: json.signedUrl || pUrl,
+            }),
           }));
         }
         return next;
       });
+    } catch (err) {
+      // 예상치 못한 에러 — 화면에 표시
+      if (pId) {
+        setPhotoBlocks(prev => {
+          const next = { ...prev };
+          for (const name of Object.keys(next)) {
+            next[name] = next[name].map(b => ({ ...b, photos: b.photos.filter(p => p.id !== pId) }));
+          }
+          return next;
+        });
+      }
+      if (pUrl) URL.revokeObjectURL(pUrl);
+      alert(`오류: ${(err as Error)?.message ?? String(err)}`);
     } finally {
       setPhotoUploading(false);
     }
