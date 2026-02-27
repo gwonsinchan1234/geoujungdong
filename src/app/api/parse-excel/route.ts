@@ -115,7 +115,8 @@ function extractStyle(cell: ExcelJS.Cell): CSSMap {
   }
 
   if (alignment) {
-    if (alignment.horizontal === "center")           s.textAlign = "center";
+    if (alignment.horizontal === "center"
+     || alignment.horizontal === "centerContinuous") s.textAlign = "center";
     else if (alignment.horizontal === "right")       s.textAlign = "right";
     else if (alignment.horizontal === "left")        s.textAlign = "left";
     else if (alignment.horizontal === "distributed"
@@ -198,6 +199,8 @@ export async function POST(request: NextRequest) {
           }
           const cell = wsRow.getCell(c);
           const span = spanMap.get(key);
+          // 1행 1열(제목행) 스타일 진단 로그
+          if (r === 1 && c === 1) console.log("[style-debug] r1c1 font:", JSON.stringify(cell.font), "align:", JSON.stringify(cell.alignment));
           cells.push({
             value:   extractValue(cell),
             style:   extractStyle(cell),
