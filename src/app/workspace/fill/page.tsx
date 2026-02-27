@@ -328,6 +328,28 @@ export default function FillPage() {
     try {
       const compressed = await compressImage(file, 1920, 0.8);
 
+      // ② 로컬 미리보기 즉시 표시 (서버 응답 전에 보여주기)
+      const localUrl   = URL.createObjectURL(compressed);
+      const pendingId  = `pending_${Date.now()}`;
+      const pendingPhoto: BlockPhoto = {
+        id:           pendingId,
+        block_id:     blockId,
+        side,
+        slot_index:   slotIndex,
+        storage_path: "",
+        url:          localUrl,
+      };
+      setPhotoBlocks(prev => {
+        const next = { ...prev };
+        for (const name of Object.keys(next)) {
+          next[name] = next[name].map(b => {
+            if (b.id !== blockId) return b;
+            return { ...b, photos: [...b.photos, pendingPhoto] };
+          });
+        }
+        return next;
+      });
+
       const fd = new FormData();
       fd.append("docId",       docIdRef.current);
       fd.append("sheetName",   block.sheet_name);
@@ -353,26 +375,38 @@ export default function FillPage() {
       };
 
       if (!json.ok) {
+        // 서버 실패 → pending 제거
+        setPhotoBlocks(prev => {
+          const next = { ...prev };
+          for (const name of Object.keys(next)) {
+            next[name] = next[name].map(b => ({
+              ...b, photos: b.photos.filter(p => p.id !== pendingId),
+            }));
+          }
+          return next;
+        });
+        URL.revokeObjectURL(localUrl);
         alert(json.error ?? "사진 업로드에 실패했습니다.");
         return;
       }
 
-      const newPhoto: BlockPhoto = {
-        id:           json.photoId!,
-        block_id:     json.blockId!,
-        side,
-        slot_index:   slotIndex,
-        storage_path: json.storagePath!,
-        url:          json.signedUrl!,
-      };
-
+      // ③ pending → 실제 photo로 교체 (localUrl 유지 — signed URL 만료 전까지 표시)
       setPhotoBlocks(prev => {
         const next = { ...prev };
         for (const name of Object.keys(next)) {
-          next[name] = next[name].map(b => {
-            if (b.id !== blockId) return b;
-            return { ...b, photos: [...b.photos, newPhoto] };
-          });
+          next[name] = next[name].map(b => ({
+            ...b,
+            photos: b.photos.map(p =>
+              p.id !== pendingId ? p : {
+                id:           json.photoId!,
+                block_id:     json.blockId!,
+                side,
+                slot_index:   slotIndex,
+                storage_path: json.storagePath!,
+                url:          json.signedUrl || localUrl,  // signedUrl 없으면 localUrl 유지
+              }
+            ),
+          }));
         }
         return next;
       });

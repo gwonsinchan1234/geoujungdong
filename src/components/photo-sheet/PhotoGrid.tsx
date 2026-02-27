@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import type { BlockPhoto, OnSlotClick, OnPhotoDelete } from "./types";
 import styles from "./photo-sheet.module.css";
 
@@ -65,12 +64,11 @@ export default function PhotoGrid({
       {slotsToShow.map(({ index, photo }) =>
         photo ? (
           <div key={index} className={styles.photoCell}>
-            <Image
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
               src={photo.url}
               alt={`사진 ${index + 1}`}
-              fill
               className={styles.photoImg}
-              unoptimized
             />
             {onPhotoDelete && (
               <button
