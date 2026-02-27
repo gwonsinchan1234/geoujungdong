@@ -242,6 +242,31 @@ export default function FillPage() {
 
   const mkKey = (sheetIdx: number, cell: string) => `${sheetIdx}__${cell.toUpperCase()}`;
 
+  // ── PWA Share Target: SW 캐시에서 공유된 엑셀 파일 수신 ──────────
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (!params.has("shared")) return;
+    // URL 파라미터 제거 (히스토리 오염 방지)
+    window.history.replaceState({}, "", "/workspace/fill");
+    (async () => {
+      try {
+        const cache = await caches.open("share-file-v1");
+        const res   = await cache.match("/shared-excel");
+        if (!res) return;
+        const blob     = await res.blob();
+        const fileName = decodeURIComponent(res.headers.get("X-File-Name") ?? "shared.xlsx");
+        await cache.delete("/shared-excel");
+        // handleFile과 동일한 처리
+        const fakeEvent = { target: { files: [new File([blob], fileName)], value: "" } } as unknown as React.ChangeEvent<HTMLInputElement>;
+        handleFile(fakeEvent);
+      } catch (e) {
+        console.error("[share-target]", e);
+      }
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // ── 사진대지: 파싱 미완료 시 안전망 (handleFile에서 이미 처리됨) ──
   useEffect(() => {
     if (!rawBuf || !sheets.length) return;
