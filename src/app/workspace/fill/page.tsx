@@ -240,18 +240,17 @@ export default function FillPage() {
 
   const mkKey = (sheetIdx: number, cell: string) => `${sheetIdx}__${cell.toUpperCase()}`;
 
-  // ── 사진대지: 파일 로드 시 항목별세부내역 기준으로 전체 블록 파싱 ──
+  // ── 사진대지: 파싱 미완료 시 안전망 (handleFile에서 이미 처리됨) ──
   useEffect(() => {
     if (!rawBuf || !sheets.length) return;
-    // 사진대지 시트가 하나라도 있고, 아직 파싱 안 된 경우에만 실행
     const hasPhoto = sheets.some(s => isPhotoSheet(s.name));
     if (!hasPhoto) return;
-    const alreadyParsed = sheets.filter(s => isPhotoSheet(s.name)).some(s => (photoBlocks[s.name]?.length ?? 0) > 0);
+    const alreadyParsed = sheets.filter(s => isPhotoSheet(s.name))
+      .some(s => (photoBlocks[s.name]?.length ?? 0) > 0);
     if (alreadyParsed) return;
+    // handleFile에서 파싱 실패 시 재시도
     const parsed = parsePhotoBlocksFromRaw(rawBuf, sheets.map(s => s.name));
-    if (Object.keys(parsed).length > 0) {
-      setPhotoBlocks(prev => ({ ...prev, ...parsed }));
-    }
+    if (Object.keys(parsed).length > 0) setPhotoBlocks(prev => ({ ...prev, ...parsed }));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rawBuf, sheets]);
 
@@ -542,14 +541,27 @@ export default function FillPage() {
       setFormValues({});
       setSelectedCell(null);
 
-      // localStorage 드래프트 복원 시도
+      // 항목별세부내역 기반 블록 파싱 (항상 새로 파싱 — 구조는 xlsx 원본이 원본)
+      const freshBlocks = parsePhotoBlocksFromRaw(buf, parsed.map(s => s.name));
+
       const draft = photoDraft.load(file.name);
       if (draft) {
         docIdRef.current = draft.docId;
-        setPhotoBlocks(draft.blocks);
+        // 드래프트에서 사진만 복원 (NO + 시트명 기준 매칭, 구조는 freshBlocks 우선)
+        const allDraftBlocks = Object.values(draft.blocks).flat();
+        const merged: Record<string, PhotoBlock[]> = {};
+        for (const [sheetName, blocks] of Object.entries(freshBlocks)) {
+          merged[sheetName] = blocks.map(block => {
+            const draftBlock = allDraftBlocks.find(b => b.sheet_name === sheetName && b.no === block.no);
+            return draftBlock
+              ? { ...block, id: draftBlock.id, doc_id: draftBlock.doc_id, photos: draftBlock.photos }
+              : block;
+          });
+        }
+        setPhotoBlocks(Object.keys(merged).length > 0 ? merged : draft.blocks);
       } else {
         docIdRef.current = crypto.randomUUID();
-        setPhotoBlocks({});
+        setPhotoBlocks(freshBlocks);
       }
     } catch (err) {
       console.error("[handleFile]", err);
