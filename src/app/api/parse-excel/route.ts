@@ -204,7 +204,20 @@ export async function POST(request: NextRequest) {
         rows.push({ height: excelH(wsRow.height ?? undefined), cells });
       }
 
-      return { name: ws.name, rows, colWidths };
+      // ── 인쇄 영역 파싱 (e.g. "A2:H31") ────────────────────────
+      let printArea: { r1: number; c1: number; r2: number; c2: number } | null = null;
+      const paStr = (ws.pageSetup as { printArea?: string })?.printArea;
+      if (paStr) {
+        const m = paStr.split(",")[0].trim()
+          .match(/^\$?([A-Z]+)\$?(\d+):\$?([A-Z]+)\$?(\d+)$/);
+        if (m) {
+          const colIdx = (s: string) =>
+            s.split("").reduce((n, c) => n * 26 + c.charCodeAt(0) - 64, 0);
+          printArea = { c1: colIdx(m[1]), r1: parseInt(m[2]), c2: colIdx(m[3]), r2: parseInt(m[4]) };
+        }
+      }
+
+      return { name: ws.name, rows, colWidths, printArea };
     });
 
     // 동일 레이아웃 그룹 — 열 너비 + 셀 개수 동시 통일

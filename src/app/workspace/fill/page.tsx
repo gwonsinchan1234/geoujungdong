@@ -39,6 +39,19 @@ function colLetter(col: number): string {
 }
 
 function trimSheet(sheet: ParsedSheet, sheetIdx: number, formValues: Record<string, string>) {
+  const pa = sheet.printArea;
+  if (pa) {
+    // Restrict to print area (1-based r1/c1/r2/c2 → 0-based slicing)
+    const rowStart = pa.r1 - 1;
+    const colStart = pa.c1 - 1;
+    const trimmedRows = sheet.rows
+      .slice(rowStart, Math.min(pa.r2, sheet.rows.length))
+      .map(row => ({ ...row, cells: row.cells.slice(colStart, pa.c2) }));
+    const usedCols  = pa.c2 - colStart;
+    const colWidths = sheet.colWidths.slice(colStart, pa.c2);
+    return { trimmedRows, usedCols, colWidths, rowOffset: rowStart, colOffset: colStart };
+  }
+
   let lastRow = sheet.rows.length - 1;
   while (lastRow >= 0) {
     const row = sheet.rows[lastRow];
@@ -62,7 +75,7 @@ function trimSheet(sheet: ParsedSheet, sheetIdx: number, formValues: Record<stri
   }
   const usedCols  = lastCol + 1;
   const colWidths = sheet.colWidths.slice(0, usedCols);
-  return { trimmedRows, usedCols, colWidths };
+  return { trimmedRows, usedCols, colWidths, rowOffset: 0, colOffset: 0 };
 }
 
 const A4_W = 680;
@@ -167,7 +180,7 @@ function parsePhotoBlocksFromRaw(rawBuf: ArrayBuffer, sheetNames: string[]): Rec
 function PreviewSheet({
   sheet, sheetIdx, formValues,
 }: { sheet: ParsedSheet; sheetIdx: number; formValues: Record<string, string> }) {
-  const { trimmedRows, usedCols, colWidths } = trimSheet(sheet, sheetIdx, formValues);
+  const { trimmedRows, usedCols, colWidths, rowOffset, colOffset } = trimSheet(sheet, sheetIdx, formValues);
   const totalW  = colWidths.reduce((a, b) => a + b, 0) || A4_W;
   const scale   = Math.min(1, A4_W / totalW);
   const totalH  = trimmedRows.reduce((s, r) => s + r.height, 0);
@@ -184,7 +197,7 @@ function PreviewSheet({
                 <tr key={ri} style={{ height: row.height }}>
                   {row.cells.slice(0, usedCols).map((cell, ci) => {
                     if (cell.skip) return null;
-                    const ref = `${colLetter(ci + 1)}${ri + 1}`;
+                    const ref = `${colLetter(ci + 1 + colOffset)}${ri + 1 + rowOffset}`;
                     const ov  = formValues[`${sheetIdx}__${ref}`];
                     return (
                       <td key={ci}
@@ -521,9 +534,17 @@ export default function FillPage() {
       }
       if (!selectedCell) return;
 
+      // printArea 기반 표시 범위
+      const kbPa       = sheet.printArea;
+      const kbRowStart = kbPa ? kbPa.r1 - 1 : 0;
+      const kbColStart = kbPa ? kbPa.c1 - 1 : 0;
+      const rows = kbPa
+        ? sheet.rows.slice(kbRowStart, Math.min(kbPa.r2, sheet.rows.length))
+            .map(r => ({ ...r, cells: r.cells.slice(kbColStart, kbPa.c2) }))
+        : sheet.rows;
+      const maxCol = (kbPa ? kbPa.c2 - kbColStart : sheet.colWidths.length) - 1;
+
       let { ri, ci } = selectedCell;
-      const rows   = sheet.rows;
-      const maxCol = sheet.colWidths.length - 1;
       const findNextCol = (startCi: number, dir: 1 | -1) => {
         for (let c = startCi + dir; c >= 0 && c <= maxCol; c += dir)
           if (!rows[ri]?.cells[c]?.skip) return c;
@@ -534,6 +555,7 @@ export default function FillPage() {
           if (!rows[r]?.cells[ci]?.skip) return r;
         return ri;
       };
+      const kbRef = () => `${colLetter(ci + 1 + kbColStart)}${ri + 1 + kbRowStart}`;
 
       switch (e.key) {
         case "ArrowRight": e.preventDefault(); ci = findNextCol(ci, 1);  break;
@@ -547,7 +569,7 @@ export default function FillPage() {
         case "Escape": e.preventDefault(); setSelectedCell(null); return;
         case "F2": {
           e.preventDefault();
-          const ref  = `${colLetter(ci + 1)}${ri + 1}`;
+          const ref  = kbRef();
           const cell = rows[ri]?.cells[ci];
           if (cell) { setEditValue(formValues[mkKey(activeSheet, ref)] ?? ""); setEditingCell({ ref, sheetIdx: activeSheet, originalValue: cell.value }); }
           return;
@@ -555,14 +577,14 @@ export default function FillPage() {
         case "Delete":
         case "Backspace": {
           e.preventDefault();
-          const key = mkKey(activeSheet, `${colLetter(ci + 1)}${ri + 1}`);
+          const key = mkKey(activeSheet, kbRef());
           setFormValues(p => { const n = { ...p }; delete n[key]; return n; });
           return;
         }
         default:
           if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
             e.preventDefault();
-            const ref  = `${colLetter(ci + 1)}${ri + 1}`;
+            const ref  = kbRef();
             const cell = rows[ri]?.cells[ci];
             if (cell) { setEditValue(e.key); setEditingCell({ ref, sheetIdx: activeSheet, originalValue: cell.value }); }
           }
@@ -657,7 +679,7 @@ export default function FillPage() {
     const win = window.open("", "_blank");
     if (!win) return;
     const sheetsHtml = sheets.map((sheet, sheetIdx) => {
-      const { trimmedRows, usedCols, colWidths } = trimSheet(sheet, sheetIdx, formValues);
+      const { trimmedRows, usedCols, colWidths, rowOffset, colOffset } = trimSheet(sheet, sheetIdx, formValues);
       const totalW  = colWidths.reduce((a, b) => a + b, 0) || A4_W;
       const scale   = Math.min(1, A4_W / totalW);
       const totalH  = trimmedRows.reduce((s, r) => s + r.height, 0);
@@ -667,7 +689,7 @@ export default function FillPage() {
         `<tr style="height:${row.height}px">${
           row.cells.slice(0, usedCols).map((cell, ci) => {
             if (cell.skip) return "";
-            const ref = `${colLetter(ci + 1)}${ri + 1}`;
+            const ref = `${colLetter(ci + 1 + colOffset)}${ri + 1 + rowOffset}`;
             const val = (formValues[`${sheetIdx}__${ref}`] ?? cell.value)
               .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
             const css = Object.entries(cell.style)
@@ -719,6 +741,20 @@ table{border-collapse:collapse;table-layout:fixed;background:#fff}td{box-sizing:
   const sheet       = sheets[activeSheet];
   const editedCount = Object.keys(formValues).length;
   const isPhotoActive = sheet ? isPhotoSheet(sheet.name) : false;
+
+  // ── 인쇄 영역(printArea) 기반 표시 범위 계산 ─────────────────────
+  const pa        = sheet?.printArea;
+  const rowStart  = pa ? pa.r1 - 1 : 0; // 0-based
+  const colStart  = pa ? pa.c1 - 1 : 0; // 0-based
+  const displayRows = sheet
+    ? (pa
+        ? sheet.rows.slice(rowStart, Math.min(pa.r2, sheet.rows.length))
+            .map(r => ({ ...r, cells: r.cells.slice(colStart, pa.c2) }))
+        : sheet.rows)
+    : [];
+  const displayColWidths = sheet
+    ? (pa ? sheet.colWidths.slice(colStart, pa.c2) : sheet.colWidths)
+    : [];
 
   return (
     <div className={styles.page}>
@@ -841,13 +877,13 @@ table{border-collapse:collapse;table-layout:fixed;background:#fff}td{box-sizing:
           ) : sheet && (
             <div className={styles.viewport}>
               <table className={styles.table}>
-                <colgroup>{sheet.colWidths.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
+                <colgroup>{displayColWidths.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
                 <tbody>
-                  {sheet.rows.map((row, ri) => (
+                  {displayRows.map((row, ri) => (
                     <tr key={ri} style={{ height: row.height }}>
                       {row.cells.map((cell, ci) => {
                         if (cell.skip) return null;
-                        const ref      = `${colLetter(ci + 1)}${ri + 1}`;
+                        const ref      = `${colLetter(ci + 1 + colStart)}${ri + 1 + rowStart}`;
                         const key      = mkKey(activeSheet, ref);
                         const override = formValues[key];
                         const isSel    = selectedCell?.ri === ri && selectedCell?.ci === ci;

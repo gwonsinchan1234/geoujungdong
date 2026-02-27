@@ -15,9 +15,10 @@ export type ParsedCell = {
 };
 
 export type ParsedSheet = {
-  name:      string;
-  rows:      Array<{ height: number; cells: ParsedCell[] }>;
-  colWidths: number[];
+  name:       string;
+  rows:       Array<{ height: number; cells: ParsedCell[] }>;
+  colWidths:  number[];
+  printArea?: { r1: number; c1: number; r2: number; c2: number } | null;
 };
 
 // ─────────────────────────────────────────────────────────────────
@@ -152,7 +153,7 @@ export async function parseExcelBuffer(arrayBuffer: ArrayBuffer): Promise<Parsed
 
   const sheets: ParsedSheet[] = wb.SheetNames.map(name => {
     const ws = wb.Sheets[name];
-    if (!ws || !ws["!ref"]) return { name, rows: [], colWidths: [] };
+    if (!ws || !ws["!ref"]) return { name, rows: [], colWidths: [], printArea: null };
 
     const range    = XLSX.utils.decode_range(ws["!ref"]);
     const rowCount = range.e.r + 1;
@@ -202,7 +203,21 @@ export async function parseExcelBuffer(arrayBuffer: ArrayBuffer): Promise<Parsed
       rows.push({ height, cells });
     }
 
-    return { name, rows, colWidths };
+    // Print area from _xlnm.Print_Area named range
+    type NameDef = { Name: string; Sheet?: number; Ref?: string };
+    const allNames = (wb as unknown as { Workbook?: { Names?: NameDef[] } }).Workbook?.Names ?? [];
+    const sheetIdx = wb.SheetNames.indexOf(name);
+    const paDef = allNames.find(n => n.Name === "_xlnm.Print_Area" && n.Sheet === sheetIdx);
+    let printArea: { r1: number; c1: number; r2: number; c2: number } | null = null;
+    if (paDef?.Ref) {
+      const pm = paDef.Ref.match(/\$?([A-Z]+)\$?(\d+):\$?([A-Z]+)\$?(\d+)/);
+      if (pm) {
+        const colIdx = (s: string) => s.split("").reduce((n, ch) => n * 26 + ch.charCodeAt(0) - 64, 0);
+        printArea = { c1: colIdx(pm[1]), r1: parseInt(pm[2]), c2: colIdx(pm[3]), r2: parseInt(pm[4]) };
+      }
+    }
+
+    return { name, rows, colWidths, printArea };
   });
 
   // 동일 레이아웃 그룹 — 열 너비 + 셀 개수 통일
