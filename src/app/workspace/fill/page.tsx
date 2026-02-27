@@ -70,32 +70,98 @@ const A4_W = 680;
 const PHOTO_KEYWORDS = ["사진대지", "사진", "보호구", "시설물", "위험성", "건강관리", "교육"];
 const isPhotoSheet = (name: string) => PHOTO_KEYWORDS.some(k => name.includes(k));
 
-// SheetJS 파싱 데이터에서 NO.XX 블록 추출 (즉시, 서버 불필요)
-function parsePhotoBlocksClientSide(sheet: ParsedSheet): PhotoBlock[] {
-  const noRegex = /^NO\.?\s*(\d+)$/i;
-  const blocks: PhotoBlock[] = [];
-  let order = 0;
-  for (const row of sheet.rows) {
-    for (const cell of row.cells) {
-      if (cell.skip) continue;
-      const m = noRegex.exec(cell.value.replace(/\s/g, ""));
-      if (m) {
-        blocks.push({
-          id:           `local_${sheet.name}_${m[1]}`,
-          doc_id:       "local",
-          sheet_name:   sheet.name,
-          no:           parseInt(m[1], 10),
-          right_header: "지급/설치 사진",
-          left_date: "", right_date: "",
-          left_label: "", right_label: "",
-          sort_order:   order++,
-          photos:       [],
-        });
-        break;
+function xlsxCellStr(ws: XLSX.WorkSheet, r: number, c: number): string {
+  const cell = ws[XLSX.utils.encode_cell({ r, c })];
+  if (!cell) return "";
+  if (cell.t === "d" || cell.v instanceof Date) {
+    const d = cell.v as Date;
+    const yy = String(d.getFullYear()).slice(-2);
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    return `${yy}.${mm}.${dd}`;
+  }
+  return String(cell.v ?? "").trim();
+}
+
+// rawBuf(xlsx 원본)에서 항목별세부내역 기준으로 전체 사진대지 블록 생성
+function parsePhotoBlocksFromRaw(rawBuf: ArrayBuffer, sheetNames: string[]): Record<string, PhotoBlock[]> {
+  const wb = XLSX.read(rawBuf, { type: "array", cellDates: true });
+
+  // ① 항목별세부내역 → NO → { itemNumber, date, label }
+  const detailWs = wb.Sheets["항목별세부내역"];
+  if (!detailWs) return {};
+  const range = XLSX.utils.decode_range(detailWs["!ref"] ?? "A1");
+  type Detail = { itemNumber: number; date: string; label: string };
+  const noDetails = new Map<number, Detail>();
+  let currentItem = 0;
+
+  for (let r = range.s.r; r <= range.e.r; r++) {
+    const col0 = xlsxCellStr(detailWs, r, 0);
+    const m0 = col0.replace(/\s/g, "").match(/^(\d+)\./);
+    if (m0) currentItem = parseInt(m0[1]);
+
+    const col6 = xlsxCellStr(detailWs, r, 6); // 증빙번호
+    const mNo = col6.replace(/\s/g, "").toUpperCase().match(/^NO\.?(\d+)$/);
+    if (!mNo || currentItem === 0) continue;
+
+    const no    = parseInt(mNo[1]);
+    const date  = xlsxCellStr(detailWs, r, 1);
+    const name  = xlsxCellStr(detailWs, r, 2);
+    const qty   = xlsxCellStr(detailWs, r, 3);
+    noDetails.set(no, { itemNumber: currentItem, date, label: qty ? `${name} [${qty}EA]` : name });
+  }
+  if (!noDetails.size) return {};
+
+  // ② 사진대지 시트 → 항목번호 매핑 + NO별 right_header (col+4 in next row)
+  const itemToSheet = new Map<number, string>();
+  const sheetHeaders = new Map<string, Map<number, string>>();
+
+  for (const name of sheetNames) {
+    if (!isPhotoSheet(name)) continue;
+    const mItem = name.match(/^(\d+)\./);
+    if (mItem) itemToSheet.set(parseInt(mItem[1]), name);
+
+    const ws = wb.Sheets[name];
+    if (!ws) continue;
+    const wsRange = XLSX.utils.decode_range(ws["!ref"] ?? "A1");
+    const hMap = new Map<number, string>();
+    for (let r = wsRange.s.r; r <= wsRange.e.r; r++) {
+      for (let c = wsRange.s.c; c <= wsRange.e.c; c++) {
+        const v = xlsxCellStr(ws, r, c);
+        const mN = v.replace(/\s/g, "").toUpperCase().match(/^NO\.?(\d+)$/);
+        if (!mN || hMap.has(parseInt(mN[1]))) continue;
+        const ht = xlsxCellStr(ws, r + 1, c + 4);
+        hMap.set(parseInt(mN[1]), (ht.includes("설치") || ht.includes("현장")) ? "현장 설치 사진" : "지급 사진");
       }
     }
+    sheetHeaders.set(name, hMap);
   }
-  return blocks;
+
+  // ③ 블록 조립
+  const result: Record<string, PhotoBlock[]> = {};
+  const counters = new Map<string, number>();
+
+  for (const [no, d] of [...noDetails.entries()].sort((a, b) => a[0] - b[0])) {
+    const sheetName = itemToSheet.get(d.itemNumber);
+    if (!sheetName) continue;
+    if (!result[sheetName]) result[sheetName] = [];
+    const order = counters.get(sheetName) ?? 0;
+    counters.set(sheetName, order + 1);
+    result[sheetName].push({
+      id:           `local_${sheetName}_${no}`,
+      doc_id:       "local",
+      sheet_name:   sheetName,
+      no,
+      right_header: sheetHeaders.get(sheetName)?.get(no) ?? "지급 사진",
+      left_date:    d.date,
+      right_date:   d.date,
+      left_label:   d.label,
+      right_label:  d.label,
+      sort_order:   order,
+      photos:       [],
+    });
+  }
+  return result;
 }
 
 function PreviewSheet({
@@ -174,13 +240,20 @@ export default function FillPage() {
 
   const mkKey = (sheetIdx: number, cell: string) => `${sheetIdx}__${cell.toUpperCase()}`;
 
-  // ── 사진대지: 탭 진입 시 블록 클라이언트 파싱 ───────────────────
+  // ── 사진대지: 파일 로드 시 항목별세부내역 기준으로 전체 블록 파싱 ──
   useEffect(() => {
-    const s = sheets[activeSheet];
-    if (!s || !isPhotoSheet(s.name)) return;
-    if ((photoBlocks[s.name]?.length ?? 0) > 0) return;
-    setPhotoBlocks(prev => ({ ...prev, [s.name]: parsePhotoBlocksClientSide(s) }));
-  }, [activeSheet, sheets, photoBlocks]);
+    if (!rawBuf || !sheets.length) return;
+    // 사진대지 시트가 하나라도 있고, 아직 파싱 안 된 경우에만 실행
+    const hasPhoto = sheets.some(s => isPhotoSheet(s.name));
+    if (!hasPhoto) return;
+    const alreadyParsed = sheets.filter(s => isPhotoSheet(s.name)).some(s => (photoBlocks[s.name]?.length ?? 0) > 0);
+    if (alreadyParsed) return;
+    const parsed = parsePhotoBlocksFromRaw(rawBuf, sheets.map(s => s.name));
+    if (Object.keys(parsed).length > 0) {
+      setPhotoBlocks(prev => ({ ...prev, ...parsed }));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rawBuf, sheets]);
 
   // ── 사진대지: photoBlocks 변경 → localStorage 드래프트 자동저장 (debounce 800ms) ──
   useEffect(() => {
