@@ -541,28 +541,17 @@ export default function FillPage() {
       setFormValues({});
       setSelectedCell(null);
 
-      // 항목별세부내역 기반 블록 파싱 (항상 새로 파싱 — 구조는 xlsx 원본이 원본)
+      // 항목별세부내역 기반 블록 파싱 (항상 새로 파싱 — xlsx 원본이 단일 원본)
       const freshBlocks = parsePhotoBlocksFromRaw(buf, parsed.map(s => s.name));
 
+      // docId 복원 (사진 서버 연결용) — 블록 구조는 항상 freshBlocks 사용
       const draft = photoDraft.load(file.name);
       if (draft) {
         docIdRef.current = draft.docId;
-        // 드래프트에서 사진만 복원 (NO + 시트명 기준 매칭, 구조는 freshBlocks 우선)
-        const allDraftBlocks = Object.values(draft.blocks).flat();
-        const merged: Record<string, PhotoBlock[]> = {};
-        for (const [sheetName, blocks] of Object.entries(freshBlocks)) {
-          merged[sheetName] = blocks.map(block => {
-            const draftBlock = allDraftBlocks.find(b => b.sheet_name === sheetName && b.no === block.no);
-            return draftBlock
-              ? { ...block, id: draftBlock.id, doc_id: draftBlock.doc_id, photos: draftBlock.photos }
-              : block;
-          });
-        }
-        setPhotoBlocks(Object.keys(merged).length > 0 ? merged : draft.blocks);
       } else {
         docIdRef.current = crypto.randomUUID();
-        setPhotoBlocks(freshBlocks);
       }
+      setPhotoBlocks(freshBlocks);
     } catch (err) {
       console.error("[handleFile]", err);
       const detail = err instanceof Error ? err.message : String(err);
