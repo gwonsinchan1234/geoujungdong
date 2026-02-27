@@ -624,6 +624,15 @@ export default function FillPage() {
       setRawBuf(buf);
       setFileName(file.name);
       const parsed = await parseExcelBuffer(buf);
+      // v5 debug
+      console.log("[v5] sheets:", parsed.map((s, i) => `${i}:${s.name} printArea=${JSON.stringify(s.printArea)}`));
+      const s0 = parsed[0];
+      if (s0) console.log("[v5] sheet0 row0 cell0 style:", JSON.stringify(s0.rows[0]?.cells[0]?.style));
+      const itemSheet = parsed.find(s => s.name.includes("항목"));
+      if (itemSheet) {
+        const colored = itemSheet.rows.flatMap(r => r.cells).filter(c => c.style.backgroundColor && c.style.backgroundColor !== "#ffffff").length;
+        console.log("[v5] 항목별세부내역 colored cells:", colored);
+      }
       setSheets(parsed);
       setActiveSheet(0);
       setFormValues({});
@@ -822,7 +831,7 @@ table{border-collapse:collapse;table-layout:fixed;background:#fff}td{box-sizing:
       {/* ── CONTENT ── */}
       <div className={styles.content}>
         {loading && (
-          <div className={styles.overlay}><div className={styles.spinner} /><span>파일 분석 중…</span></div>
+          <div className={styles.overlay}><div className={styles.spinner} /><span>파일 분석 중… (v5)</span></div>
         )}
         {!loading && sheets.length === 0 && (
           <div className={styles.empty}>
@@ -844,6 +853,11 @@ table{border-collapse:collapse;table-layout:fixed;background:#fff}td{box-sizing:
                 {s.name}
               </button>
             ))}
+            {pa && (
+              <span style={{ fontSize: "10px", color: "#6b7280", padding: "0 6px", alignSelf: "center", whiteSpace: "nowrap" }}>
+                인쇄영역 {`${colLetter(pa.c1)}${pa.r1}:${colLetter(pa.c2)}${pa.r2}`} ({displayRows.length}행)
+              </span>
+            )}
           </div>
 
           {sheet && isPhotoSheet(sheet.name) ? (
