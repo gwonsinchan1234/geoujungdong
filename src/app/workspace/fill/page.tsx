@@ -673,7 +673,8 @@ table{border-collapse:collapse;table-layout:fixed;background:#fff}td{box-sizing:
             <polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" />
           </svg>
           <span>업로드</span>
-          <input ref={fileInputRef} type="file" accept=".xlsx,.xls"
+          <input ref={fileInputRef} type="file"
+            accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
             className={styles.hiddenInput} onChange={handleFile} />
         </label>
         <div className={styles.fileArea}>
