@@ -51,7 +51,12 @@ function borderStr(b?: { style?: string; color?: { rgb?: string } }): string {
 }
 
 type XlsxStyle = {
-  fill?: { patternType?: string; fgColor?: { rgb?: string }; bgColor?: { rgb?: string } };
+  // SheetJS가 fill을 cell.s에 flat하게 저장하는 경우 (주된 방식)
+  patternType?: string;
+  fgColor?: { rgb?: string; theme?: number; tint?: number };
+  bgColor?: { rgb?: string };
+  // 중첩 형태 (fallback)
+  fill?: { patternType?: string; fgColor?: { rgb?: string; theme?: number; tint?: number } };
   font?: {
     name?: string; sz?: number; bold?: boolean;
     italic?: boolean; underline?: boolean; color?: { rgb?: string };
@@ -99,7 +104,7 @@ function extractStyle(cell: XLSX.CellObject | undefined): CSSMap {
   const st = cell?.s as XlsxStyle | undefined;
   if (!st) return s;
 
-  const { font, fill, alignment, border } = st;
+  const { font, alignment, border } = st;
 
   if (font) {
     if (font.bold)      s.fontWeight     = "bold";
@@ -111,8 +116,12 @@ function extractStyle(cell: XLSX.CellObject | undefined): CSSMap {
     if (fc) s.color = fc;
   }
 
-  if (fill?.patternType === "solid") {
-    const bg = rgbToHex(fill.fgColor?.rgb);
+  // fill: SheetJS는 cell.s에 flat하게 저장 (st.patternType, st.fgColor)
+  // fgColor.rgb는 SheetJS가 theme+tint를 이미 해석해 넣어줌
+  const fillPat = st.patternType ?? st.fill?.patternType;
+  const fillFg  = st.fgColor    ?? st.fill?.fgColor;
+  if (fillPat === "solid" && fillFg?.rgb) {
+    const bg = rgbToHex(fillFg.rgb);
     if (bg) s.backgroundColor = bg;
   }
 
