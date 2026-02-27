@@ -10,6 +10,8 @@ import { photoDraft } from "@/lib/photoDraft";
 import styles from "./page.module.css";
 
 // ── 이미지 압축 ──────────────────────────────────────────────────
+const MAX_UPLOAD_BYTES = 3.5 * 1024 * 1024; // 3.5MB (Vercel 4.5MB 제한 여유)
+
 async function compressImage(file: File, maxPx: number, quality: number): Promise<Blob> {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -379,10 +381,17 @@ export default function FillPage() {
     let pId  = "";    // pending photo id (밖에서 finally가 접근 가능하게)
     let pUrl = "";    // local object URL
     try {
-      // 압축 실패 시 원본 그대로 사용
+      // 압축 → 크기 초과 시 재압축 (Vercel 4.5MB 제한 대응)
       let compressed: Blob;
-      try { compressed = await compressImage(file, 1920, 0.8); }
-      catch { compressed = file; }
+      try {
+        compressed = await compressImage(file, 1920, 0.8);
+        if (compressed.size > MAX_UPLOAD_BYTES)
+          compressed = await compressImage(file, 1280, 0.7);
+        if (compressed.size > MAX_UPLOAD_BYTES)
+          compressed = await compressImage(file, 960, 0.6);
+      } catch {
+        compressed = file;
+      }
 
       // ① 로컬 미리보기 즉시 표시
       pUrl = URL.createObjectURL(compressed);
