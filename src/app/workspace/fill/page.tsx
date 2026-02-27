@@ -2,11 +2,10 @@
 
 import React, { useRef, useState, useCallback, useEffect } from "react";
 import * as XLSX from "xlsx";
-import { supabase } from "@/lib/supabaseClient";
 import PhotoSheetView from "@/components/photo-sheet/PhotoSheetView";
-import type { PhotoBlock, OnSlotClick, OnPhotoDelete, OnMetaUpdate } from "@/components/photo-sheet/types";
+import type { PhotoBlock, BlockPhoto, OnSlotClick, OnPhotoDelete, OnMetaUpdate } from "@/components/photo-sheet/types";
 import { parseExcelBuffer } from "@/lib/parseExcel";
-import type { ParsedCell, ParsedSheet } from "@/lib/parseExcel";
+import type { ParsedSheet } from "@/lib/parseExcel";
 import styles from "./page.module.css";
 
 // 이미지 압축: 최대 maxPx, JPEG quality
@@ -69,8 +68,37 @@ function trimSheet(sheet: ParsedSheet, sheetIdx: number, formValues: Record<stri
 
 const A4_W = 680;
 
-const PHOTO_KEYWORDS = ["사진대지", "보호구", "시설물", "위험성", "건강관리"];
+const PHOTO_KEYWORDS = ["사진대지", "사진", "보호구", "시설물", "위험성", "건강관리"];
 const isPhotoSheet = (name: string) => PHOTO_KEYWORDS.some(k => name.includes(k));
+
+// SheetJS로 파싱된 시트 데이터에서 직접 NO.XX 블록 추출 (서버 불필요)
+function parsePhotoBlocksClientSide(sheet: ParsedSheet): PhotoBlock[] {
+  const noRegex = /^NO\.?\s*(\d+)$/i;
+  const blocks: PhotoBlock[] = [];
+  let order = 0;
+  for (const row of sheet.rows) {
+    for (const cell of row.cells) {
+      if (cell.skip) continue;
+      const text = cell.value.replace(/\s/g, "");
+      const m = noRegex.exec(text);
+      if (m) {
+        blocks.push({
+          id: `local_${sheet.name}_${m[1]}`,
+          doc_id: "local",
+          sheet_name: sheet.name,
+          no: parseInt(m[1], 10),
+          right_header: "지급/설치 사진",
+          left_date: "", right_date: "",
+          left_label: "", right_label: "",
+          sort_order: order++,
+          photos: [],
+        });
+        break;
+      }
+    }
+  }
+  return blocks;
+}
 
 function PreviewSheet({
   sheet, sheetIdx, formValues,
@@ -133,78 +161,40 @@ export default function FillPage() {
   } | null>(null);
   const [editValue, setEditValue] = useState("");
 
-  // 사진대지
-  const docIdRef          = useRef<string>("");
-  const importDoneRef     = useRef(false);
-  const photoImportingRef = useRef(false);
-  const [photoBlocks,    setPhotoBlocks]    = useState<Record<string, PhotoBlock[]>>({});
-  const [photoSlot,      setPhotoSlot]      = useState<{
+  // 사진대지 — 완전 클라이언트 사이드 (서버 DB 불필요)
+  const [photoBlocks,   setPhotoBlocks]   = useState<Record<string, PhotoBlock[]>>({});
+  const [photoSlot,     setPhotoSlot]     = useState<{
     blockId: string; side: "left" | "right"; slotIndex: number;
   } | null>(null);
-  const [photoUploading,  setPhotoUploading]  = useState(false);
-  const [photoImporting,  setPhotoImporting]  = useState(false);
+  const [photoUploading, setPhotoUploading] = useState(false);
 
   const mkKey = (sheetIdx: number, cell: string) => `${sheetIdx}__${cell.toUpperCase()}`;
-
-  const fetchPhotoBlocks = useCallback(async (id: string): Promise<PhotoBlock[]> => {
-    const res  = await fetch(`/api/photo-blocks?docId=${id}`);
-    const json = res.ok ? await res.json().catch(() => ({ ok: false })) : { ok: false };
-    if (!json.ok) return [];
-    const blocks = json.blocks as PhotoBlock[];
-    const grouped: Record<string, PhotoBlock[]> = {};
-    for (const block of blocks) {
-      if (!grouped[block.sheet_name]) grouped[block.sheet_name] = [];
-      grouped[block.sheet_name].push(block);
-    }
-    setPhotoBlocks(grouped);
-    return blocks;
-  }, []);
 
   const handleSlotClick: OnSlotClick = useCallback((blockId, side, slotIndex) => {
     setPhotoSlot({ blockId, side, slotIndex });
   }, []);
 
-  const handlePhotoDelete: OnPhotoDelete = useCallback(async (photoId) => {
-    await fetch("/api/photo-blocks/photos", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ photoId }),
+  const handlePhotoDelete: OnPhotoDelete = useCallback((photoId, blockId) => {
+    setPhotoBlocks(prev => {
+      const next = { ...prev };
+      for (const name of Object.keys(next)) {
+        next[name] = next[name].map(b =>
+          b.id !== blockId ? b : { ...b, photos: b.photos.filter(p => p.id !== photoId) }
+        );
+      }
+      return next;
     });
-    await fetchPhotoBlocks(docIdRef.current);
-  }, [fetchPhotoBlocks]);
+  }, []);
 
-  const handleMetaUpdate: OnMetaUpdate = useCallback(async (blockId, fields) => {
-    const res  = await fetch("/api/photo-blocks", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: blockId, ...fields }),
+  const handleMetaUpdate: OnMetaUpdate = useCallback((blockId, fields) => {
+    setPhotoBlocks(prev => {
+      const next = { ...prev };
+      for (const name of Object.keys(next)) {
+        next[name] = next[name].map(b => b.id !== blockId ? b : { ...b, ...fields });
+      }
+      return next;
     });
-    const json = await res.json();
-    if (json.ok) await fetchPhotoBlocks(docIdRef.current);
-  }, [fetchPhotoBlocks]);
-
-  const triggerPhotoImport = useCallback(async () => {
-    if (!rawBuf || !docIdRef.current || importDoneRef.current || photoImportingRef.current) return;
-    photoImportingRef.current = true;
-    setPhotoImporting(true);
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      const fd = new FormData();
-      fd.append("docId",  docIdRef.current);
-      fd.append("userId", user?.id ?? "");
-      fd.append("file",   new File([rawBuf], fileName, {
-        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      }));
-      await fetch("/api/photo-blocks/import", { method: "POST", body: fd });
-      await fetchPhotoBlocks(docIdRef.current);
-      importDoneRef.current = true;
-    } catch (e) {
-      console.error("[photoImport]", e);
-    } finally {
-      photoImportingRef.current = false;
-      setPhotoImporting(false);
-    }
-  }, [rawBuf, fileName, fetchPhotoBlocks]);
+  }, []);
 
   const handlePhotoUpload = useCallback(async (file: File) => {
     if (!photoSlot) return;
@@ -212,24 +202,31 @@ export default function FillPage() {
     setPhotoSlot(null);
     setPhotoUploading(true);
     try {
-      // 1. 압축 (1920px, JPEG 0.8)
       const compressed = await compressImage(file, 1920, 0.8);
-
-      // 2. 서버에서 Storage 업로드 + 메타 저장 (인증 불필요)
-      const { data: { user } } = await supabase.auth.getUser();
-      const fd = new FormData();
-      fd.append("blockId",   blockId);
-      fd.append("side",      side);
-      fd.append("slotIndex", String(slotIndex));
-      fd.append("userId",    user?.id ?? "");
-      fd.append("file",      new File([compressed], "photo.jpg", { type: "image/jpeg" }));
-      const res  = await fetch("/api/photo-blocks/photos", { method: "POST", body: fd });
-      const json = await res.json();
-      if (json.ok) await fetchPhotoBlocks(docIdRef.current);
+      const url = URL.createObjectURL(compressed);
+      const newPhoto: BlockPhoto = {
+        id: `local_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+        block_id: blockId,
+        side,
+        slot_index: slotIndex,
+        storage_path: "",
+        url,
+      };
+      setPhotoBlocks(prev => {
+        const next = { ...prev };
+        for (const name of Object.keys(next)) {
+          next[name] = next[name].map(b => {
+            if (b.id !== blockId) return b;
+            const photos = b.photos.filter(p => !(p.side === side && p.slot_index === slotIndex));
+            return { ...b, photos: [...photos, newPhoto] };
+          });
+        }
+        return next;
+      });
     } finally {
       setPhotoUploading(false);
     }
-  }, [photoSlot, fetchPhotoBlocks]);
+  }, [photoSlot]);
 
   // 바텀시트 포커스 + 배경 스크롤 잠금
   useEffect(() => {
@@ -337,13 +334,13 @@ export default function FillPage() {
     return () => document.removeEventListener("keydown", onKey);
   }, [editingCell, showPreview, sheets, activeSheet, selectedCell, formValues]);
 
-  // 사진대지 탭 진입 시 lazy import (블록 없을 때만)
+  // 사진대지 탭 진입 시 클라이언트 파싱 (서버 불필요)
   useEffect(() => {
     const s = sheets[activeSheet];
     if (!s || !isPhotoSheet(s.name)) return;
     if ((photoBlocks[s.name]?.length ?? 0) > 0) return;
-    triggerPhotoImport();
-  }, [activeSheet, sheets, photoBlocks, triggerPhotoImport]);
+    setPhotoBlocks(prev => ({ ...prev, [s.name]: parsePhotoBlocksClientSide(s) }));
+  }, [activeSheet, sheets, photoBlocks]);
 
   const openSheet = useCallback((ref: string, sheetIdx: number, originalValue: string) => {
     setEditValue(formValues[mkKey(sheetIdx, ref)] ?? "");
@@ -373,9 +370,6 @@ export default function FillPage() {
       const parsed = await parseExcelBuffer(buf);
       setSheets(parsed); setActiveSheet(0); setFormValues({}); setSelectedCell(null);
       setPhotoBlocks({});
-      importDoneRef.current     = false;
-      photoImportingRef.current = false;
-      docIdRef.current = `doc_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     } catch (err) {
       console.error("[handleFile]", err);
       const detail = err instanceof Error ? err.message : String(err);
@@ -516,20 +510,27 @@ table{border-collapse:collapse;table-layout:fixed;background:#fff}td{box-sizing:
             ))}
           </div>
           {sheet && isPhotoSheet(sheet.name) ? (
-            <div className={styles.viewport}>
-              {(photoUploading || photoImporting) && (
+            <div className={styles.viewportPhoto}>
+              {photoUploading && (
                 <div className={styles.overlay}>
                   <div className={styles.spinner} />
-                  <span>{photoImporting ? "사진대지 불러오는 중…" : "사진 업로드 중…"}</span>
+                  <span>사진 업로드 중…</span>
                 </div>
               )}
-              <PhotoSheetView
-                sheetName={sheet.name}
-                blocks={photoBlocks[sheet.name] ?? []}
-                onSlotClick={handleSlotClick}
-                onPhotoDelete={handlePhotoDelete}
-                onMetaUpdate={handleMetaUpdate}
-              />
+              {(photoBlocks[sheet.name]?.length ?? 0) === 0 ? (
+                <div className={styles.photoEmpty}>
+                  <p>NO.1, NO.2… 블록을 찾지 못했습니다.</p>
+                  <p className={styles.photoEmptyHint}>엑셀 시트에 &quot;NO.1&quot;, &quot;NO.2&quot; 형식의 셀이 있으면 자동으로 블록이 만들어집니다.</p>
+                </div>
+              ) : (
+                <PhotoSheetView
+                  sheetName={sheet.name}
+                  blocks={photoBlocks[sheet.name] ?? []}
+                  onSlotClick={handleSlotClick}
+                  onPhotoDelete={handlePhotoDelete}
+                  onMetaUpdate={handleMetaUpdate}
+                />
+              )}
             </div>
           ) : sheet && (
             <div className={styles.viewport}>
