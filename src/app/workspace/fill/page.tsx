@@ -134,12 +134,15 @@ export default function FillPage() {
   const [editValue, setEditValue] = useState("");
 
   // 사진대지
-  const docIdRef    = useRef<string>("");
-  const [photoBlocks, setPhotoBlocks] = useState<Record<string, PhotoBlock[]>>({});
-  const [photoSlot,   setPhotoSlot]   = useState<{
+  const docIdRef          = useRef<string>("");
+  const importDoneRef     = useRef(false);
+  const photoImportingRef = useRef(false);
+  const [photoBlocks,    setPhotoBlocks]    = useState<Record<string, PhotoBlock[]>>({});
+  const [photoSlot,      setPhotoSlot]      = useState<{
     blockId: string; side: "left" | "right"; slotIndex: number;
   } | null>(null);
-  const [photoUploading, setPhotoUploading] = useState(false);
+  const [photoUploading,  setPhotoUploading]  = useState(false);
+  const [photoImporting,  setPhotoImporting]  = useState(false);
 
   const mkKey = (sheetIdx: number, cell: string) => `${sheetIdx}__${cell.toUpperCase()}`;
 
@@ -179,6 +182,29 @@ export default function FillPage() {
     const json = await res.json();
     if (json.ok) await fetchPhotoBlocks(docIdRef.current);
   }, [fetchPhotoBlocks]);
+
+  const triggerPhotoImport = useCallback(async () => {
+    if (!rawBuf || !docIdRef.current || importDoneRef.current || photoImportingRef.current) return;
+    photoImportingRef.current = true;
+    setPhotoImporting(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const fd = new FormData();
+      fd.append("docId",  docIdRef.current);
+      fd.append("userId", user?.id ?? "");
+      fd.append("file",   new File([rawBuf], fileName, {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      }));
+      await fetch("/api/photo-blocks/import", { method: "POST", body: fd });
+      await fetchPhotoBlocks(docIdRef.current);
+      importDoneRef.current = true;
+    } catch (e) {
+      console.error("[photoImport]", e);
+    } finally {
+      photoImportingRef.current = false;
+      setPhotoImporting(false);
+    }
+  }, [rawBuf, fileName, fetchPhotoBlocks]);
 
   const handlePhotoUpload = useCallback(async (file: File) => {
     if (!photoSlot) return;
@@ -311,6 +337,14 @@ export default function FillPage() {
     return () => document.removeEventListener("keydown", onKey);
   }, [editingCell, showPreview, sheets, activeSheet, selectedCell, formValues]);
 
+  // 사진대지 탭 진입 시 lazy import (블록 없을 때만)
+  useEffect(() => {
+    const s = sheets[activeSheet];
+    if (!s || !isPhotoSheet(s.name)) return;
+    if ((photoBlocks[s.name]?.length ?? 0) > 0) return;
+    triggerPhotoImport();
+  }, [activeSheet, sheets, photoBlocks, triggerPhotoImport]);
+
   const openSheet = useCallback((ref: string, sheetIdx: number, originalValue: string) => {
     setEditValue(formValues[mkKey(sheetIdx, ref)] ?? "");
     setEditingCell({ ref, sheetIdx, originalValue });
@@ -339,8 +373,9 @@ export default function FillPage() {
       const parsed = await parseExcelBuffer(buf);
       setSheets(parsed); setActiveSheet(0); setFormValues({}); setSelectedCell(null);
       setPhotoBlocks({});
-
-      // 사진대지 import 비활성화 — 업로드 속도 우선
+      importDoneRef.current     = false;
+      photoImportingRef.current = false;
+      docIdRef.current = `doc_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     } catch (err) {
       console.error("[handleFile]", err);
       const detail = err instanceof Error ? err.message : String(err);
@@ -482,9 +517,10 @@ table{border-collapse:collapse;table-layout:fixed;background:#fff}td{box-sizing:
           </div>
           {sheet && isPhotoSheet(sheet.name) ? (
             <div className={styles.viewport}>
-              {photoUploading && (
+              {(photoUploading || photoImporting) && (
                 <div className={styles.overlay}>
-                  <div className={styles.spinner} /><span>사진 업로드 중…</span>
+                  <div className={styles.spinner} />
+                  <span>{photoImporting ? "사진대지 불러오는 중…" : "사진 업로드 중…"}</span>
                 </div>
               )}
               <PhotoSheetView
