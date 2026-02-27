@@ -3,10 +3,48 @@ import ExcelJS from "exceljs";
 
 type CSSMap = Record<string, string>;
 
+// Office 기본 테마(Office 2016) 색상표 — index 0~9
+const OFFICE_THEME_COLORS: Record<number, [number, number, number]> = {
+  0: [0xFF, 0xFF, 0xFF], // lt1  白
+  1: [0x00, 0x00, 0x00], // dk1  黑
+  2: [0xE7, 0xE6, 0xE6], // lt2
+  3: [0x44, 0x54, 0x6A], // dk2
+  4: [0x44, 0x72, 0xC4], // Accent1 파랑
+  5: [0xED, 0x7D, 0x31], // Accent2 주황
+  6: [0x70, 0xAD, 0x47], // Accent3 초록
+  7: [0xFF, 0xC0, 0x00], // Accent4 금색
+  8: [0x5B, 0x9B, 0xD5], // Accent5 하늘
+  9: [0x26, 0x44, 0x78], // Accent6 짙은파랑
+};
+
+/** tint 적용: >0 → 흰색 방향, <0 → 검정 방향 */
+function applyTint(base: [number, number, number], tint: number): [number, number, number] {
+  return base.map(c =>
+    tint >= 0
+      ? Math.round(c + (255 - c) * tint)
+      : Math.round(c * (1 + tint))
+  ) as [number, number, number];
+}
+
+function themeToHex(theme: number, tint = 0): string | undefined {
+  const base = OFFICE_THEME_COLORS[theme];
+  if (!base) return undefined;
+  const [r, g, b] = applyTint(base, tint);
+  return `#${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b.toString(16).padStart(2, "0")}`;
+}
+
 function argbToHex(argb?: string): string | undefined {
   if (!argb || argb.length < 6) return undefined;
   const hex = argb.length === 8 ? argb.slice(2) : argb;
   return `#${hex}`;
+}
+
+/** fgColor 객체에서 hex 추출 (theme / argb 모두 지원) */
+function fgColorToHex(fgColor?: { argb?: string; theme?: number; tint?: number }): string | undefined {
+  if (!fgColor) return undefined;
+  if (fgColor.argb) return argbToHex(fgColor.argb);
+  if (fgColor.theme !== undefined) return themeToHex(fgColor.theme, fgColor.tint ?? 0);
+  return undefined;
 }
 
 function excelW(w?: number): number {
@@ -70,9 +108,9 @@ function extractStyle(cell: ExcelJS.Cell): CSSMap {
     if (fc) s.color = fc;
   }
 
-  const fillPattern = fill as { type?: string; patternType?: string; fgColor?: { argb?: string } } | undefined;
-  if (fillPattern?.type === "pattern" && fillPattern.patternType === "solid" && fillPattern.fgColor?.argb) {
-    const bg = argbToHex(fillPattern.fgColor.argb);
+  const fillPattern = fill as { type?: string; patternType?: string; fgColor?: { argb?: string; theme?: number; tint?: number } } | undefined;
+  if (fillPattern?.type === "pattern" && fillPattern.patternType === "solid" && fillPattern.fgColor) {
+    const bg = fgColorToHex(fillPattern.fgColor);
     if (bg) s.backgroundColor = bg;
   }
 
