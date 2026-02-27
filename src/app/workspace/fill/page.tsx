@@ -617,6 +617,32 @@ export default function FillPage() {
       } else {
         docIdRef.current = crypto.randomUUID();
       }
+      // DB에서 기존 사진 불러와 freshBlocks에 병합 (재업로드 시 슬롯 중복 에러 방지)
+      try {
+        const res = await fetch(`/api/photo-blocks?docId=${docIdRef.current}`);
+        const json = await res.json() as { ok: boolean; blocks?: Array<{
+          sheet_name: string; no: number; id: string;
+          photos: Array<{ id: string; block_id: string; side: string; slot_index: number; storage_path: string; url: string }>;
+        }> };
+        if (json.ok && json.blocks?.length) {
+          for (const dbBlock of json.blocks) {
+            const localArr = freshBlocks[dbBlock.sheet_name];
+            if (!localArr) continue;
+            const localBlock = localArr.find(b => b.no === dbBlock.no);
+            if (!localBlock || !dbBlock.photos.length) continue;
+            localBlock.id     = dbBlock.id;   // 로컬 ID → DB UUID로 교체
+            localBlock.doc_id = docIdRef.current;
+            localBlock.photos = dbBlock.photos.map(p => ({
+              id: p.id, block_id: p.block_id,
+              side: p.side as "left" | "right",
+              slot_index: p.slot_index,
+              storage_path: p.storage_path,
+              url: p.url,
+            }));
+          }
+        }
+      } catch { /* 네트워크 실패 시 빈 사진으로 진행 */ }
+
       setPhotoBlocks(freshBlocks);
     } catch (err) {
       console.error("[handleFile]", err);
