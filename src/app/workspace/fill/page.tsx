@@ -239,8 +239,15 @@ export default function FillPage() {
   const [photoUploading, setPhotoUploading] = useState(false);
   const [photoSaving,    setPhotoSaving]    = useState(false);
   const [saveToast,      setSaveToast]      = useState(false);
+  const [showPwaGuide,   setShowPwaGuide]   = useState(false);
+  const [isStandalone,   setIsStandalone]   = useState(true); // 기본 true → 설치 안내 숨김
 
   const mkKey = (sheetIdx: number, cell: string) => `${sheetIdx}__${cell.toUpperCase()}`;
+
+  // ── PWA 설치 여부 감지 ────────────────────────────────────────────
+  useEffect(() => {
+    setIsStandalone(window.matchMedia("(display-mode: standalone)").matches);
+  }, []);
 
   // ── PWA Share Target: SW 캐시에서 공유된 엑셀 파일 수신 ──────────
   useEffect(() => {
@@ -692,6 +699,15 @@ table{border-collapse:collapse;table-layout:fixed;background:#fff}td{box-sizing:
 
       {/* ── TOP BAR ── */}
       <div className={styles.topBar}>
+        {!isStandalone && (
+          <button type="button" className={styles.pwaBtn} onClick={() => setShowPwaGuide(true)}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+              <path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2z"/>
+              <line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            <span>앱 설치</span>
+          </button>
+        )}
         <label className={styles.uploadBtn}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
@@ -962,6 +978,51 @@ table{border-collapse:collapse;table-layout:fixed;background:#fff}td{box-sizing:
           </div>
         </div>
       </div>
+
+      {/* ── PWA 설치 안내 모달 ── */}
+      {showPwaGuide && (
+        <div className={styles.pwaBackdrop} onClick={() => setShowPwaGuide(false)}>
+          <div className={styles.pwaModal} onClick={e => e.stopPropagation()}>
+            <div className={styles.pwaModalHeader}>
+              <span>📲 앱 설치 안내</span>
+              <button type="button" onClick={() => setShowPwaGuide(false)} className={styles.pwaClose}>✕</button>
+            </div>
+            <p className={styles.pwaDesc}>
+              설치하면 카카오톡에서 엑셀 파일을 받은 뒤<br />
+              <strong>공유 → SafetyCost</strong> 로 바로 열 수 있습니다.
+            </p>
+
+            <div className={styles.pwaSection}>
+              <div className={styles.pwaSectionTitle}>🤖 Android (크롬)</div>
+              <ol className={styles.pwaSteps}>
+                <li>크롬 주소창 옆 <strong>⋮ 메뉴</strong> 탭</li>
+                <li><strong>"홈 화면에 추가"</strong> 또는 <strong>"앱 설치"</strong> 선택</li>
+                <li><strong>설치</strong> 버튼 탭</li>
+                <li>홈 화면에 SafetyCost 아이콘 생성 완료</li>
+              </ol>
+            </div>
+
+            <div className={styles.pwaSection}>
+              <div className={styles.pwaSectionTitle}>🍎 iPhone (사파리)</div>
+              <ol className={styles.pwaSteps}>
+                <li>하단 <strong>공유 버튼</strong> (□↑) 탭</li>
+                <li>스크롤해서 <strong>"홈 화면에 추가"</strong> 선택</li>
+                <li><strong>추가</strong> 탭</li>
+                <li>홈 화면에 SafetyCost 아이콘 생성 완료</li>
+              </ol>
+            </div>
+
+            <div className={styles.pwaUsage}>
+              <div className={styles.pwaUsageTitle}>설치 후 사용법</div>
+              <p>카카오톡 파일 수신 → <strong>공유</strong> → <strong>SafetyCost</strong> 선택 → 자동으로 열림</p>
+            </div>
+
+            <button type="button" className={styles.pwaConfirm} onClick={() => setShowPwaGuide(false)}>
+              확인
+            </button>
+          </div>
+        </div>
+      )}
 
     </div>
   );
