@@ -204,13 +204,17 @@ export async function parseExcelBuffer(arrayBuffer: ArrayBuffer): Promise<Parsed
     }
 
     // Print area from _xlnm.Print_Area named range
-    type NameDef = { Name: string; Sheet?: number; Ref?: string };
+    type NameDef = { Name: string; Sheet?: number | string; Ref?: string };
     const allNames = (wb as unknown as { Workbook?: { Names?: NameDef[] } }).Workbook?.Names ?? [];
     const sheetIdx = wb.SheetNames.indexOf(name);
-    // 디버그: 이 시트의 Named range 확인
-    const paEntries = allNames.filter(n => n.Name === "_xlnm.Print_Area");
-    console.log(`[parseExcel] ${name}(idx=${sheetIdx}) Print_Area entries:`, JSON.stringify(paEntries.slice(0, 3)));
-    const paDef = allNames.find(n => n.Name === "_xlnm.Print_Area" && n.Sheet === sheetIdx);
+    // Sheet 비교: 숫자/문자열 모두 대응 (== 느슨한 비교), Ref에 시트명 포함 여부도 fallback으로 확인
+    const quotedName = `'${name}'`;
+    const paDef = allNames.find(n =>
+      n.Name === "_xlnm.Print_Area" &&
+      (Number(n.Sheet) === sheetIdx ||
+        n.Ref?.startsWith(`${name}!`) ||
+        n.Ref?.startsWith(`${quotedName}!`))
+    );
     let printArea: { r1: number; c1: number; r2: number; c2: number } | null = null;
     if (paDef?.Ref) {
       const pm = paDef.Ref.match(/\$?([A-Z]+)\$?(\d+):\$?([A-Z]+)\$?(\d+)/);
@@ -219,7 +223,6 @@ export async function parseExcelBuffer(arrayBuffer: ArrayBuffer): Promise<Parsed
         printArea = { c1: colIdx(pm[1]), r1: parseInt(pm[2]), c2: colIdx(pm[3]), r2: parseInt(pm[4]) };
       }
     }
-    console.log(`[parseExcel] ${name} printArea:`, printArea);
 
     return { name, rows, colWidths, printArea };
   });
