@@ -67,7 +67,7 @@ function trimSheet(sheet: ParsedSheet, sheetIdx: number, formValues: Record<stri
 
 const A4_W = 680;
 
-const PHOTO_KEYWORDS = ["사진대지", "사진", "보호구", "시설물", "위험성", "건강관리"];
+const PHOTO_KEYWORDS = ["사진대지", "사진", "보호구", "시설물", "위험성", "건강관리", "교육"];
 const isPhotoSheet = (name: string) => PHOTO_KEYWORDS.some(k => name.includes(k));
 
 // SheetJS 파싱 데이터에서 NO.XX 블록 추출 (즉시, 서버 불필요)
