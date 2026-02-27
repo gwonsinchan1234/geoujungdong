@@ -115,9 +115,14 @@ function extractStyle(cell: ExcelJS.Cell): CSSMap {
   }
 
   if (alignment) {
-    if (alignment.horizontal === "center")      s.textAlign = "center";
-    else if (alignment.horizontal === "right")  s.textAlign = "right";
-    else if (alignment.horizontal === "left")   s.textAlign = "left";
+    if (alignment.horizontal === "center")           s.textAlign = "center";
+    else if (alignment.horizontal === "right")       s.textAlign = "right";
+    else if (alignment.horizontal === "left")        s.textAlign = "left";
+    else if (alignment.horizontal === "distributed"
+          || alignment.horizontal === "justify") {
+      s.textAlign     = "justify";
+      s.textAlignLast = "justify";
+    }
     if (String(alignment.vertical) === "middle" || String(alignment.vertical) === "center")
       s.verticalAlign = "middle";
     else if (alignment.vertical === "top")
