@@ -674,7 +674,6 @@ table{border-collapse:collapse;table-layout:fixed;background:#fff}td{box-sizing:
           </svg>
           <span>업로드</span>
           <input ref={fileInputRef} type="file"
-            accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
             className={styles.hiddenInput} onChange={handleFile} />
         </label>
         <div className={styles.fileArea}>
