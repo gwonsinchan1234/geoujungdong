@@ -180,18 +180,32 @@ function parsePhotoBlocksFromRaw(rawBuf: ArrayBuffer, sheetNames: string[]): Rec
   return result;
 }
 
+function useContainerWidth(padding = 32) {
+  const [w, setW] = useState(() =>
+    typeof window !== "undefined" ? Math.min(A4_W, window.innerWidth - padding) : A4_W
+  );
+  useEffect(() => {
+    const update = () => setW(Math.min(A4_W, window.innerWidth - padding));
+    window.addEventListener("resize", update);
+    update();
+    return () => window.removeEventListener("resize", update);
+  }, [padding]);
+  return w;
+}
+
 function PreviewSheet({
   sheet, sheetIdx, formValues,
 }: { sheet: ParsedSheet; sheetIdx: number; formValues: Record<string, string> }) {
+  const containerW = useContainerWidth(32); // 좌우 16px씩
   const { trimmedRows, usedCols, colWidths, rowOffset, colOffset } = trimSheet(sheet, sheetIdx, formValues);
   const totalW  = colWidths.reduce((a, b) => a + b, 0) || A4_W;
-  const scale   = Math.min(1, A4_W / totalW);
+  const scale   = Math.min(1, containerW / totalW);
   const totalH  = trimmedRows.reduce((s, r) => s + r.height, 0);
   const scaledH = Math.ceil(totalH * scale);
   return (
     <div className={styles.previewPage}>
       <div className={styles.previewPageName}>{sheet.name}</div>
-      <div className={styles.previewClip} style={{ width: A4_W, height: scaledH }}>
+      <div className={styles.previewClip} style={{ width: containerW, height: scaledH }}>
         <div className={styles.previewWrap} style={{ transform: `scale(${scale.toFixed(4)})`, width: totalW }}>
           <table style={{ borderCollapse: "collapse", tableLayout: "fixed", background: "#fff" }}>
             <colgroup>{colWidths.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
@@ -725,14 +739,37 @@ export default function FillPage() {
             <table><colgroup>${colgroup}</colgroup><tbody>${tbody}</tbody></table>
           </div></div></div>`;
     }).join("");
-    win.document.write(`<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><title>${fileName||"인쇄"}</title>
-<style>@page{size:A4 portrait;margin:15mm}*{box-sizing:border-box}body{margin:0;background:#fff;font-family:'Calibri','Apple SD Gothic Neo',sans-serif}
-.print-btn{position:fixed;top:16px;right:16px;padding:10px 22px;background:#2563eb;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer}
-.sheet-page{margin-bottom:16px;page-break-after:always}.sheet-page:last-child{page-break-after:avoid}
-.sheet-name{font-size:10pt;font-weight:700;color:#374151;margin-bottom:6px}
+    win.document.write(`<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>${fileName||"인쇄"}</title>
+<style>@page{size:A4 portrait;margin:15mm}*{box-sizing:border-box}body{margin:0;background:#f3f4f6;font-family:'Calibri','Apple SD Gothic Neo',sans-serif}
+.print-btn{position:fixed;top:16px;right:16px;padding:10px 22px;background:#2563eb;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;z-index:10}
+.sheet-page{margin:16px auto;page-break-after:always;background:#fff;box-shadow:0 2px 12px rgba(0,0,0,0.15);overflow:hidden;width:fit-content;max-width:100vw}
+.sheet-page:last-child{page-break-after:avoid}
+.sheet-name{font-size:10pt;font-weight:700;color:#374151;margin-bottom:6px;padding:6px 12px;background:#f9fafb;border-bottom:1px solid #e5e7eb}
 .clip{overflow:hidden;position:relative}.wrap{transform-origin:top left;position:absolute;top:0;left:0}
 table{border-collapse:collapse;table-layout:fixed;background:#fff}td{box-sizing:border-box}
-@media print{.print-btn{display:none}}</style></head>
+@media(max-width:700px){body{background:#fff}.sheet-page{box-shadow:none;margin:0 auto}}
+@media print{.print-btn{display:none}body{background:#fff}.sheet-page{box-shadow:none;margin:0}}</style>
+<script>
+(function(){
+  function fitSheets(){
+    var vw=window.innerWidth;
+    document.querySelectorAll('.sheet-page').forEach(function(page){
+      var clip=page.querySelector('.clip');
+      var wrap=page.querySelector('.wrap');
+      if(!clip||!wrap)return;
+      var origW=parseInt(wrap.style.width)||680;
+      var avail=Math.min(vw-8,origW);
+      var sc=(avail/origW);
+      var origH=parseInt(clip.style.height)||400;
+      clip.style.width=avail+'px';
+      clip.style.height=Math.ceil(origH*(avail/origW))+'px';
+      wrap.style.transform='scale('+sc.toFixed(4)+')';
+    });
+  }
+  document.addEventListener('DOMContentLoaded',fitSheets);
+  window.addEventListener('resize',fitSheets);
+})();
+</script></head>
 <body><button class="print-btn" onclick="window.print()">인쇄</button>${sheetsHtml}</body></html>`);
     win.document.close();
   }, [sheets, formValues, fileName]);
