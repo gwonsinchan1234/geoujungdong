@@ -106,8 +106,9 @@ function parsePhotoBlocksFromRaw(rawBuf: ArrayBuffer, sheetNames: string[]): Rec
   const detailWs = wb.Sheets["항목별세부내역"];
   if (!detailWs) return {};
   const range = XLSX.utils.decode_range(detailWs["!ref"] ?? "A1");
-  type Detail = { itemNumber: number; date: string; label: string };
-  const noDetails = new Map<number, Detail>();
+  // key: "${itemNumber}_${no}" — 항목마다 NO가 재시작되어도 충돌 없음
+  type Detail = { itemNumber: number; no: number; date: string; label: string };
+  const noDetails = new Map<string, Detail>();
   let currentItem = 0;
 
   for (let r = range.s.r; r <= range.e.r; r++) {
@@ -123,7 +124,7 @@ function parsePhotoBlocksFromRaw(rawBuf: ArrayBuffer, sheetNames: string[]): Rec
     const date  = xlsxCellStr(detailWs, r, 1);
     const name  = xlsxCellStr(detailWs, r, 2);
     const qty   = xlsxCellStr(detailWs, r, 3);
-    noDetails.set(no, { itemNumber: currentItem, date, label: qty ? `${name} [${qty}EA]` : name });
+    noDetails.set(`${currentItem}_${no}`, { itemNumber: currentItem, no, date, label: qty ? `${name} [${qty}EA]` : name });
   }
   if (!noDetails.size) return {};
 
@@ -152,22 +153,22 @@ function parsePhotoBlocksFromRaw(rawBuf: ArrayBuffer, sheetNames: string[]): Rec
     sheetHeaders.set(name, hMap);
   }
 
-  // ③ 블록 조립
+  // ③ 블록 조립 (itemNumber 오름차순 → no 오름차순)
   const result: Record<string, PhotoBlock[]> = {};
   const counters = new Map<string, number>();
 
-  for (const [no, d] of [...noDetails.entries()].sort((a, b) => a[0] - b[0])) {
+  for (const d of [...noDetails.values()].sort((a, b) => a.itemNumber - b.itemNumber || a.no - b.no)) {
     const sheetName = itemToSheet.get(d.itemNumber);
     if (!sheetName) continue;
     if (!result[sheetName]) result[sheetName] = [];
     const order = counters.get(sheetName) ?? 0;
     counters.set(sheetName, order + 1);
     result[sheetName].push({
-      id:           `local_${sheetName}_${no}`,
+      id:           `local_${sheetName}_${d.no}`,
       doc_id:       "local",
       sheet_name:   sheetName,
-      no,
-      right_header: sheetHeaders.get(sheetName)?.get(no) ?? "지급 사진",
+      no:           d.no,
+      right_header: sheetHeaders.get(sheetName)?.get(d.no) ?? "지급 사진",
       left_date:    d.date,
       right_date:   d.date,
       left_label:   d.label,
