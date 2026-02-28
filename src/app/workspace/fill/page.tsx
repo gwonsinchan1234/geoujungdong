@@ -183,32 +183,25 @@ function parsePhotoBlocksFromRaw(rawBuf: ArrayBuffer, sheetNames: string[]): Rec
 function PreviewSheet({
   sheet, sheetIdx, formValues,
 }: { sheet: ParsedSheet; sheetIdx: number; formValues: Record<string, string> }) {
-  const pageRef  = useRef<HTMLDivElement>(null);
-  const [containerW, setContainerW] = useState(A4_W);
+  const [vw, setVw] = useState(() => (typeof window !== "undefined" ? window.innerWidth : 800));
 
-  // useLayoutEffect: DOM 페인트 전에 실제 너비 측정 → 깜빡임 없음
   React.useLayoutEffect(() => {
-    const el = pageRef.current;
-    if (!el) return;
-    const measure = () => {
-      const w = el.clientWidth;
-      if (w > 0) setContainerW(w);
-    };
-    measure();
-    const ro = new ResizeObserver(measure);
-    ro.observe(el);
-    return () => ro.disconnect();
+    setVw(window.innerWidth);
+    const onResize = () => setVw(window.innerWidth);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
   }, []);
 
   const { trimmedRows, usedCols, colWidths, rowOffset, colOffset } = trimSheet(sheet, sheetIdx, formValues);
-  const totalW  = colWidths.reduce((a, b) => a + b, 0) || A4_W;
-  const scale   = Math.min(1, containerW / totalW);
-  const totalH  = trimmedRows.reduce((s, r) => s + r.height, 0);
-  const scaledH = Math.ceil(totalH * scale);
+  const totalW    = colWidths.reduce((a, b) => a + b, 0) || A4_W;
+  const clipW     = Math.min(A4_W, vw - 32);   // 16px 좌우 패딩
+  const scale     = Math.min(1, clipW / totalW);
+  const totalH    = trimmedRows.reduce((s, r) => s + r.height, 0);
+  const scaledH   = Math.ceil(totalH * scale);
   return (
-    <div ref={pageRef} className={styles.previewPage}>
+    <div className={styles.previewPage} style={{ width: clipW }}>
       <div className={styles.previewPageName}>{sheet.name}</div>
-      <div className={styles.previewClip} style={{ height: scaledH }}>
+      <div className={styles.previewClip} style={{ width: clipW, height: scaledH }}>
         <div className={styles.previewWrap} style={{ transform: `scale(${scale.toFixed(4)})`, width: totalW }}>
           <table style={{ borderCollapse: "collapse", tableLayout: "fixed", background: "#fff" }}>
             <colgroup>{colWidths.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
