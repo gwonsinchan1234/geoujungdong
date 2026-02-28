@@ -183,29 +183,32 @@ function parsePhotoBlocksFromRaw(rawBuf: ArrayBuffer, sheetNames: string[]): Rec
 function PreviewSheet({
   sheet, sheetIdx, formValues,
 }: { sheet: ParsedSheet; sheetIdx: number; formValues: Record<string, string> }) {
-  const clipRef  = useRef<HTMLDivElement>(null);
-  const [clipW, setClipW] = useState(A4_W);
+  const pageRef  = useRef<HTMLDivElement>(null);
+  const [containerW, setContainerW] = useState(A4_W);
 
-  useEffect(() => {
-    const el = clipRef.current;
+  // useLayoutEffect: DOM 페인트 전에 실제 너비 측정 → 깜빡임 없음
+  React.useLayoutEffect(() => {
+    const el = pageRef.current;
     if (!el) return;
-    const ro = new ResizeObserver(entries => {
-      const w = entries[0]?.contentRect.width;
-      if (w && w > 0) setClipW(w);
-    });
+    const measure = () => {
+      const w = el.clientWidth;
+      if (w > 0) setContainerW(w);
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
 
   const { trimmedRows, usedCols, colWidths, rowOffset, colOffset } = trimSheet(sheet, sheetIdx, formValues);
   const totalW  = colWidths.reduce((a, b) => a + b, 0) || A4_W;
-  const scale   = Math.min(1, clipW / totalW);
+  const scale   = Math.min(1, containerW / totalW);
   const totalH  = trimmedRows.reduce((s, r) => s + r.height, 0);
   const scaledH = Math.ceil(totalH * scale);
   return (
-    <div className={styles.previewPage}>
+    <div ref={pageRef} className={styles.previewPage}>
       <div className={styles.previewPageName}>{sheet.name}</div>
-      <div ref={clipRef} className={styles.previewClip} style={{ height: scaledH }}>
+      <div className={styles.previewClip} style={{ height: scaledH }}>
         <div className={styles.previewWrap} style={{ transform: `scale(${scale.toFixed(4)})`, width: totalW }}>
           <table style={{ borderCollapse: "collapse", tableLayout: "fixed", background: "#fff" }}>
             <colgroup>{colWidths.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
