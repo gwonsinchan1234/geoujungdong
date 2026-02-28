@@ -180,32 +180,32 @@ function parsePhotoBlocksFromRaw(rawBuf: ArrayBuffer, sheetNames: string[]): Rec
   return result;
 }
 
-function useContainerWidth(padding = 32) {
-  const [w, setW] = useState(() =>
-    typeof window !== "undefined" ? Math.min(A4_W, window.innerWidth - padding) : A4_W
-  );
-  useEffect(() => {
-    const update = () => setW(Math.min(A4_W, window.innerWidth - padding));
-    window.addEventListener("resize", update);
-    update();
-    return () => window.removeEventListener("resize", update);
-  }, [padding]);
-  return w;
-}
-
 function PreviewSheet({
   sheet, sheetIdx, formValues,
 }: { sheet: ParsedSheet; sheetIdx: number; formValues: Record<string, string> }) {
-  const containerW = useContainerWidth(32); // 좌우 16px씩
+  const clipRef  = useRef<HTMLDivElement>(null);
+  const [clipW, setClipW] = useState(A4_W);
+
+  useEffect(() => {
+    const el = clipRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(entries => {
+      const w = entries[0]?.contentRect.width;
+      if (w && w > 0) setClipW(w);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
   const { trimmedRows, usedCols, colWidths, rowOffset, colOffset } = trimSheet(sheet, sheetIdx, formValues);
   const totalW  = colWidths.reduce((a, b) => a + b, 0) || A4_W;
-  const scale   = Math.min(1, containerW / totalW);
+  const scale   = Math.min(1, clipW / totalW);
   const totalH  = trimmedRows.reduce((s, r) => s + r.height, 0);
   const scaledH = Math.ceil(totalH * scale);
   return (
     <div className={styles.previewPage}>
       <div className={styles.previewPageName}>{sheet.name}</div>
-      <div className={styles.previewClip} style={{ width: containerW, height: scaledH }}>
+      <div ref={clipRef} className={styles.previewClip} style={{ height: scaledH }}>
         <div className={styles.previewWrap} style={{ transform: `scale(${scale.toFixed(4)})`, width: totalW }}>
           <table style={{ borderCollapse: "collapse", tableLayout: "fixed", background: "#fff" }}>
             <colgroup>{colWidths.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
