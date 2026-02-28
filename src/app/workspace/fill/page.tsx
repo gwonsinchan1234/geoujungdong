@@ -193,40 +193,37 @@ function PreviewSheet({
   }, []);
 
   const { trimmedRows, usedCols, colWidths, rowOffset, colOffset } = trimSheet(sheet, sheetIdx, formValues);
-  const totalW    = colWidths.reduce((a, b) => a + b, 0) || A4_W;
-  const clipW     = Math.min(A4_W, vw - 32);   // 16px 좌우 패딩
-  const scale     = Math.min(1, clipW / totalW);
-  const totalH    = trimmedRows.reduce((s, r) => s + r.height, 0);
-  const scaledH   = Math.ceil(totalH * scale);
+  const totalW  = colWidths.reduce((a, b) => a + b, 0) || A4_W;
+  const clipW   = Math.min(A4_W, vw - 32);
+  const zoom    = Math.min(1, clipW / totalW);
   return (
     <div className={styles.previewPage} style={{ width: clipW }}>
       <div className={styles.previewPageName}>{sheet.name}</div>
-      <div className={styles.previewClip} style={{ width: clipW, height: scaledH }}>
-        <div className={styles.previewWrap} style={{ transform: `scale(${scale.toFixed(4)})`, width: totalW }}>
-          <table style={{ borderCollapse: "collapse", tableLayout: "fixed", background: "#fff" }}>
-            <colgroup>{colWidths.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
-            <tbody>
-              {trimmedRows.map((row, ri) => (
-                <tr key={ri} style={{ height: row.height }}>
-                  {row.cells.slice(0, usedCols).map((cell, ci) => {
-                    if (cell.skip) return null;
-                    const ref = `${colLetter(ci + 1 + colOffset)}${ri + 1 + rowOffset}`;
-                    const ov  = formValues[`${sheetIdx}__${ref}`];
-                    return (
-                      <td key={ci}
-                        rowSpan={cell.rowSpan > 1 ? cell.rowSpan : undefined}
-                        colSpan={cell.colSpan > 1 ? cell.colSpan : undefined}
-                        style={cell.style as React.CSSProperties}
-                        className={ov !== undefined ? styles.cellHighlight : undefined}>
-                        {ov ?? cell.value}
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+      {/* zoom: 레이아웃 자체를 줄여서 height 자동 보정 — transform과 달리 position:absolute 불필요 */}
+      <div style={{ zoom, width: totalW, overflow: "hidden" }}>
+        <table style={{ borderCollapse: "collapse", tableLayout: "fixed", background: "#fff" }}>
+          <colgroup>{colWidths.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
+          <tbody>
+            {trimmedRows.map((row, ri) => (
+              <tr key={ri} style={{ height: row.height }}>
+                {row.cells.slice(0, usedCols).map((cell, ci) => {
+                  if (cell.skip) return null;
+                  const ref = `${colLetter(ci + 1 + colOffset)}${ri + 1 + rowOffset}`;
+                  const ov  = formValues[`${sheetIdx}__${ref}`];
+                  return (
+                    <td key={ci}
+                      rowSpan={cell.rowSpan > 1 ? cell.rowSpan : undefined}
+                      colSpan={cell.colSpan > 1 ? cell.colSpan : undefined}
+                      style={cell.style as React.CSSProperties}
+                      className={ov !== undefined ? styles.cellHighlight : undefined}>
+                      {ov ?? cell.value}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );
