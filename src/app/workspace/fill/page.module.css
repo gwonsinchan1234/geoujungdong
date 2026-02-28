@@ -486,9 +486,11 @@
   left: 0;
 }
 
-/* 사진대지 미리보기 래퍼 — A4 폭 고정, 배경 없음 (a4PageWrap이 개별 흰 카드) */
+/* 사진대지 미리보기 래퍼 — 데스크탑 700px, 모바일은 뷰포트 폭에 맞춤 */
 .previewPhotoWrap {
-  width: 700px;
+  width: 100%;
+  max-width: 700px;
+  margin: 0 auto;
   box-sizing: border-box;
 }
 
