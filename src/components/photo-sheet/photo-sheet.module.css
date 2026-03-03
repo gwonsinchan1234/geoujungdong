@@ -106,6 +106,7 @@
 .photoGrid {
   width: 100%;
   flex: 1;
+  min-height: 180px;
   display: grid;
   gap: 4px;
 }
@@ -154,7 +155,10 @@
   min-height: 90px;
 }
 
+/* 셀 안 이미지가 항상 영역을 채우도록 (흰화면/아이콘만 보이는 현상 방지) */
 .photoImg {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -162,9 +166,20 @@
   transition: opacity 0.2s;
 }
 
-/* Next.js Image는 fill이면 absolute position 자동 */
 .photoCell img[style*="position: absolute"] {
   object-fit: cover;
+}
+
+/* url 없을 때 플레이스홀더 (깨진 이미지 아이콘 방지) */
+.photoImgPlaceholder {
+  position: absolute;
+  inset: 0;
+  background: #e5e7eb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #9ca3af;
+  font-size: 12px;
 }
 
 /* 삭제 버튼 */
@@ -323,6 +338,34 @@
 /* 값 없을 때 플레이스홀더 */
 .footerPlaceholder {
   color: #d1d5db;
+}
+
+/* 항목 드롭다운 */
+.footerSelect {
+  font-size: 11px;
+  color: #111827;
+  font-weight: 500;
+  border: none;
+  border-bottom: 1.5px solid #d1d5db;
+  border-radius: 0;
+  outline: none;
+  background: transparent;
+  padding: 0 14px 1px 0;
+  width: 100%;
+  min-width: 0;
+  cursor: pointer;
+  appearance: auto;
+  transition: border-color 0.15s;
+}
+
+.footerSelect:focus {
+  border-bottom-color: #2563eb;
+}
+
+@media (max-width: 480px) {
+  .footerSelect {
+    font-size: 12px;
+  }
 }
 
 /* ── A4 미리보기 / 출력 전용 ─────────────────────────────────── */

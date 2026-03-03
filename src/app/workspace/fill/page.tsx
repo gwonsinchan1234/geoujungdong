@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useState, useCallback, useEffect } from "react";
+import React, { useRef, useState, useCallback, useEffect, useMemo } from "react";
 import * as XLSX from "xlsx";
 import PhotoSheetView from "@/components/photo-sheet/PhotoSheetView";
 import type { PhotoBlock, BlockPhoto, OnSlotClick, OnPhotoDelete, OnMetaUpdate } from "@/components/photo-sheet/types";
@@ -265,6 +265,18 @@ export default function FillPage() {
   const [saveToast,      setSaveToast]      = useState(false);
   const [showPwaGuide,   setShowPwaGuide]   = useState(false);
   const [isStandalone,   setIsStandalone]   = useState(true); // 기본 true → 설치 안내 숨김
+
+  // ── 사진대지 항목 드롭다운: 전체 블록에서 유니크 라벨 수집 ──────
+  const availableLabels = useMemo(() => {
+    const set = new Set<string>();
+    for (const blocks of Object.values(photoBlocks)) {
+      for (const b of blocks) {
+        if (b.left_label)  set.add(b.left_label);
+        if (b.right_label) set.add(b.right_label);
+      }
+    }
+    return [...set].sort((a, b) => a.localeCompare(b, "ko"));
+  }, [photoBlocks]);
 
   const mkKey = (sheetIdx: number, cell: string) => `${sheetIdx}__${cell.toUpperCase()}`;
 
@@ -970,6 +982,7 @@ table{border-collapse:collapse;table-layout:fixed;background:#fff}td{box-sizing:
                 <PhotoSheetView
                   sheetName={sheet.name}
                   blocks={photoBlocks[sheet.name] ?? []}
+                  availableLabels={availableLabels}
                   onSlotClick={handleSlotClick}
                   onPhotoDelete={handlePhotoDelete}
                   onMetaUpdate={handleMetaUpdate}

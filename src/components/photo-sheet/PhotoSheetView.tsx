@@ -5,10 +5,11 @@ import PhotoBlockCard from "./PhotoBlockCard";
 import styles from "./photo-sheet.module.css";
 
 type Props = {
-  sheetName:      string;
-  blocks:         PhotoBlock[];
-  readOnly?:      boolean;
-  a4Mode?:        boolean;   // 인쇄 미리보기 — A4 페이지 단위로 렌더
+  sheetName:       string;
+  blocks:          PhotoBlock[];
+  readOnly?:       boolean;
+  a4Mode?:         boolean;   // 인쇄 미리보기 — A4 페이지 단위로 렌더
+  availableLabels?: string[];  // 항목 드롭다운 목록
   onSlotClick?:   OnSlotClick;
   onPhotoDelete?: OnPhotoDelete;
   onMetaUpdate?:  OnMetaUpdate;
@@ -22,7 +23,7 @@ function chunk<T>(arr: T[], size: number): T[][] {
 }
 
 export default function PhotoSheetView({
-  sheetName, blocks, readOnly, a4Mode,
+  sheetName, blocks, readOnly, a4Mode, availableLabels,
   onSlotClick, onPhotoDelete, onMetaUpdate,
 }: Props) {
   if (!blocks.length) {
@@ -46,6 +47,7 @@ export default function PhotoSheetView({
                 <PhotoBlockCard
                   block={block}
                   readOnly
+                  availableLabels={availableLabels}
                 />
               </div>
             ))}
@@ -65,6 +67,7 @@ export default function PhotoSheetView({
             key={block.id}
             block={block}
             readOnly={readOnly}
+            availableLabels={availableLabels}
             onSlotClick={onSlotClick}
             onPhotoDelete={onPhotoDelete}
             onMetaUpdate={onMetaUpdate}

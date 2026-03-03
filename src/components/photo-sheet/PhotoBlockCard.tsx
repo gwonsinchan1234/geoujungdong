@@ -6,17 +6,18 @@ import PhotoGrid from "./PhotoGrid";
 import styles from "./photo-sheet.module.css";
 
 type Props = {
-  block:          PhotoBlock;
-  readOnly?:      boolean;
-  onSlotClick?:   OnSlotClick;
-  onPhotoDelete?: OnPhotoDelete;
-  onMetaUpdate?:  OnMetaUpdate;
+  block:            PhotoBlock;
+  readOnly?:        boolean;
+  availableLabels?: string[];
+  onSlotClick?:     OnSlotClick;
+  onPhotoDelete?:   OnPhotoDelete;
+  onMetaUpdate?:    OnMetaUpdate;
 };
 
 type EditField = "left_date" | "right_date" | "left_label" | "right_label";
 
 export default function PhotoBlockCard({
-  block, readOnly, onSlotClick, onPhotoDelete, onMetaUpdate,
+  block, readOnly, availableLabels, onSlotClick, onPhotoDelete, onMetaUpdate,
 }: Props) {
   const leftPhotos  = block.photos.filter(p => p.side === "left");
   const rightPhotos = block.photos.filter(p => p.side === "right");
@@ -49,7 +50,7 @@ export default function PhotoBlockCard({
     if (e.key === "Escape") { setEditingField(null); }
   }
 
-  /** 편집 가능한 값 셀 렌더링 */
+  /** 날짜 등 일반 텍스트 편집 */
   function renderField(field: EditField, value: string) {
     if (editingField === field) {
       return (
@@ -72,6 +73,31 @@ export default function PhotoBlockCard({
         {value || <span className={styles.footerPlaceholder}>-</span>}
       </span>
     );
+  }
+
+  /** 항목 라벨 — availableLabels 있으면 드롭다운, 없으면 텍스트 입력 */
+  function renderLabelField(field: "left_label" | "right_label", value: string) {
+    if (!canEdit) {
+      return <span className={styles.footerValue}>{value || <span className={styles.footerPlaceholder}>-</span>}</span>;
+    }
+    if (availableLabels && availableLabels.length > 0) {
+      // 현재 값이 목록에 없을 경우를 대비해 포함
+      const options = availableLabels.includes(value)
+        ? availableLabels
+        : value ? [value, ...availableLabels] : availableLabels;
+      return (
+        <select
+          className={styles.footerSelect}
+          value={value}
+          onChange={e => onMetaUpdate?.(block.id, { [field]: e.target.value })}
+        >
+          {options.map(label => (
+            <option key={label} value={label}>{label}</option>
+          ))}
+        </select>
+      );
+    }
+    return renderField(field, value);
   }
 
   return (
@@ -119,14 +145,14 @@ export default function PhotoBlockCard({
           <span className={styles.footerLabel}>날짜</span>
           {renderField("left_date", block.left_date)}
           <span className={styles.footerLabel}>항목</span>
-          {renderField("left_label", block.left_label)}
+          {renderLabelField("left_label", block.left_label)}
         </div>
         <div className={styles.footerDivider} />
         <div className={styles.footerSide}>
           <span className={styles.footerLabel}>날짜</span>
           {renderField("right_date", block.right_date)}
           <span className={styles.footerLabel}>항목</span>
-          {renderField("right_label", block.right_label)}
+          {renderLabelField("right_label", block.right_label)}
         </div>
       </div>
 
