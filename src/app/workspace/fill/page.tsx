@@ -206,7 +206,7 @@ function PreviewSheet({
           <colgroup>{colWidths.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
           <tbody>
             {trimmedRows.map((row, ri) => (
-              <tr key={ri} style={{ height: row.height }}>
+              <tr key={ri} style={row.height !== null ? { height: row.height } : undefined}>
                 {row.cells.slice(0, usedCols).map((cell, ci) => {
                   if (cell.skip) return null;
                   const ref = `${colLetter(ci + 1 + colOffset)}${ri + 1 + rowOffset}`;
@@ -785,11 +785,11 @@ export default function FillPage() {
       const { trimmedRows, usedCols, colWidths, rowOffset, colOffset } = trimSheet(sheet, sheetIdx, formValues);
       const totalW  = colWidths.reduce((a, b) => a + b, 0) || A4_W;
       const scale   = Math.min(1, A4_W / totalW);
-      const totalH  = trimmedRows.reduce((s, r) => s + r.height, 0);
+      const totalH  = trimmedRows.reduce((s, r) => s + (r.height ?? 20), 0);
       const scaledH = Math.ceil(totalH * scale);
       const colgroup = colWidths.map(w => `<col style="width:${w}px">`).join("");
       const tbody = trimmedRows.map((row, ri) =>
-        `<tr style="height:${row.height}px">${
+        `<tr ${row.height !== null ? `style="height:${row.height}px"` : ""}>${
           row.cells.slice(0, usedCols).map((cell, ci) => {
             if (cell.skip) return "";
             const ref = `${colLetter(ci + 1 + colOffset)}${ri + 1 + rowOffset}`;
@@ -843,6 +843,48 @@ table{border-collapse:collapse;table-layout:fixed;background:#fff}td{box-sizing:
 <body><button class="print-btn" onclick="window.print()">인쇄</button>${sheetsHtml}</body></html>`);
     win.document.close();
   }, [sheets, formValues, fileName]);
+
+  // ── 현재 활성 시트만 새 창 인쇄 ──────────────────────────────
+  const handlePrintActive = useCallback(() => {
+    if (!sheet) return;
+    const win = window.open("", "_blank");
+    if (!win) return;
+    const { trimmedRows, usedCols, colWidths, rowOffset, colOffset } = trimSheet(sheet, activeSheet, formValues);
+    const totalW  = colWidths.reduce((a, b) => a + b, 0) || A4_W;
+    const scale   = Math.min(1, A4_W / totalW);
+    const totalH  = trimmedRows.reduce((s, r) => s + (r.height ?? 20), 0);
+    const scaledH = Math.ceil(totalH * scale);
+    const colgroup = colWidths.map(w => `<col style="width:${w}px">`).join("");
+    const tbody = trimmedRows.map((row, ri) =>
+      `<tr ${row.height !== null ? `style="height:${row.height}px"` : ""}>${
+        row.cells.slice(0, usedCols).map((cell, ci) => {
+          if (cell.skip) return "";
+          const ref = `${colLetter(ci + 1 + colOffset)}${ri + 1 + rowOffset}`;
+          const val = (formValues[`${activeSheet}__${ref}`] ?? cell.value)
+            .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+          const css = Object.entries(cell.style)
+            .map(([k, v]) => `${k.replace(/([A-Z])/g, c => `-${c.toLowerCase()}`)}:${v}`).join(";");
+          const rs = cell.rowSpan > 1 ? ` rowspan="${cell.rowSpan}"` : "";
+          const cs = cell.colSpan > 1 ? ` colspan="${cell.colSpan}"` : "";
+          return `<td${rs}${cs} style="${css}">${val}</td>`;
+        }).join("")
+      }</tr>`
+    ).join("");
+    const sheetHtml = `<div class="sheet-page">
+      <div class="clip" style="width:${A4_W}px;height:${scaledH}px">
+        <div class="wrap" style="transform:scale(${scale.toFixed(4)});width:${totalW}px">
+          <table><colgroup>${colgroup}</colgroup><tbody>${tbody}</tbody></table>
+        </div></div></div>`;
+    win.document.write(`<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><title>${sheet.name}</title>
+<style>@page{size:A4 portrait;margin:15mm}*{box-sizing:border-box}body{margin:0;background:#f3f4f6;font-family:'Calibri','Apple SD Gothic Neo',sans-serif}
+.print-btn{position:fixed;top:16px;right:16px;padding:10px 22px;background:#2563eb;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;z-index:10}
+.sheet-page{margin:16px auto;background:#fff;box-shadow:0 2px 12px rgba(0,0,0,0.15);overflow:hidden;width:fit-content;max-width:100vw}
+.clip{overflow:hidden;position:relative}.wrap{transform-origin:top left;position:absolute;top:0;left:0}
+table{border-collapse:collapse;table-layout:fixed;background:#fff}td{box-sizing:border-box}
+@media print{.print-btn{display:none}body{background:#fff}.sheet-page{box-shadow:none;margin:0}}</style>
+</head><body><button class="print-btn" onclick="window.print()">인쇄</button>${sheetHtml}</body></html>`);
+    win.document.close();
+  }, [sheet, activeSheet, formValues]);
 
   const handleDownload = useCallback(() => {
     if (!rawBuf) return;
@@ -927,14 +969,28 @@ table{border-collapse:collapse;table-layout:fixed;background:#fff}td{box-sizing:
               <span>{photoSaving ? "저장 중…" : "저장"}</span>
             </button>
           )}
-          <button type="button" className={styles.printBtn} onClick={() => setShowPreview(true)}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-              <polyline points="6 9 6 2 18 2 18 9" />
-              <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
-              <rect x="6" y="14" width="12" height="8" />
-            </svg>
-            <span>인쇄</span>
-          </button>
+          {/* 사진대지 아닐 때: 현재 시트만 직접 인쇄 */}
+          {!isPhotoActive && (
+            <button type="button" className={styles.printBtn} onClick={handlePrintActive}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                <polyline points="6 9 6 2 18 2 18 9" />
+                <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+                <rect x="6" y="14" width="12" height="8" />
+              </svg>
+              <span>인쇄</span>
+            </button>
+          )}
+          {/* 사진대지일 때: 전체 미리보기 */}
+          {isPhotoActive && (
+            <button type="button" className={styles.printBtn} onClick={() => setShowPreview(true)}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                <polyline points="6 9 6 2 18 2 18 9" />
+                <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+                <rect x="6" y="14" width="12" height="8" />
+              </svg>
+              <span>인쇄</span>
+            </button>
+          )}
           <button type="button" className={styles.downloadBtn} onClick={handleDownload}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
@@ -1012,7 +1068,7 @@ table{border-collapse:collapse;table-layout:fixed;background:#fff}td{box-sizing:
                 <colgroup>{displayColWidths.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
                 <tbody>
                   {displayRows.map((row, ri) => (
-                    <tr key={ri} style={{ height: row.height }}>
+                    <tr key={ri} style={row.height !== null ? { height: row.height } : undefined}>
                       {row.cells.map((cell, ci) => {
                         if (cell.skip) return null;
                         const ref      = `${colLetter(ci + 1 + colStart)}${ri + 1 + rowStart}`;

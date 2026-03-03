@@ -16,7 +16,7 @@ export type ParsedCell = {
 
 export type ParsedSheet = {
   name:       string;
-  rows:       Array<{ height: number; cells: ParsedCell[] }>;
+  rows:       Array<{ height: number | null; cells: ParsedCell[] }>;
   colWidths:  number[];
   printArea?: { r1: number; c1: number; r2: number; c2: number } | null;
 };
@@ -38,9 +38,10 @@ function wchToPx(wch?: number): number {
   return Math.round((wch ?? 8.5) * 7.5);
 }
 
-// hpt(포인트) → px (96dpi 기준)
-function hptToPx(hpt?: number): number {
-  return Math.round((hpt ?? 15) * 1.333);
+// hpt(포인트) → px (96dpi 기준) / undefined → null(브라우저 자동 높이)
+function hptToPx(hpt?: number): number | null {
+  if (hpt === undefined || hpt <= 0) return null;
+  return Math.round(hpt * 1.333);
 }
 
 function borderStr(b?: { style?: string; color?: { rgb?: string } }): string {
