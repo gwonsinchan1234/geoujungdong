@@ -125,7 +125,7 @@ function parsePhotoBlocksFromRaw(rawBuf: ArrayBuffer, sheetNames: string[]): Rec
     const date  = xlsxCellStr(detailWs, r, 1);
     const name  = xlsxCellStr(detailWs, r, 2);
     const qty   = xlsxCellStr(detailWs, r, 3);
-    noDetails.set(`${currentItem}_${no}`, { itemNumber: currentItem, no, date, label: qty ? `${name} [${qty}EA]` : name });
+    noDetails.set(`${currentItem}_${no}`, { itemNumber: currentItem, no, date, label: name });
   }
   if (!noDetails.size) return {};
 
