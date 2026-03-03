@@ -340,31 +340,137 @@
   color: #d1d5db;
 }
 
-/* 항목 드롭다운 */
-.footerSelect {
-  font-size: 11px;
-  color: #111827;
-  font-weight: 500;
-  border: none;
-  border-bottom: 1.5px solid #d1d5db;
-  border-radius: 0;
-  outline: none;
-  background: transparent;
-  padding: 0 14px 1px 0;
+/* ── 커스텀 라벨 드롭다운 ─────────────────────────────────────── */
+.labelSelectWrap {
+  position: relative;
   width: 100%;
   min-width: 0;
-  cursor: pointer;
-  appearance: auto;
-  transition: border-color 0.15s;
 }
 
-.footerSelect:focus {
+.labelSelectTrigger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  color: #111827;
+  background: transparent;
+  border: none;
+  border-bottom: 1.5px solid #d1d5db;
+  padding: 0 0 2px;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.labelSelectTrigger:focus {
+  outline: none;
   border-bottom-color: #2563eb;
 }
 
+.labelSelectTriggerText {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.labelSelectArrow {
+  font-size: 9px;
+  color: #9ca3af;
+  flex-shrink: 0;
+  transition: transform 0.15s;
+  display: inline-block;
+}
+
+.labelSelectArrowOpen {
+  transform: rotate(180deg);
+}
+
+.labelSelectMenu {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: -10px;
+  right: -10px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+  max-height: 220px;
+  overflow-y: auto;
+  z-index: 200;
+  padding: 4px;
+  animation: menuPop 0.15s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes menuPop {
+  from { opacity: 0; transform: translateY(6px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.labelSelectOption {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  text-align: left;
+  padding: 8px 10px;
+  font-size: 12px;
+  color: #374151;
+  background: transparent;
+  border: none;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: background 0.1s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.labelSelectOption:hover {
+  background: #f3f4f6;
+}
+
+.labelSelectOption:active {
+  background: #e5e7eb;
+}
+
+/* 현재 선택된(원래 배정된) 항목 */
+.labelSelectOptionActive {
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-weight: 700;
+}
+
+.labelSelectOptionActive:hover {
+  background: #dbeafe;
+}
+
+.labelSelectCheck {
+  font-size: 11px;
+  color: #2563eb;
+  width: 14px;
+  flex-shrink: 0;
+  font-weight: 700;
+}
+
+.labelSelectOptionText {
+  flex: 1;
+  min-width: 0;
+  word-break: keep-all;
+  line-height: 1.4;
+}
+
 @media (max-width: 480px) {
-  .footerSelect {
+  .labelSelectTrigger {
     font-size: 12px;
+  }
+
+  .labelSelectOption {
+    font-size: 13px;
+    padding: 10px 10px;
   }
 }
 

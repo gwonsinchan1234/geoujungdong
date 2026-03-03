@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import type { PhotoBlock, OnSlotClick, OnPhotoDelete, OnMetaUpdate } from "./types";
 import PhotoGrid from "./PhotoGrid";
 import styles from "./photo-sheet.module.css";
@@ -16,6 +16,74 @@ type Props = {
 
 type EditField = "left_date" | "right_date" | "left_label" | "right_label";
 
+// ── 커스텀 라벨 드롭다운 ───────────────────────────────────────
+function LabelSelect({ value, options, onChange }: {
+  value:   string;
+  options: string[];
+  onChange: (v: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const activeRef = useRef<HTMLButtonElement>(null);
+
+  // 외부 클릭 닫기
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent | TouchEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    document.addEventListener("touchstart", handler);
+    return () => {
+      document.removeEventListener("mousedown", handler);
+      document.removeEventListener("touchstart", handler);
+    };
+  }, [open]);
+
+  // 열릴 때 현재 항목으로 스크롤
+  useEffect(() => {
+    if (open) {
+      setTimeout(() => activeRef.current?.scrollIntoView({ block: "nearest" }), 30);
+    }
+  }, [open]);
+
+  return (
+    <div ref={wrapRef} className={styles.labelSelectWrap}>
+      <button
+        type="button"
+        className={styles.labelSelectTrigger}
+        onClick={() => setOpen(o => !o)}
+      >
+        <span className={styles.labelSelectTriggerText}>{value || "-"}</span>
+        <span className={`${styles.labelSelectArrow} ${open ? styles.labelSelectArrowOpen : ""}`}>▾</span>
+      </button>
+
+      {open && (
+        <div className={styles.labelSelectMenu}>
+          {options.map(opt => {
+            const isActive = opt === value;
+            return (
+              <button
+                key={opt}
+                ref={isActive ? activeRef : undefined}
+                type="button"
+                className={`${styles.labelSelectOption} ${isActive ? styles.labelSelectOptionActive : ""}`}
+                onClick={() => { onChange(opt); setOpen(false); }}
+              >
+                <span className={styles.labelSelectCheck}>{isActive ? "✓" : ""}</span>
+                <span className={styles.labelSelectOptionText}>{opt}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── PhotoBlockCard ─────────────────────────────────────────────
 export default function PhotoBlockCard({
   block, readOnly, availableLabels, onSlotClick, onPhotoDelete, onMetaUpdate,
 }: Props) {
@@ -32,7 +100,6 @@ export default function PhotoBlockCard({
     if (!canEdit) return;
     setEditingField(field);
     setEditValue(block[field] ?? "");
-    // autoFocus is on the input, but we do a safety setTimeout for iOS
     setTimeout(() => inputRef.current?.focus(), 30);
   }
 
@@ -75,26 +142,21 @@ export default function PhotoBlockCard({
     );
   }
 
-  /** 항목 라벨 — availableLabels 있으면 드롭다운, 없으면 텍스트 입력 */
+  /** 항목 라벨 — availableLabels 있으면 커스텀 드롭다운, 없으면 텍스트 입력 */
   function renderLabelField(field: "left_label" | "right_label", value: string) {
     if (!canEdit) {
       return <span className={styles.footerValue}>{value || <span className={styles.footerPlaceholder}>-</span>}</span>;
     }
     if (availableLabels && availableLabels.length > 0) {
-      // 현재 값이 목록에 없을 경우를 대비해 포함
       const options = availableLabels.includes(value)
         ? availableLabels
         : value ? [value, ...availableLabels] : availableLabels;
       return (
-        <select
-          className={styles.footerSelect}
+        <LabelSelect
           value={value}
-          onChange={e => onMetaUpdate?.(block.id, { [field]: e.target.value })}
-        >
-          {options.map(label => (
-            <option key={label} value={label}>{label}</option>
-          ))}
-        </select>
+          options={options}
+          onChange={v => onMetaUpdate?.(block.id, { [field]: v })}
+        />
       );
     }
     return renderField(field, value);
