@@ -584,7 +584,24 @@ export default function FillPage() {
 
   useEffect(() => {
     document.body.style.overflow = showPreview ? "hidden" : "";
+    if (showPreview) {
+      // 뒤로가기가 미리보기 닫기로 동작하도록 히스토리 엔트리 추가
+      history.pushState({ preview: true }, "");
+    }
     return () => { document.body.style.overflow = ""; };
+  }, [showPreview]);
+
+  // 뒤로가기(popstate) → 미리보기 닫기
+  useEffect(() => {
+    const onPop = (e: PopStateEvent) => {
+      if (showPreview) {
+        setShowPreview(false);
+        // 뒤로 더 나가지 않도록 다시 앞으로 밀어두지 않아도 됨
+        // (pushState한 엔트리가 이미 소비됨)
+      }
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
   }, [showPreview]);
 
   // 선택 셀 스크롤 into view
