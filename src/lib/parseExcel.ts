@@ -89,6 +89,7 @@ function extractStyle(cell: XLSX.CellObject | undefined): CSSMap {
   const s: CSSMap = {
     fontFamily:      "'Calibri','Apple SD Gothic Neo',sans-serif",
     fontSize:        "11pt",
+    lineHeight:      "1",            // Excel은 line-height 여백 없음; 브라우저 기본값(~1.2) 방지
     padding:         "2px 4px",
     verticalAlign:   "bottom",
     overflow:        "hidden",
@@ -136,8 +137,13 @@ function extractStyle(cell: XLSX.CellObject | undefined): CSSMap {
       s.verticalAlign = "top";
     if (alignment.wrapText) {
       s.whiteSpace = "pre-wrap";
-      s.overflow   = "visible";
+      // overflow는 "hidden" 유지 — visible로 하면 텍스트가 옆 셀로 흘러넘침
     }
+  }
+
+  // "general" 정렬: 숫자·날짜는 Excel처럼 오른쪽 정렬 (명시적 정렬이 없을 때만)
+  if (!s.textAlign && (cell?.t === "n" || cell?.t === "d")) {
+    s.textAlign = "right";
   }
 
   if (border) {
