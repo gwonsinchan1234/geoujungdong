@@ -6,10 +6,10 @@ const stub = new Proxy({} as SupabaseClient, {
   },
 });
 
-/** 서버 전용 admin 클라이언트. 빌드 시 env 없으면 createClient 호출 안 함. */
+/** 서버 전용 클라이언트. service_role key 없으면 anon key로 fallback. */
 export function getSupabaseAdmin(): SupabaseClient {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!url || !key) return stub;
   return createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
 }

@@ -403,6 +403,12 @@ export default function FillPage() {
     }
 
     setPhotoUploading(true);
+    const UPLOAD_TIMEOUT_MS = 32000;
+    const timeoutId = setTimeout(() => {
+      setPhotoUploading(false);
+      alert("업로드가 너무 오래 걸립니다. 네트워크를 확인한 뒤 다시 시도해 주세요.");
+    }, UPLOAD_TIMEOUT_MS);
+
     let pId  = "";    // pending photo id (밖에서 finally가 접근 가능하게)
     let pUrl = "";    // local object URL
     try {
@@ -431,16 +437,13 @@ export default function FillPage() {
       });
 
       const docId = docIdRef.current;
+      const { data: { session } } = await supabase.auth.getSession();
+      const userId = session?.user?.id ?? "";
 
-      // ── Supabase 직접 호출 (Vercel 경유 제거 → 1회 전송으로 단축) ──
-
-      // 로그인 사용자 ID (RLS: auth.uid() = user_id 통과에 필요)
-      const { data: { user } } = await supabase.auth.getUser();
-      const userId = user?.id ?? null;
-      if (!userId) throw new Error("로그인이 필요합니다. 로그인 후 다시 시도해 주세요.");
-
-      // 1. photo_block 조회 or 생성
-      const { data: existingBlock } = await supabase
+      let uploaded = false;
+      if (userId) {
+        try {
+          const { data: existingBlock } = await supabase
         .from("photo_blocks")
         .select("id")
         .eq("doc_id",     docId)
@@ -448,9 +451,9 @@ export default function FillPage() {
         .eq("no",         block.no)
         .maybeSingle();
 
-      let dbBlockId: string;
-      if (existingBlock) {
-        await supabase.from("photo_blocks").update({
+          let dbBlockId: string;
+          if (existingBlock) {
+            await supabase.from("photo_blocks").update({
           right_header: block.right_header,
           left_date:    block.left_date,
           right_date:   block.right_date,
@@ -475,47 +478,84 @@ export default function FillPage() {
           })
           .select("id")
           .single();
-        if (insErr) throw new Error(`블록 저장 실패: ${insErr.message}`);
+        if (insErr) throw new Error(insErr.message);
         dbBlockId = inserted.id as string;
       }
 
-      // 2. Storage 직접 업로드 (경로 첫 폴더 = userId → storage RLS 통과)
-      const storagePath = `${userId ?? docId}/${dbBlockId}/${side}/${slotIndex}.jpg`;
-      const { error: storageErr } = await supabase.storage
-        .from("expense-evidence")
-        .upload(storagePath, compressed, { contentType: "image/jpeg", upsert: false });
-      if (storageErr) throw new Error(`스토리지 업로드 실패: ${storageErr.message}`);
+          const storagePath = `${userId}/${dbBlockId}/${side}/${slotIndex}.jpg`;
+          await supabase.storage.from("expense-evidence").remove([storagePath]);
+          const { error: storageErr } = await supabase.storage
+            .from("expense-evidence")
+            .upload(storagePath, compressed, { contentType: "image/jpeg", upsert: false });
+          if (storageErr) throw new Error(storageErr.message);
 
-      // 3. block_photos INSERT
-      const { data: photoRow, error: photoErr } = await supabase
-        .from("block_photos")
-        .insert({ block_id: dbBlockId, side, slot_index: slotIndex, storage_path: storagePath })
-        .select("id")
-        .single();
-      if (photoErr) {
-        await supabase.storage.from("expense-evidence").remove([storagePath]);
-        throw new Error(`사진 저장 실패: ${photoErr.message}`);
+          const { data: photoRow, error: photoErr } = await supabase
+            .from("block_photos")
+            .insert({ block_id: dbBlockId, side, slot_index: slotIndex, storage_path: storagePath })
+            .select("id")
+            .single();
+          if (photoErr) {
+            await supabase.storage.from("expense-evidence").remove([storagePath]);
+            throw new Error(photoErr.message);
+          }
+
+          const { data: signed } = await supabase.storage
+            .from("expense-evidence")
+            .createSignedUrl(storagePath, 3600);
+
+          setPhotoBlocks(prev => {
+            const next = { ...prev };
+            for (const name of Object.keys(next)) {
+              next[name] = next[name].map(b => ({
+                ...b,
+                photos: b.photos.map(p => p.id !== pId ? p : {
+                  id: photoRow.id as string, block_id: dbBlockId, side, slot_index: slotIndex,
+                  storage_path: storagePath, url: signed?.signedUrl || pUrl,
+                }),
+              }));
+            }
+            return next;
+          });
+          uploaded = true;
+        } catch {
+          // 직렬 업로드 실패 시 API 폴백
+        }
       }
 
-      // 4. Signed URL 발급 (실패해도 로컬 URL 유지)
-      const { data: signed } = await supabase.storage
-        .from("expense-evidence")
-        .createSignedUrl(storagePath, 3600);
+      if (!uploaded) {
+        const fd = new FormData();
+        fd.append("docId", docId);
+        fd.append("sheetName", block.sheet_name);
+        fd.append("blockNo", String(block.no));
+        fd.append("rightHeader", block.right_header ?? "지급/설치 사진");
+        fd.append("leftDate", block.left_date ?? "");
+        fd.append("rightDate", block.right_date ?? "");
+        fd.append("leftLabel", block.left_label ?? "");
+        fd.append("rightLabel", block.right_label ?? "");
+        fd.append("sortOrder", String(block.sort_order ?? 0));
+        fd.append("side", side);
+        fd.append("slotIndex", String(slotIndex));
+        fd.append("userId", userId);
+        fd.append("file", new File([compressed], "photo.jpg", { type: "image/jpeg" }));
 
-      // ② pending → 실제 photo로 교체
-      setPhotoBlocks(prev => {
-        const next = { ...prev };
-        for (const name of Object.keys(next)) {
-          next[name] = next[name].map(b => ({
-            ...b,
-            photos: b.photos.map(p => p.id !== pId ? p : {
-              id: photoRow.id as string, block_id: dbBlockId, side, slot_index: slotIndex,
-              storage_path: storagePath, url: signed?.signedUrl || pUrl,
-            }),
-          }));
-        }
-        return next;
-      });
+        const res = await fetch("/api/photo-blocks/photos", { method: "POST", body: fd });
+        const json = (await res.json()) as { ok: boolean; photoId?: string; blockId?: string; signedUrl?: string; error?: string };
+        if (!json.ok) throw new Error(json.error ?? "사진 업로드 실패");
+
+        setPhotoBlocks(prev => {
+          const next = { ...prev };
+          for (const name of Object.keys(next)) {
+            next[name] = next[name].map(b => ({
+              ...b,
+              photos: b.photos.map(p => p.id !== pId ? p : {
+                id: json.photoId!, block_id: json.blockId!, side, slot_index: slotIndex,
+                storage_path: "", url: json.signedUrl || pUrl,
+              }),
+            }));
+          }
+          return next;
+        });
+      }
     } catch (err) {
       // 예상치 못한 에러 — 화면에 표시
       if (pId) {
@@ -533,6 +573,7 @@ export default function FillPage() {
         ? "업로드 시간 초과 (30초). 네트워크 상태를 확인하거나 다시 시도해주세요."
         : `오류: ${msg}`);
     } finally {
+      clearTimeout(timeoutId);
       setPhotoUploading(false);
     }
   }, [photoSlot, photoBlocks]);
@@ -845,6 +886,7 @@ table{border-collapse:collapse;table-layout:fixed;background:#fff}td{box-sizing:
   }, [sheets, formValues, fileName]);
 
   // ── 현재 활성 시트만 새 창 인쇄 ──────────────────────────────
+  const sheet = sheets[activeSheet];
   const handlePrintActive = useCallback(() => {
     if (!sheet) return;
     const win = window.open("", "_blank");
@@ -906,7 +948,6 @@ table{border-collapse:collapse;table-layout:fixed;background:#fff}td{box-sizing:
     URL.revokeObjectURL(url);
   }, [rawBuf, formValues, fileName]);
 
-  const sheet       = sheets[activeSheet];
   const editedCount = Object.keys(formValues).length;
   const isPhotoActive = sheet ? isPhotoSheet(sheet.name) : false;
 

@@ -6,6 +6,7 @@
 // PATCH /api/photo-blocks            → 블록 메타 수정 (by id, 하위 호환용)
 
 import { NextRequest, NextResponse } from "next/server";
+import { createServerClient } from "@supabase/ssr";
 import { getSupabaseAdmin, DEV_USER_ID } from "@/lib/supabaseAdmin";
 
 export const runtime = "nodejs";
@@ -15,13 +16,25 @@ const SIGNED_URL_TTL = 3600; // 1시간
 // ── GET: 블록 목록 + 사진 signed URL ─────────────────────────────
 export async function GET(req: NextRequest) {
   try {
-    const supabase = getSupabaseAdmin();
-    const docId    = req.nextUrl.searchParams.get("docId") ?? "";
+    // DB 쿼리 + signed URL 생성: 사용자 세션 기반 클라이언트 사용
+    // (anon key + 사용자 JWT → RLS 통과, createSignedUrl 정상 동작)
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
+    const userClient = supabaseUrl && supabaseKey
+      ? createServerClient(supabaseUrl, supabaseKey, {
+          cookies: {
+            getAll() { return req.cookies.getAll(); },
+            setAll() { /* GET 응답에 쿠키 쓰기 불필요 */ },
+          },
+        })
+      : getSupabaseAdmin(); // env 없으면 admin fallback
+
+    const docId = req.nextUrl.searchParams.get("docId") ?? "";
     if (!docId) {
       return NextResponse.json({ ok: false, error: "docId 필요" }, { status: 400 });
     }
 
-    const { data: blocks, error: bErr } = await supabase
+    const { data: blocks, error: bErr } = await userClient
       .from("photo_blocks")
       .select("*")
       .eq("doc_id", docId)
@@ -31,8 +44,8 @@ export async function GET(req: NextRequest) {
     if (bErr) return NextResponse.json({ ok: false, error: bErr.message }, { status: 500 });
     if (!blocks?.length) return NextResponse.json({ ok: true, blocks: [] });
 
-    const blockIds = blocks.map(b => b.id);
-    const { data: photos, error: pErr } = await supabase
+    const blockIds = blocks.map((b: { id: string }) => b.id);
+    const { data: photos, error: pErr } = await userClient
       .from("block_photos")
       .select("*")
       .in("block_id", blockIds)
@@ -40,18 +53,27 @@ export async function GET(req: NextRequest) {
 
     if (pErr) return NextResponse.json({ ok: false, error: pErr.message }, { status: 500 });
 
-    const photosWithUrl = await Promise.all(
-      (photos ?? []).map(async (p) => {
-        const { data } = await supabase.storage
-          .from("expense-evidence")
-          .createSignedUrl(p.storage_path, SIGNED_URL_TTL);
-        return { ...p, url: data?.signedUrl ?? "" };
-      })
-    );
+    // storage_path 목록을 한 번에 signed URL 발급 (병렬 → 배치로 최적화)
+    const storagePaths = (photos ?? []).map((p: { storage_path: string }) => p.storage_path);
+    const signedMap = new Map<string, string>();
 
-    const blocksWithPhotos = blocks.map(b => ({
+    if (storagePaths.length) {
+      const { data: signed } = await userClient.storage
+        .from("expense-evidence")
+        .createSignedUrls(storagePaths, SIGNED_URL_TTL);
+      (signed ?? []).forEach((s) => {
+        if (s.signedUrl && s.path) signedMap.set(s.path, s.signedUrl);
+      });
+    }
+
+    const photosWithUrl = (photos ?? []).map((p: Record<string, unknown>) => ({
+      ...p,
+      url: signedMap.get(p.storage_path as string) ?? "",
+    }));
+
+    const blocksWithPhotos = blocks.map((b: Record<string, unknown>) => ({
       ...b,
-      photos: photosWithUrl.filter(p => p.block_id === b.id),
+      photos: photosWithUrl.filter((p: Record<string, unknown>) => p.block_id === b.id),
     }));
 
     return NextResponse.json({ ok: true, blocks: blocksWithPhotos });

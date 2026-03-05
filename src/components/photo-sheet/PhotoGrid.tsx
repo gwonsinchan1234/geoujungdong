@@ -41,8 +41,12 @@ export default function PhotoGrid({
           .sort((a, b) => a.slot_index - b.slot_index)
           .map((p) => (
             <div key={p.id} className={styles.photoCell}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={p.url} alt="" className={styles.photoImg} />
+              {p.url ? (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img src={p.url} alt="" className={styles.photoImg} />
+              ) : (
+                <div className={styles.photoImgPlaceholder} aria-hidden />
+              )}
             </div>
           ))}
       </div>
@@ -64,12 +68,16 @@ export default function PhotoGrid({
       {slotsToShow.map(({ index, photo }) =>
         photo ? (
           <div key={index} className={styles.photoCell}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={photo.url}
-              alt={`사진 ${index + 1}`}
-              className={styles.photoImg}
-            />
+            {photo.url ? (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img
+                src={photo.url}
+                alt={`사진 ${index + 1}`}
+                className={styles.photoImg}
+              />
+            ) : (
+              <div className={styles.photoImgPlaceholder} aria-hidden />
+            )}
             {onPhotoDelete && (
               <button
                 type="button"
