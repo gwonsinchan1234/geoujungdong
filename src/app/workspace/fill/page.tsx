@@ -105,6 +105,7 @@ const isPhotoSheet = (name: string) => PHOTO_KEYWORDS.some(k => name.includes(k)
 const ALLOWANCE_KEYWORDS = ["수당", "인건비", "업무수당"];
 const isAllowanceSheet = (name: string) => ALLOWANCE_KEYWORDS.some(k => name.includes(k));
 
+
 function xlsxCellStr(ws: XLSX.WorkSheet, r: number, c: number): string {
   const cell = ws[XLSX.utils.encode_cell({ r, c })];
   if (!cell) return "";
@@ -265,6 +266,49 @@ function PreviewSheet({
     </div>
   );
 }
+
+function FitToWidth(props: {
+  contentWidth: number;
+  contentHeight: number;
+  children: React.ReactNode;
+}) {
+  const { contentWidth, contentHeight, children } = props;
+  const hostRef = useRef<HTMLDivElement | null>(null);
+  const [hostW, setHostW] = useState<number>(0);
+
+  React.useLayoutEffect(() => {
+    const el = hostRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => setHostW(el.clientWidth));
+    ro.observe(el);
+    setHostW(el.clientWidth);
+    return () => ro.disconnect();
+  }, []);
+
+  const availW = Math.max(1, hostW);
+  const scale = contentWidth > 0 ? Math.min(1, availW / contentWidth) : 1;
+  // zoom 기반 폭맞춤: transform 대비 1px 테두리 깨짐이 훨씬 덜함(Chromium)
+  const boxW = contentWidth;
+  const boxH = contentHeight;
+
+  return (
+    <div ref={hostRef} className={styles.fitHost}>
+      <div
+        className={styles.fitZoom}
+        style={{
+          width: boxW,
+          height: boxH,
+          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+          // @ts-ignore: zoom은 표준 타입에 없지만 Chromium에서 동작
+          zoom: scale,
+        }}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
 
 // ── Page ─────────────────────────────────────────────────────────
 export default function FillPage() {
@@ -1134,40 +1178,45 @@ table{border-collapse:collapse;table-layout:fixed;background:#fff}td{box-sizing:
           ) : sheet && (
             <div key={`table-${activeSheet}`} className={styles.viewport}>
               <div className={isAllowanceSheet(sheet.name) ? styles.sheetDocument : styles.sheetTableWrap}>
-              <table className={`${styles.table} ${styles.tableOuterThick}`}>
-                <colgroup>{displayColWidths.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
-                <tbody>
-                  {displayRows.map((row, ri) => (
-                    <tr key={ri} style={row.height !== null ? { height: row.height } : undefined}>
-                      {row.cells.map((cell, ci) => {
-                        if (cell.skip) return null;
-                        const ref      = `${colLetter(ci + 1 + colStart)}${ri + 1 + rowStart}`;
-                        const key      = mkKey(activeSheet, ref);
-                        const override = formValues[key];
-                        const isSel    = selectedCell?.ri === ri && selectedCell?.ci === ci;
-                        let cls = styles.cellEditable;
-                        if (override !== undefined) cls = styles.cellHighlight;
-                        if (isSel) cls = `${cls ?? ""} ${styles.cellSelected}`.trim();
-                        return (
-                          <td key={ci}
-                            ref={isSel ? selectedTdRef : undefined}
-                            rowSpan={cell.rowSpan > 1 ? cell.rowSpan : undefined}
-                            colSpan={cell.colSpan > 1 ? cell.colSpan : undefined}
-                            style={cell.style as React.CSSProperties}
-                            className={cls}
-                            onClick={() => {
-                              setSelectedCell({ ri, ci });
-                              openSheet(ref, activeSheet, toCellDisplayString(cell.value));
-                            }}
-                          >
-                            {toCellDisplayString(override ?? cell.value)}
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <FitToWidth
+                contentWidth={displayColWidths.reduce((a, b) => a + b, 0) || 1}
+                contentHeight={displayRows.reduce((sum, r) => sum + (r.height ?? 20), 0) || 1}
+              >
+                <table className={`${styles.table} ${styles.tableOuterThick}`}>
+                  <colgroup>{displayColWidths.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
+                  <tbody>
+                    {displayRows.map((row, ri) => (
+                      <tr key={ri} style={row.height !== null ? { height: row.height } : undefined}>
+                        {row.cells.map((cell, ci) => {
+                          if (cell.skip) return null;
+                          const ref      = `${colLetter(ci + 1 + colStart)}${ri + 1 + rowStart}`;
+                          const key      = mkKey(activeSheet, ref);
+                          const override = formValues[key];
+                          const isSel    = selectedCell?.ri === ri && selectedCell?.ci === ci;
+                          let cls = styles.cellEditable;
+                          if (override !== undefined) cls = styles.cellHighlight;
+                          if (isSel) cls = `${cls ?? ""} ${styles.cellSelected}`.trim();
+                          return (
+                            <td key={ci}
+                              ref={isSel ? selectedTdRef : undefined}
+                              rowSpan={cell.rowSpan > 1 ? cell.rowSpan : undefined}
+                              colSpan={cell.colSpan > 1 ? cell.colSpan : undefined}
+                              style={cell.style as React.CSSProperties}
+                              className={cls}
+                              onClick={() => {
+                                setSelectedCell({ ri, ci });
+                                openSheet(ref, activeSheet, toCellDisplayString(cell.value));
+                              }}
+                            >
+                              {toCellDisplayString(override ?? cell.value)}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </FitToWidth>
               </div>
             </div>
           )}

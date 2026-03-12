@@ -209,7 +209,10 @@ function extractStyle(cell: ExcelJS.Cell, themeMap?: ThemeColorMap): CSSMap {
   const font = cell.font ?? cellStyle?.font;
   const fill = cell.fill ?? cellStyle?.fill;
   const alignment = cell.alignment ?? cellStyle?.alignment;
-  const border = cell.border;
+  // border는 셀에 직접 달린 경우가 있고, 공유 스타일(xf)로 cell.style에만 있는 경우가 있음
+  const directBorder = cell.border;
+  const fallbackBorder = cellStyle?.border;
+  const border = directBorder ?? fallbackBorder;
 
   const hasBorder = (side: Partial<ExcelJS.Border> | undefined) => {
     const style = side?.style as string | undefined;
@@ -272,14 +275,82 @@ function extractStyle(cell: ExcelJS.Cell, themeMap?: ThemeColorMap): CSSMap {
     }
   }
 
-  if (border) {
-    if (hasBorder(border.top)) s.borderTop = borderStr(border.top, themeMap);
-    if (hasBorder(border.bottom)) s.borderBottom = borderStr(border.bottom, themeMap);
-    if (hasBorder(border.left)) s.borderLeft = borderStr(border.left, themeMap);
-    if (hasBorder(border.right)) s.borderRight = borderStr(border.right, themeMap);
+  // directBorder가 없을 때만 fallbackBorder를 적용해 과도한 기본 테두리 적용을 방지
+  const shouldUseFallback =
+    !directBorder &&
+    !!fallbackBorder &&
+    (hasBorder(fallbackBorder.top) ||
+      hasBorder(fallbackBorder.bottom) ||
+      hasBorder(fallbackBorder.left) ||
+      hasBorder(fallbackBorder.right));
+
+  const b = directBorder ?? (shouldUseFallback ? fallbackBorder : undefined);
+  if (b) {
+    if (hasBorder(b.top)) s.borderTop = borderStr(b.top, themeMap);
+    if (hasBorder(b.bottom)) s.borderBottom = borderStr(b.bottom, themeMap);
+    if (hasBorder(b.left)) s.borderLeft = borderStr(b.left, themeMap);
+    if (hasBorder(b.right)) s.borderRight = borderStr(b.right, themeMap);
   }
 
   return s;
+}
+
+function extractBorderOnly(cell: ExcelJS.Cell, themeMap?: ThemeColorMap): Partial<CSSMap> {
+  const out: Partial<CSSMap> = {};
+  const cellStyle = (cell as { style?: { border?: typeof cell.border } }).style;
+  const directBorder = cell.border;
+  const fallbackBorder = cellStyle?.border;
+
+  const hasBorder = (side: Partial<ExcelJS.Border> | undefined) => {
+    const style = side?.style as string | undefined;
+    return style && style !== "none";
+  };
+
+  const shouldUseFallback =
+    !directBorder &&
+    !!fallbackBorder &&
+    (hasBorder(fallbackBorder.top) ||
+      hasBorder(fallbackBorder.bottom) ||
+      hasBorder(fallbackBorder.left) ||
+      hasBorder(fallbackBorder.right));
+
+  const b = directBorder ?? (shouldUseFallback ? fallbackBorder : undefined);
+  if (!b) return out;
+  if (hasBorder(b.top)) out.borderTop = borderStr(b.top, themeMap);
+  if (hasBorder(b.bottom)) out.borderBottom = borderStr(b.bottom, themeMap);
+  if (hasBorder(b.left)) out.borderLeft = borderStr(b.left, themeMap);
+  if (hasBorder(b.right)) out.borderRight = borderStr(b.right, themeMap);
+  return out;
+}
+
+function mirrorNeighborBorders(rows: ParsedSheet["rows"]) {
+  // 인접 셀의 border 정보를 서로 보완해서 끊김을 최소화
+  // (양쪽 다 없는 경우는 그대로 둠 — 과도 적용 방지)
+  for (let r = 0; r < rows.length; r++) {
+    const row = rows[r];
+    for (let c = 0; c < row.cells.length; c++) {
+      const cell = row.cells[c];
+      if (!cell || cell.skip) continue;
+      const s = cell.style as CSSMap;
+
+      // right <- neighbor.left
+      const right = row.cells[c + 1];
+      if (right && !right.skip) {
+        const rs = right.style as CSSMap;
+        if (!s.borderRight && rs.borderLeft) s.borderRight = rs.borderLeft;
+        if (!rs.borderLeft && s.borderRight) rs.borderLeft = s.borderRight;
+      }
+
+      // bottom <- neighbor.top
+      const downRow = rows[r + 1];
+      const down = downRow?.cells?.[c];
+      if (down && !down.skip) {
+        const ds = down.style as CSSMap;
+        if (!s.borderBottom && ds.borderTop) s.borderBottom = ds.borderTop;
+        if (!ds.borderTop && s.borderBottom) ds.borderTop = s.borderBottom;
+      }
+    }
+  }
 }
 
 export async function parseExcelBuffer(arrayBuffer: ArrayBuffer): Promise<ParsedSheet[]> {
@@ -298,6 +369,8 @@ export async function parseExcelBuffer(arrayBuffer: ArrayBuffer): Promise<Parsed
 
     const spanMap = new Map<string, { rowSpan: number; colSpan: number }>();
     const skipSet = new Set<string>();
+    const anchorOf = new Map<string, string>(); // "r,c" -> "sr,sc"
+    const mergeEdgeBorders = new Map<string, Partial<CSSMap>>(); // anchorKey -> edge border styles
     const merges: string[] =
       (ws as unknown as { model?: { merges?: string[] } }).model?.merges ?? [];
 
@@ -311,10 +384,15 @@ export async function parseExcelBuffer(arrayBuffer: ArrayBuffer): Promise<Parsed
         const scCol = Number(sc.col);
         const er = Number(ec.row);
         const ecCol = Number(ec.col);
-        spanMap.set(`${sr},${scCol}`, { rowSpan: er - sr + 1, colSpan: ecCol - scCol + 1 });
+        const anchorKey = `${sr},${scCol}`;
+        spanMap.set(anchorKey, { rowSpan: er - sr + 1, colSpan: ecCol - scCol + 1 });
         for (let r = sr; r <= er; r++)
           for (let c = scCol; c <= ecCol; c++)
-            if (r !== sr || c !== scCol) skipSet.add(`${r},${c}`);
+            if (r !== sr || c !== scCol) {
+              const k = `${r},${c}`;
+              skipSet.add(k);
+              anchorOf.set(k, anchorKey);
+            }
       } catch {
         // ignore invalid merge
       }
@@ -332,14 +410,43 @@ export async function parseExcelBuffer(arrayBuffer: ArrayBuffer): Promise<Parsed
       for (let c = 1; c <= colCount; c++) {
         const key = `${r},${c}`;
         if (skipSet.has(key)) {
+          // 병합셀의 가장자리 테두리가 숨겨진 셀에만 있는 경우 → 앵커로 합치기
+          const anchorKey = anchorOf.get(key);
+          if (anchorKey) {
+            const span = spanMap.get(anchorKey);
+            if (span) {
+              const [arStr, acStr] = anchorKey.split(",");
+              const ar = Number(arStr);
+              const ac = Number(acStr);
+              const rEnd = ar + span.rowSpan - 1;
+              const cEnd = ac + span.colSpan - 1;
+              const br = extractBorderOnly(wsRow.getCell(c), themeMapResolved);
+              if (Object.keys(br).length) {
+                const edge = mergeEdgeBorders.get(anchorKey) ?? {};
+                if (r === ar && br.borderTop) edge.borderTop = br.borderTop;
+                if (r === rEnd && br.borderBottom) edge.borderBottom = br.borderBottom;
+                if (c === ac && br.borderLeft) edge.borderLeft = br.borderLeft;
+                if (c === cEnd && br.borderRight) edge.borderRight = br.borderRight;
+                mergeEdgeBorders.set(anchorKey, edge);
+              }
+            }
+          }
           cells.push({ value: "", style: {}, rowSpan: 1, colSpan: 1, skip: true });
           continue;
         }
         const cell = wsRow.getCell(c);
         const span = spanMap.get(key);
+        const style = extractStyle(cell, themeMapResolved);
+        const edge = mergeEdgeBorders.get(key);
+        if (edge) {
+          if (edge.borderTop && !style.borderTop) style.borderTop = edge.borderTop;
+          if (edge.borderBottom && !style.borderBottom) style.borderBottom = edge.borderBottom;
+          if (edge.borderLeft && !style.borderLeft) style.borderLeft = edge.borderLeft;
+          if (edge.borderRight && !style.borderRight) style.borderRight = edge.borderRight;
+        }
         cells.push({
           value: extractValue(cell),
-          style: extractStyle(cell, themeMapResolved),
+          style,
           rowSpan: span?.rowSpan ?? 1,
           colSpan: span?.colSpan ?? 1,
           skip: false,
@@ -350,6 +457,9 @@ export async function parseExcelBuffer(arrayBuffer: ArrayBuffer): Promise<Parsed
         cells,
       });
     }
+
+    // 테이블/범위 스타일에서 한쪽 셀에만 저장된 border 보정
+    mirrorNeighborBorders(rows);
 
     let printArea: ParsedSheet["printArea"] = null;
     const paStr = (ws.pageSetup as { printArea?: string })?.printArea;

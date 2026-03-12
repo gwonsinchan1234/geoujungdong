@@ -275,6 +275,16 @@
   animation: sheetFadeUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
+.fitHost {
+  width: 100%;
+  /* zoom 렌더링이 잘리지 않도록 여유 */
+  padding-bottom: 16px;
+}
+.fitZoom {
+  transform-origin: top left;
+  margin: 0 auto;
+}
+
 .viewport::-webkit-scrollbar { width: 6px; height: 6px; }
 .viewport::-webkit-scrollbar-track { background: #e5e7eb; }
 .viewport::-webkit-scrollbar-thumb { background: #9ca3af; border-radius: 3px; }
@@ -297,7 +307,8 @@
 
 @media (prefers-reduced-motion: reduce) {
   .viewport,
-  .viewportPhoto {
+  .viewportPhoto,
+  .viewportCover {
     animation: none;
   }
 }
@@ -543,6 +554,46 @@
 }
 .previewPageDocument .previewPageInner {
   padding: 16px 20px;
+}
+
+/* 갑지(커버) 시트: A4 여백 + 가운데 정렬 + 내부 스크롤(잘림 방지) */
+.previewPageCover {
+  overflow: hidden;
+}
+.previewPageInnerCover {
+  padding: 28px 44px 28px 32px;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.coverStage {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  /* 내부가 1~2px 튀어나가도 가리지 않기 */
+  overflow: visible;
+}
+
+.coverScaledBox {
+  position: relative;
+  /* 중앙 정렬은 coverStage의 flex로 처리 */
+  overflow: visible;
+}
+
+.coverScaledInner {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: top left;
+}
+
+/* 갑지: A4 주변 여백이 더 자연스럽게 보이도록 */
+@media (min-width: 768px) {
+  .previewPageCover {
+    border-radius: 8px;
+  }
 }
 
 .previewPageInner {
