@@ -230,9 +230,8 @@ function PreviewSheet({
   const { trimmedRows, usedCols, colWidths, rowOffset, colOffset } = trimSheet(sheet, sheetIdx, formValues);
   const totalW  = colWidths.reduce((a, b) => a + b, 0) || A4_W;
   const totalH  = trimmedRows.reduce((sum, row) => sum + (row.height ?? 20), 0);
-  const widthScale  = Math.min(1, A4_W / totalW);
-  const heightScale = totalH > 0 ? Math.min(1, A4_H / totalH) : 1;
-  const scale       = Math.min(widthScale, heightScale);
+  // 미리보기에서는 가로만 A4 폭에 맞추고, 세로는 스크롤로 보도록 함
+  const scale   = Math.min(1, A4_W / totalW);
   const scaledH = Math.ceil(totalH * scale);
   return (
     <div className={styles.previewPage}>
@@ -907,9 +906,7 @@ export default function FillPage() {
       const { trimmedRows, usedCols, colWidths, rowOffset, colOffset } = trimSheet(sheet, sheetIdx, formValues);
       const totalW  = colWidths.reduce((a, b) => a + b, 0) || A4_W;
       const totalH  = trimmedRows.reduce((s, r) => s + (r.height ?? 20), 0);
-      const widthScale  = Math.min(1, A4_W / totalW);
-      const heightScale = totalH > 0 ? Math.min(1, A4_H / totalH) : 1;
-      const scale       = Math.min(widthScale, heightScale);
+      const scale   = Math.min(1, A4_W / totalW);
       const scaledH = Math.ceil(totalH * scale);
       const colgroup = colWidths.map(w => `<col style="width:${w}px">`).join("");
       const tbody = trimmedRows.map((row, ri) =>
@@ -977,9 +974,7 @@ table{border-collapse:collapse;table-layout:fixed;background:#fff}td{box-sizing:
     const { trimmedRows, usedCols, colWidths, rowOffset, colOffset } = trimSheet(sheet, activeSheet, formValues);
     const totalW  = colWidths.reduce((a, b) => a + b, 0) || A4_W;
     const totalH  = trimmedRows.reduce((s, r) => s + (r.height ?? 20), 0);
-    const widthScale  = Math.min(1, A4_W / totalW);
-    const heightScale = totalH > 0 ? Math.min(1, A4_H / totalH) : 1;
-    const scale       = Math.min(widthScale, heightScale);
+    const scale   = Math.min(1, A4_W / totalW);
     const scaledH = Math.ceil(totalH * scale);
     const colgroup = colWidths.map(w => `<col style="width:${w}px">`).join("");
     const tbody = trimmedRows.map((row, ri) =>
