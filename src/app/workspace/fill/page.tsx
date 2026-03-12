@@ -229,8 +229,8 @@ function PreviewSheet({
 }: { sheet: ParsedSheet; sheetIdx: number; formValues: Record<string, string> }) {
   const { trimmedRows, usedCols, colWidths, rowOffset, colOffset } = trimSheet(sheet, sheetIdx, formValues);
   const totalW  = colWidths.reduce((a, b) => a + b, 0) || A4_W;
-  const scale   = Math.min(1, A4_W / totalW);
   const totalH  = trimmedRows.reduce((sum, row) => sum + (row.height ?? 20), 0);
+  const scale   = Math.min(1, A4_W / totalW, A4_H / totalH || 1);
   const scaledH = Math.ceil(totalH * scale);
   return (
     <div className={styles.previewPage}>
@@ -904,8 +904,8 @@ export default function FillPage() {
     const sheetsHtml = sheets.map((sheet, sheetIdx) => {
       const { trimmedRows, usedCols, colWidths, rowOffset, colOffset } = trimSheet(sheet, sheetIdx, formValues);
       const totalW  = colWidths.reduce((a, b) => a + b, 0) || A4_W;
-      const scale   = Math.min(1, A4_W / totalW);
       const totalH  = trimmedRows.reduce((s, r) => s + (r.height ?? 20), 0);
+      const scale   = Math.min(1, A4_W / totalW, A4_H / totalH || 1);
       const scaledH = Math.ceil(totalH * scale);
       const colgroup = colWidths.map(w => `<col style="width:${w}px">`).join("");
       const tbody = trimmedRows.map((row, ri) =>
@@ -972,8 +972,8 @@ table{border-collapse:collapse;table-layout:fixed;background:#fff}td{box-sizing:
     if (!win) return;
     const { trimmedRows, usedCols, colWidths, rowOffset, colOffset } = trimSheet(sheet, activeSheet, formValues);
     const totalW  = colWidths.reduce((a, b) => a + b, 0) || A4_W;
-    const scale   = Math.min(1, A4_W / totalW);
     const totalH  = trimmedRows.reduce((s, r) => s + (r.height ?? 20), 0);
+    const scale   = Math.min(1, A4_W / totalW, A4_H / totalH || 1);
     const scaledH = Math.ceil(totalH * scale);
     const colgroup = colWidths.map(w => `<col style="width:${w}px">`).join("");
     const tbody = trimmedRows.map((row, ri) =>
