@@ -3,19 +3,20 @@ import ExcelJS from "exceljs";
 
 type CSSMap = Record<string, string>;
 
-// Office 기본 테마(Office 2016) 색상표 — index 0~9
+/** OOXML clrScheme 순서: 0=dk1, 1=lt1, 2=dk2, 3=lt2, 4–9=accent1–6 */
 const OFFICE_THEME_COLORS: Record<number, [number, number, number]> = {
-  0: [0xFF, 0xFF, 0xFF], // lt1  白
-  1: [0x00, 0x00, 0x00], // dk1  黑
-  2: [0xE7, 0xE6, 0xE6], // lt2
-  3: [0x44, 0x54, 0x6A], // dk2
-  4: [0x44, 0x72, 0xC4], // Accent1 파랑
-  5: [0xED, 0x7D, 0x31], // Accent2 주황
-  6: [0x70, 0xAD, 0x47], // Accent3 초록
-  7: [0xFF, 0xC0, 0x00], // Accent4 금색
-  8: [0x5B, 0x9B, 0xD5], // Accent5 하늘
-  9: [0x26, 0x44, 0x78], // Accent6 짙은파랑
+  0: [0x00, 0x00, 0x00], 1: [0xFF, 0xFF, 0xFF], 2: [0x44, 0x54, 0x6A], 3: [0xE7, 0xE6, 0xE6],
+  4: [0x44, 0x72, 0xC4], 5: [0xED, 0x7D, 0x31], 6: [0x70, 0xAD, 0x47], 7: [0xFF, 0xC0, 0x00],
+  8: [0x5B, 0x9B, 0xD5], 9: [0x26, 0x44, 0x78],
 };
+
+const EXCEL_INDEXED_COLORS: Record<number, string> = {
+  0: "#000000", 1: "#ffffff", 2: "#ff0000", 3: "#00ff00", 4: "#0000ff", 5: "#ffff00",
+  6: "#ff00ff", 7: "#00ffff", 8: "#800000", 9: "#008000", 10: "#000080", 11: "#808000",
+  12: "#800080", 13: "#008080", 14: "#c0c0c0", 15: "#808080",
+};
+
+type ColorLike = { argb?: string; theme?: number; tint?: number; indexed?: number };
 
 /** tint 적용: >0 → 흰색 방향, <0 → 검정 방향 */
 function applyTint(base: [number, number, number], tint: number): [number, number, number] {
@@ -26,8 +27,10 @@ function applyTint(base: [number, number, number], tint: number): [number, numbe
   ) as [number, number, number];
 }
 
+/** ExcelJS는 theme을 1-based로 줄 수 있음: 1=dk1, 2=lt1, 3=dk2, 4=lt2, 5=accent1 … */
 function themeToHex(theme: number, tint = 0): string | undefined {
-  const base = OFFICE_THEME_COLORS[theme];
+  const idx = theme >= 1 && theme <= 10 ? theme - 1 : theme;
+  const base = OFFICE_THEME_COLORS[idx];
   if (!base) return undefined;
   const [r, g, b] = applyTint(base, tint);
   return `#${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b.toString(16).padStart(2, "0")}`;
@@ -39,12 +42,24 @@ function argbToHex(argb?: string): string | undefined {
   return `#${hex}`;
 }
 
-/** fgColor 객체에서 hex 추출 (theme / argb 모두 지원) */
-function fgColorToHex(fgColor?: { argb?: string; theme?: number; tint?: number }): string | undefined {
-  if (!fgColor) return undefined;
-  if (fgColor.argb) return argbToHex(fgColor.argb);
-  if (fgColor.theme !== undefined) return themeToHex(fgColor.theme, fgColor.tint ?? 0);
+function colorToHex(color: ColorLike | undefined): string | undefined {
+  if (!color) return undefined;
+  if (color.argb) return argbToHex(color.argb);
+  if (color.indexed !== undefined && EXCEL_INDEXED_COLORS[color.indexed] != null)
+    return EXCEL_INDEXED_COLORS[color.indexed];
+  if (color.theme !== undefined) return themeToHex(color.theme, color.tint ?? 0);
   return undefined;
+}
+
+/** 배경용: dk1(검정) 무티트 → 짙은 회색. theme 0 또는 1(1-based) 처리 */
+function fillColorToHex(fgColor: ColorLike | undefined): string | undefined {
+  const hex = colorToHex(fgColor);
+  if (!hex) return undefined;
+  if (hex.toLowerCase() === "#000000") {
+    const c = fgColor as ColorLike;
+    if ((c?.tint == null || c?.tint === 0) && (c?.theme === 0 || c?.theme === 1)) return "#404040";
+  }
+  return hex;
 }
 
 function excelW(w?: number): number {
@@ -60,7 +75,8 @@ function borderStr(side?: Partial<ExcelJS.Border>): string {
   if (!style || style === "none") return "1px solid #d0d0d0";
   const w =
     style === "medium" ? "2px" : style === "thick" ? "3px" : "1px";
-  return `${w} solid ${argbToHex(side?.color?.argb as string) ?? "#000"}`;
+  const sideColor = side?.color as ColorLike | undefined;
+  return `${w} solid ${colorToHex(sideColor) ?? "#000"}`;
 }
 
 function extractValue(cell: ExcelJS.Cell): string {
@@ -88,15 +104,20 @@ function extractStyle(cell: ExcelJS.Cell): CSSMap {
     overflow: "hidden",
     whiteSpace: "nowrap",
     boxSizing: "border-box",
-    borderTop: "1px solid #d0d0d0",
-    borderBottom: "1px solid #d0d0d0",
-    borderLeft: "1px solid #d0d0d0",
-    borderRight: "1px solid #d0d0d0",
     color: "#111827",
     backgroundColor: "#ffffff",
   };
 
-  const { font, fill, alignment, border } = cell;
+  const cellStyle = (cell as { style?: { font?: typeof cell.font; fill?: unknown; alignment?: typeof cell.alignment; border?: typeof cell.border } }).style;
+  const font = cell.font ?? cellStyle?.font;
+  const fill = cell.fill;
+  const alignment = cell.alignment ?? cellStyle?.alignment;
+  const border = cell.border;
+
+  const hasBorder = (side: Partial<ExcelJS.Border> | undefined) => {
+    const style = side?.style as string | undefined;
+    return style && style !== "none";
+  };
 
   if (font) {
     if (font.bold)      s.fontWeight = "bold";
@@ -104,14 +125,26 @@ function extractStyle(cell: ExcelJS.Cell): CSSMap {
     if (font.underline) s.textDecoration = "underline";
     if (font.size)      s.fontSize = `${font.size}pt`;
     if (font.name)      s.fontFamily = `'${font.name}','Apple SD Gothic Neo',sans-serif`;
-    const fc = argbToHex(font.color?.argb as string);
+    const fontColor = font.color as ColorLike | undefined;
+    const fc = colorToHex(fontColor);
     if (fc) s.color = fc;
   }
 
-  const fillPattern = fill as { type?: string; patternType?: string; fgColor?: { argb?: string; theme?: number; tint?: number } } | undefined;
-  if (fillPattern?.type === "pattern" && fillPattern.patternType === "solid" && fillPattern.fgColor) {
-    const bg = fgColorToHex(fillPattern.fgColor);
-    if (bg) s.backgroundColor = bg;
+  const fillPattern = fill as {
+    type?: string;
+    pattern?: string;
+    patternType?: string;
+    fgColor?: ColorLike;
+    bgColor?: ColorLike;
+  } | undefined;
+  const isSolid = fillPattern?.type === "pattern" && (fillPattern.patternType === "solid" || fillPattern.pattern === "solid");
+  if (isSolid && fillPattern && (fillPattern.fgColor || fillPattern.bgColor)) {
+    const bg = fillPattern.fgColor
+      ? fillColorToHex(fillPattern.fgColor)
+      : fillPattern.bgColor
+        ? fillColorToHex(fillPattern.bgColor)
+        : undefined;
+    if (bg && bg.toLowerCase() !== "#ffffff") s.backgroundColor = bg;
   }
 
   if (alignment) {
@@ -135,10 +168,10 @@ function extractStyle(cell: ExcelJS.Cell): CSSMap {
   }
 
   if (border) {
-    if (border.top)    s.borderTop    = borderStr(border.top);
-    if (border.bottom) s.borderBottom = borderStr(border.bottom);
-    if (border.left)   s.borderLeft   = borderStr(border.left);
-    if (border.right)  s.borderRight  = borderStr(border.right);
+    if (hasBorder(border.top)) s.borderTop = borderStr(border.top);
+    if (hasBorder(border.bottom)) s.borderBottom = borderStr(border.bottom);
+    if (hasBorder(border.left)) s.borderLeft = borderStr(border.left);
+    if (hasBorder(border.right)) s.borderRight = borderStr(border.right);
   }
 
   return s;

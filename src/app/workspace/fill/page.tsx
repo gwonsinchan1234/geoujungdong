@@ -41,6 +41,19 @@ function colLetter(col: number): string {
   return r;
 }
 
+/** 셀/폼 값이 객체일 때 "[object Object]" 대신 빈 문자열 등 안전한 문자열로 표시 */
+function toCellDisplayString(v: unknown): string {
+  if (v == null) return "";
+  if (typeof v === "string") return v;
+  if (typeof v === "number" || typeof v === "boolean") return String(v);
+  if (typeof v === "object") {
+    if ("text" in v && typeof (v as { text: unknown }).text === "string") return (v as { text: string }).text;
+    if ("value" in v) return String((v as { value: unknown }).value ?? "");
+    return "";
+  }
+  return String(v);
+}
+
 function trimSheet(sheet: ParsedSheet, sheetIdx: number, formValues: Record<string, string>) {
   const pa = sheet.printArea;
   if (pa) {
@@ -60,7 +73,7 @@ function trimSheet(sheet: ParsedSheet, sheetIdx: number, formValues: Record<stri
     const row = sheet.rows[lastRow];
     const has = row.cells.some((c, ci) => {
       if (c.skip) return false;
-      return (formValues[`${sheetIdx}__${colLetter(ci + 1)}${lastRow + 1}`] ?? c.value).trim() !== "";
+      return toCellDisplayString(formValues[`${sheetIdx}__${colLetter(ci + 1)}${lastRow + 1}`] ?? c.value).trim() !== "";
     });
     if (has) break;
     lastRow--;
@@ -71,7 +84,7 @@ function trimSheet(sheet: ParsedSheet, sheetIdx: number, formValues: Record<stri
     const has = trimmedRows.some((row, ri) => {
       const c = row.cells[lastCol];
       if (!c || c.skip) return false;
-      return (formValues[`${sheetIdx}__${colLetter(lastCol + 1)}${ri + 1}`] ?? c.value).trim() !== "";
+      return toCellDisplayString(formValues[`${sheetIdx}__${colLetter(lastCol + 1)}${ri + 1}`] ?? c.value).trim() !== "";
     });
     if (has) break;
     lastCol--;
@@ -81,7 +94,9 @@ function trimSheet(sheet: ParsedSheet, sheetIdx: number, formValues: Record<stri
   return { trimmedRows, usedCols, colWidths, rowOffset: 0, colOffset: 0 };
 }
 
-const A4_W = 680;
+/** A4 세로 기준 (72dpi): 210mm × 297mm */
+const A4_W = 595;
+const A4_H = 842;
 
 const PHOTO_KEYWORDS = ["사진대지", "사진", "보호구", "시설물", "위험성", "건강관리", "교육"];
 const isPhotoSheet = (name: string) => PHOTO_KEYWORDS.some(k => name.includes(k));
@@ -103,29 +118,52 @@ function xlsxCellStr(ws: XLSX.WorkSheet, r: number, c: number): string {
 function parsePhotoBlocksFromRaw(rawBuf: ArrayBuffer, sheetNames: string[]): Record<string, PhotoBlock[]> {
   const wb = XLSX.read(rawBuf, { type: "array", cellDates: true });
 
-  // ① 항목별세부내역 → NO → { itemNumber, date, label }
+  // ① 항목별세부내역 → NO → { itemNumber, date, label } (증빙번호 없으면 내용만 있어도 자동 1,2,3… 부여)
   const detailWs = wb.Sheets["항목별세부내역"];
   if (!detailWs) return {};
   const range = XLSX.utils.decode_range(detailWs["!ref"] ?? "A1");
-  // key: "${itemNumber}_${no}" — 항목마다 NO가 재시작되어도 충돌 없음
-  type Detail = { itemNumber: number; no: number; date: string; label: string };
-  const noDetails = new Map<string, Detail>();
+  type RowInfo = { itemNumber: number; no?: number; r: number; date: string; label: string };
+  const rowsByItem = new Map<number, RowInfo[]>();
   let currentItem = 0;
 
   for (let r = range.s.r; r <= range.e.r; r++) {
     const col0 = xlsxCellStr(detailWs, r, 0);
     const m0 = col0.replace(/\s/g, "").match(/^(\d+)\./);
     if (m0) currentItem = parseInt(m0[1]);
+    if (currentItem === 0) continue;
 
-    const col6 = xlsxCellStr(detailWs, r, 6); // 증빙번호
+    const date = xlsxCellStr(detailWs, r, 1);
+    const name = xlsxCellStr(detailWs, r, 2);
+    const unitPrice = xlsxCellStr(detailWs, r, 4); // 단가
+    const amount = xlsxCellStr(detailWs, r, 5);   // 금액
+    const col6 = xlsxCellStr(detailWs, r, 6);     // 증빙번호
     const mNo = col6.replace(/\s/g, "").toUpperCase().match(/^NO\.?(\d+)$/);
-    if (!mNo || currentItem === 0) continue;
+    const no = mNo ? parseInt(mNo[1]) : undefined;
+    // 단가·금액에 값이 있으면 행으로 인식 → 증빙번호 자동 넘버링 대상
+    const hasContent = unitPrice.trim() !== "" && amount.trim() !== "";
+    if (!hasContent) continue;
 
-    const no    = parseInt(mNo[1]);
-    const date  = xlsxCellStr(detailWs, r, 1);
-    const name  = xlsxCellStr(detailWs, r, 2);
-    const qty   = xlsxCellStr(detailWs, r, 3);
-    noDetails.set(`${currentItem}_${no}`, { itemNumber: currentItem, no, date, label: name });
+    if (!rowsByItem.has(currentItem)) rowsByItem.set(currentItem, []);
+    rowsByItem.get(currentItem)!.push({ itemNumber: currentItem, no, r, date, label: name });
+  }
+
+  // 항목별로 행 순서 유지하면서 증빙번호 비어 있으면 1,2,3… 자동 부여
+  const noDetails = new Map<string, { itemNumber: number; no: number; date: string; label: string }>();
+  for (const [itemNumber, rows] of rowsByItem) {
+    const sorted = [...rows].sort((a, b) => a.r - b.r);
+    const existingNos = new Set(sorted.filter(x => x.no != null).map(x => x.no!));
+    let nextAuto = 1;
+    for (const row of sorted) {
+      let no: number;
+      if (row.no != null) {
+        no = row.no;
+      } else {
+        while (existingNos.has(nextAuto)) nextAuto++;
+        no = nextAuto;
+        nextAuto++;
+      }
+      noDetails.set(`${itemNumber}_${no}`, { itemNumber, no, date: row.date, label: row.label });
+    }
   }
   if (!noDetails.size) return {};
 
@@ -154,21 +192,21 @@ function parsePhotoBlocksFromRaw(rawBuf: ArrayBuffer, sheetNames: string[]): Rec
     sheetHeaders.set(name, hMap);
   }
 
-  // ③ 블록 조립 (itemNumber 오름차순 → no 오름차순)
+  // ③ 블록 조립: itemNumber·no 순으로 정렬 후, 사진대지 전체에서 NO.1~N 누적 부여
   const result: Record<string, PhotoBlock[]> = {};
-  const counters = new Map<string, number>();
+  let cumulativeNo = 0;
 
   for (const d of [...noDetails.values()].sort((a, b) => a.itemNumber - b.itemNumber || a.no - b.no)) {
     const sheetName = itemToSheet.get(d.itemNumber);
     if (!sheetName) continue;
+    cumulativeNo += 1;
     if (!result[sheetName]) result[sheetName] = [];
-    const order = counters.get(sheetName) ?? 0;
-    counters.set(sheetName, order + 1);
+    const order = result[sheetName].length;
     result[sheetName].push({
-      id:           `local_${sheetName}_${d.no}`,
+      id:           `local_${sheetName}_${cumulativeNo}`,
       doc_id:       "local",
       sheet_name:   sheetName,
-      no:           d.no,
+      no:           cumulativeNo,
       right_header: sheetHeaders.get(sheetName)?.get(d.no) ?? "지급 사진",
       left_date:    d.date,
       right_date:   d.date,
@@ -184,47 +222,38 @@ function parsePhotoBlocksFromRaw(rawBuf: ArrayBuffer, sheetNames: string[]): Rec
 function PreviewSheet({
   sheet, sheetIdx, formValues,
 }: { sheet: ParsedSheet; sheetIdx: number; formValues: Record<string, string> }) {
-  const [vw, setVw] = useState(() => (typeof window !== "undefined" ? window.innerWidth : 800));
-
-  React.useLayoutEffect(() => {
-    setVw(window.innerWidth);
-    const onResize = () => setVw(window.innerWidth);
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
-  }, []);
-
   const { trimmedRows, usedCols, colWidths, rowOffset, colOffset } = trimSheet(sheet, sheetIdx, formValues);
-  const totalW  = colWidths.reduce((a, b) => a + b, 0) || A4_W;
-  const clipW   = Math.min(A4_W, vw - 32);
-  const zoom    = Math.min(1, clipW / totalW);
+  const totalW = colWidths.reduce((a, b) => a + b, 0) || A4_W;
+  const zoom = totalW > 0 ? Math.min(1, A4_W / totalW) : 1;
   return (
-    <div className={styles.previewPage} style={{ width: clipW }}>
+    <div className={styles.previewPage} style={{ width: A4_W, minHeight: A4_H }}>
       <div className={styles.previewPageName}>{sheet.name}</div>
-      {/* zoom: 레이아웃 자체를 줄여서 height 자동 보정 — transform과 달리 position:absolute 불필요 */}
-      <div style={{ zoom, width: totalW, overflow: "hidden" }}>
-        <table style={{ borderCollapse: "collapse", tableLayout: "fixed", background: "#fff" }}>
-          <colgroup>{colWidths.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
-          <tbody>
-            {trimmedRows.map((row, ri) => (
-              <tr key={ri} style={row.height !== null ? { height: row.height } : undefined}>
-                {row.cells.slice(0, usedCols).map((cell, ci) => {
-                  if (cell.skip) return null;
-                  const ref = `${colLetter(ci + 1 + colOffset)}${ri + 1 + rowOffset}`;
-                  const ov  = formValues[`${sheetIdx}__${ref}`];
-                  return (
-                    <td key={ci}
-                      rowSpan={cell.rowSpan > 1 ? cell.rowSpan : undefined}
-                      colSpan={cell.colSpan > 1 ? cell.colSpan : undefined}
-                      style={cell.style as React.CSSProperties}
-                      className={ov !== undefined ? styles.cellHighlight : undefined}>
-                      {ov ?? cell.value}
-                    </td>
-                  );
-                })}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className={styles.previewPageInner} style={{ height: A4_H }}>
+        <div style={{ zoom, width: totalW, minHeight: "100%", overflow: "visible" }}>
+          <table style={{ borderCollapse: "collapse", tableLayout: "fixed", background: "#fff" }}>
+            <colgroup>{colWidths.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
+            <tbody>
+              {trimmedRows.map((row, ri) => (
+                <tr key={ri} style={row.height !== null ? { height: row.height } : undefined}>
+                  {row.cells.slice(0, usedCols).map((cell, ci) => {
+                    if (cell.skip) return null;
+                    const ref = `${colLetter(ci + 1 + colOffset)}${ri + 1 + rowOffset}`;
+                    const ov  = formValues[`${sheetIdx}__${ref}`];
+                    return (
+                      <td key={ci}
+                        rowSpan={cell.rowSpan > 1 ? cell.rowSpan : undefined}
+                        colSpan={cell.colSpan > 1 ? cell.colSpan : undefined}
+                        style={cell.style as React.CSSProperties}
+                        className={ov !== undefined ? styles.cellHighlight : undefined}>
+                        {toCellDisplayString(ov ?? cell.value)}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
@@ -424,14 +453,18 @@ export default function FillPage() {
         compressed = file;
       }
 
-      // ① 로컬 미리보기 즉시 표시
+      // ① 로컬 미리보기 즉시 표시 (같은 side·slot이 있으면 교체)
       pUrl = URL.createObjectURL(compressed);
       pId  = `pending_${Date.now()}`;
       const pendingPhoto: BlockPhoto = { id: pId, block_id: blockId, side, slot_index: slotIndex, storage_path: "", url: pUrl };
       setPhotoBlocks(prev => {
         const next = { ...prev };
         for (const name of Object.keys(next)) {
-          next[name] = next[name].map(b => b.id !== blockId ? b : { ...b, photos: [...b.photos, pendingPhoto] });
+          next[name] = next[name].map(b => {
+            if (b.id !== blockId) return b;
+            const rest = b.photos.filter(p => !(p.side === side && p.slot_index === slotIndex));
+            return { ...b, photos: [...rest, pendingPhoto] };
+          });
         }
         return next;
       });
@@ -557,17 +590,7 @@ export default function FillPage() {
         });
       }
     } catch (err) {
-      // 예상치 못한 에러 — 화면에 표시
-      if (pId) {
-        setPhotoBlocks(prev => {
-          const next = { ...prev };
-          for (const name of Object.keys(next)) {
-            next[name] = next[name].map(b => ({ ...b, photos: b.photos.filter(p => p.id !== pId) }));
-          }
-          return next;
-        });
-      }
-      if (pUrl) URL.revokeObjectURL(pUrl);
+      // 에러 시에도 로컬 미리보기(pUrl)는 유지 — 사진은 화면에 남기고 알림만
       const msg = (err as Error)?.message ?? String(err);
       alert((err as Error)?.name === "AbortError"
         ? "업로드 시간 초과 (30초). 네트워크 상태를 확인하거나 다시 시도해주세요."
@@ -706,7 +729,7 @@ export default function FillPage() {
           e.preventDefault();
           const ref  = kbRef();
           const cell = rows[ri]?.cells[ci];
-          if (cell) { setEditValue(formValues[mkKey(activeSheet, ref)] ?? ""); setEditingCell({ ref, sheetIdx: activeSheet, originalValue: cell.value }); }
+          if (cell) { setEditValue(toCellDisplayString(formValues[mkKey(activeSheet, ref)] ?? "")); setEditingCell({ ref, sheetIdx: activeSheet, originalValue: toCellDisplayString(cell.value) }); }
           return;
         }
         case "Delete":
@@ -721,7 +744,7 @@ export default function FillPage() {
             e.preventDefault();
             const ref  = kbRef();
             const cell = rows[ri]?.cells[ci];
-            if (cell) { setEditValue(e.key); setEditingCell({ ref, sheetIdx: activeSheet, originalValue: cell.value }); }
+            if (cell) { setEditValue(e.key); setEditingCell({ ref, sheetIdx: activeSheet, originalValue: toCellDisplayString(cell.value) }); }
           }
           return;
       }
@@ -834,7 +857,7 @@ export default function FillPage() {
           row.cells.slice(0, usedCols).map((cell, ci) => {
             if (cell.skip) return "";
             const ref = `${colLetter(ci + 1 + colOffset)}${ri + 1 + rowOffset}`;
-            const val = (formValues[`${sheetIdx}__${ref}`] ?? cell.value)
+            const val = toCellDisplayString(formValues[`${sheetIdx}__${ref}`] ?? cell.value)
               .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
             const css = Object.entries(cell.style)
               .map(([k, v]) => `${k.replace(/([A-Z])/g, c => `-${c.toLowerCase()}`)}:${v}`).join(";");
@@ -902,7 +925,7 @@ table{border-collapse:collapse;table-layout:fixed;background:#fff}td{box-sizing:
         row.cells.slice(0, usedCols).map((cell, ci) => {
           if (cell.skip) return "";
           const ref = `${colLetter(ci + 1 + colOffset)}${ri + 1 + rowOffset}`;
-          const val = (formValues[`${activeSheet}__${ref}`] ?? cell.value)
+          const val = toCellDisplayString(formValues[`${activeSheet}__${ref}`] ?? cell.value)
             .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
           const css = Object.entries(cell.style)
             .map(([k, v]) => `${k.replace(/([A-Z])/g, c => `-${c.toLowerCase()}`)}:${v}`).join(";");
@@ -951,6 +974,12 @@ table{border-collapse:collapse;table-layout:fixed;background:#fff}td{box-sizing:
   const editedCount = Object.keys(formValues).length;
   const isPhotoActive = sheet ? isPhotoSheet(sheet.name) : false;
 
+  /** 상단 저장 버튼: 사진대지 → 서버 저장, 그 외 → 수정본 엑셀 다운로드 */
+  const handleSaveSheet = useCallback(() => {
+    if (isPhotoActive) handlePhotoSave();
+    else handleDownload();
+  }, [isPhotoActive, handlePhotoSave, handleDownload]);
+
   // ── 인쇄 영역(printArea) 기반 표시 범위 계산 ─────────────────────
   const pa        = sheet?.printArea;
   const rowStart  = pa ? pa.r1 - 1 : 0; // 0-based
@@ -986,7 +1015,8 @@ table{border-collapse:collapse;table-layout:fixed;background:#fff}td{box-sizing:
           </svg>
           <span>업로드</span>
           <input ref={fileInputRef} type="file"
-            className={styles.hiddenInput} onChange={handleFile} />
+            accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+            className={styles.hiddenInput} onChange={handleFile} aria-label="엑셀 파일 선택" />
         </label>
         <div className={styles.fileArea}>
           {fileName
@@ -995,43 +1025,28 @@ table{border-collapse:collapse;table-layout:fixed;background:#fff}td{box-sizing:
           {editedCount > 0 && <span className={styles.editBadge}>{editedCount}셀 수정됨</span>}
         </div>
         {sheets.length > 0 && (<>
-          {/* 사진대지 탭 활성 시 저장 버튼 */}
-          {isPhotoActive && (
-            <button type="button" className={styles.saveBtn}
-              onClick={handlePhotoSave} disabled={photoSaving}>
-              {photoSaving
-                ? <span className={styles.saveBtnSpinner} />
-                : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
-                    <polyline points="17 21 17 13 7 13 7 21"/>
-                    <polyline points="7 3 7 8 15 8"/>
-                  </svg>
-              }
-              <span>{photoSaving ? "저장 중…" : "저장"}</span>
-            </button>
-          )}
-          {/* 사진대지 아닐 때: 현재 시트만 직접 인쇄 */}
-          {!isPhotoActive && (
-            <button type="button" className={styles.printBtn} onClick={handlePrintActive}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                <polyline points="6 9 6 2 18 2 18 9" />
-                <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
-                <rect x="6" y="14" width="12" height="8" />
-              </svg>
-              <span>인쇄</span>
-            </button>
-          )}
-          {/* 사진대지일 때: 전체 미리보기 */}
-          {isPhotoActive && (
-            <button type="button" className={styles.printBtn} onClick={() => setShowPreview(true)}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                <polyline points="6 9 6 2 18 2 18 9" />
-                <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
-                <rect x="6" y="14" width="12" height="8" />
-              </svg>
-              <span>인쇄</span>
-            </button>
-          )}
+          {/* 저장: 모든 시트에서 표시. 사진대지 → 서버 저장, 그 외 → 수정본 다운로드 */}
+          <button type="button" className={styles.saveBtn}
+            onClick={handleSaveSheet} disabled={isPhotoActive && photoSaving}>
+            {isPhotoActive && photoSaving
+              ? <span className={styles.saveBtnSpinner} />
+              : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                  <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                  <polyline points="17 21 17 13 7 13 7 21"/>
+                  <polyline points="7 3 7 8 15 8"/>
+                </svg>
+            }
+            <span>{isPhotoActive && photoSaving ? "저장 중…" : "저장"}</span>
+          </button>
+          {/* 인쇄: 항상 미리보기 먼저 표시 (항목별 세부내역·사진대지 공통) */}
+          <button type="button" className={styles.printBtn} onClick={() => setShowPreview(true)}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+              <polyline points="6 9 6 2 18 2 18 9" />
+              <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+              <rect x="6" y="14" width="12" height="8" />
+            </svg>
+            <span>인쇄</span>
+          </button>
           <button type="button" className={styles.downloadBtn} onClick={handleDownload}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
@@ -1075,7 +1090,7 @@ table{border-collapse:collapse;table-layout:fixed;background:#fff}td{box-sizing:
           </div>
 
           {sheet && isPhotoSheet(sheet.name) ? (
-            <div className={styles.viewportPhoto}>
+            <div key={`photo-${activeSheet}`} className={styles.viewportPhoto}>
               {photoUploading && (
                 <div className={styles.overlay}>
                   <div className={styles.spinner} /><span>사진 업로드 중…</span>
@@ -1104,7 +1119,7 @@ table{border-collapse:collapse;table-layout:fixed;background:#fff}td{box-sizing:
               )}
             </div>
           ) : sheet && (
-            <div className={styles.viewport}>
+            <div key={`table-${activeSheet}`} className={styles.viewport}>
               <table className={styles.table}>
                 <colgroup>{displayColWidths.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
                 <tbody>
@@ -1128,10 +1143,10 @@ table{border-collapse:collapse;table-layout:fixed;background:#fff}td{box-sizing:
                             className={cls}
                             onClick={() => {
                               setSelectedCell({ ri, ci });
-                              openSheet(ref, activeSheet, cell.value);
+                              openSheet(ref, activeSheet, toCellDisplayString(cell.value));
                             }}
                           >
-                            {override ?? cell.value}
+                            {toCellDisplayString(override ?? cell.value)}
                           </td>
                         );
                       })}
@@ -1144,12 +1159,12 @@ table{border-collapse:collapse;table-layout:fixed;background:#fff}td{box-sizing:
         </>)}
       </div>
 
-      {/* ── 인쇄 미리보기 모달 ── */}
-      {showPreview && (
+      {/* ── 인쇄 미리보기 모달: 선택된 시트만 표시 ── */}
+      {showPreview && sheet && (
         <div className={styles.previewOverlay}>
           <div className={styles.previewHeader}>
             <span className={styles.previewTitle}>
-              인쇄 미리보기 <span className={styles.previewCount}>{sheets.length}개 시트</span>
+              인쇄 미리보기 <span className={styles.previewCount}>· {sheet.name}</span>
             </span>
             <div className={styles.previewHeaderActions}>
               <button type="button" className={styles.previewPrintBtn} onClick={() => window.print()}>
@@ -1168,18 +1183,16 @@ table{border-collapse:collapse;table-layout:fixed;background:#fff}td{box-sizing:
             </div>
           </div>
           <div className={styles.previewScroll} id="previewScrollContent">
-            {sheets.map((s, i) =>
-              isPhotoSheet(s.name) ? (
-                <div key={i} className={styles.previewPhotoWrap}>
-                  <PhotoSheetView
-                    sheetName={s.name}
-                    blocks={photoBlocks[s.name] ?? []}
-                    a4Mode
-                  />
-                </div>
-              ) : (
-                <PreviewSheet key={i} sheet={s} sheetIdx={i} formValues={formValues} />
-              )
+            {isPhotoSheet(sheet.name) ? (
+              <div className={styles.previewPhotoWrap}>
+                <PhotoSheetView
+                  sheetName={sheet.name}
+                  blocks={photoBlocks[sheet.name] ?? []}
+                  a4Mode
+                />
+              </div>
+            ) : (
+              <PreviewSheet sheet={sheet} sheetIdx={activeSheet} formValues={formValues} />
             )}
             <button type="button" className={styles.previewCloseBottom} onClick={() => setShowPreview(false)}>
               닫기

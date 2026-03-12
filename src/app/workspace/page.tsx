@@ -48,7 +48,7 @@ type PhotoKind = "incoming" | "install";
 
 type PhotoSlot = {
   kind: PhotoKind;
-  slotIndex: number;
+  slot: number;
   file?: File;
   previewUrl?: string;
 };
@@ -60,17 +60,17 @@ function clamp(n: number, min: number, max: number) {
 function makeSlots(spec: TemplateSpec): PhotoSlot[] {
   const incoming = Array.from({ length: spec.incomingSlots }, (_, i) => ({
     kind: "incoming" as const,
-    slotIndex: i,
+    slot: i,
   }));
   const install = Array.from({ length: spec.installSlots }, (_, i) => ({
     kind: "install" as const,
-    slotIndex: i,
+    slot: i,
   }));
   return [...incoming, ...install];
 }
 
 function countFilled(slots: PhotoSlot[], kind: PhotoKind) {
-  return slots.filter((s) => s.kind === kind && !!s.file).length;
+  return slots.filter((s) => s.kind === kind && (!!s.file || !!(s.previewUrl && typeof s.previewUrl === "string" && s.previewUrl.length > 0))).length;
 }
 
 function uniqueBy<T>(arr: T[], keyFn: (x: T) => string) {
@@ -371,6 +371,7 @@ function WorkspacePageContent() {
   const [isExcelLoading, setIsExcelLoading] = useState(false);
   const [excelError, setExcelError] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState(false);
+  const [previewTab, setPreviewTab] = useState<"photo" | "usage">("photo");
 
   const currentItems = useMemo(() => docItems[selectedDocId] ?? mockItems, [docItems, selectedDocId, mockItems]);
   const selectedDoc = useMemo(() => docs.find((d) => d.id === selectedDocId) ?? null, [docs, selectedDocId]);
@@ -395,15 +396,54 @@ function WorkspacePageContent() {
     });
   }, [selectedDocId, docItems, mockItems]);
 
-  // 품목 선택 시 슬롯이 없으면 초기화
+  // 품목 선택 시 슬롯 초기화 + API에서 사진 조회 (kind=install 일치, slot 0~3)
   useEffect(() => {
-    if (!selectedItem) return;
-    if (!allItemSlots[selectedItemId]) {
-      setAllItemSlots((prev) => ({
-        ...prev,
-        [selectedItemId]: makeSlots(selectedItem.templateSpec),
-      }));
+    if (!selectedItem || !selectedItemId) return;
+    const spec = selectedItem.templateSpec ?? DEFAULT_TEMPLATE_SPEC;
+    const baseSlots = makeSlots(spec);
+    let cancelled = false;
+
+    async function fetchAndMerge() {
+      try {
+        const url = `/api/photos/list?itemId=${encodeURIComponent(selectedItemId)}`;
+        const res = await fetch(url);
+        if (cancelled) return;
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          console.warn("[photos/list] request failed", res.status, url, json?.error ?? res.statusText);
+          setAllItemSlots((prev) => (prev[selectedItemId] ? prev : { ...prev, [selectedItemId]: baseSlots }));
+          return;
+        }
+        if (!json.ok || !json.grouped) {
+          setAllItemSlots((prev) => (prev[selectedItemId] ? prev : { ...prev, [selectedItemId]: baseSlots }));
+          return;
+        }
+        const { incoming, install } = json.grouped;
+        const next = baseSlots.map((s) => ({ ...s }));
+        for (let slot = 0; slot < (incoming?.length ?? 0); slot++) {
+          const url = incoming[slot];
+          if (typeof url === "string" && url.length > 0) {
+            const idx = next.findIndex((x) => x.kind === "incoming" && x.slot === slot);
+            if (idx >= 0 && !next[idx].file) next[idx].previewUrl = url;
+          }
+        }
+        for (let slot = 0; slot < (install?.length ?? 0); slot++) {
+          const url = install[slot];
+          if (typeof url === "string" && url.length > 0) {
+            const idx = next.findIndex((x) => x.kind === "install" && x.slot === slot);
+            if (idx >= 0 && !next[idx].file) next[idx].previewUrl = url;
+          }
+        }
+        if (!cancelled) setAllItemSlots((prev) => ({ ...prev, [selectedItemId]: next }));
+      } catch {
+        if (!cancelled) setAllItemSlots((prev) => (prev[selectedItemId] ? prev : { ...prev, [selectedItemId]: baseSlots }));
+      }
     }
+
+    if (!allItemSlots[selectedItemId]) {
+      fetchAndMerge();
+    }
+    return () => { cancelled = true; };
   }, [selectedItemId, selectedItem, allItemSlots]);
 
   // cleanup: 컴포넌트 언마운트 시 모든 previewUrl 해제
@@ -417,32 +457,42 @@ function WorkspacePageContent() {
     };
   }, []);
 
-  // 사진이 등록된 품목 수 계산
+  // 사진이 등록된 품목 수 계산 (file 또는 previewUrl 있으면 포함)
   const itemsWithPhotos = useMemo(() => {
     return currentItems.filter((item) => {
       const slots = allItemSlots[item.id];
       if (!slots) return false;
-      return slots.some((s) => s.file);
+      return slots.some((s) => s.file || (s.previewUrl && typeof s.previewUrl === "string" && s.previewUrl.length > 0));
     });
   }, [currentItems, allItemSlots]);
 
-  // PhotoSheetItem 배열 생성 (미리보기/출력용)
+  // PhotoSheetItem 배열 생성 (미리보기/출력용) - slot 0~3 고정 반복 + find(kind, slot)만 사용. map/filter 순서 의존 금지.
   const photoSheetItems: PhotoSheetItem[] = useMemo(() => {
     return itemsWithPhotos.map((item, idx) => {
       const slots = allItemSlots[item.id] ?? [];
-      const inboundPhotos = slots
-        .filter((s) => s.kind === "incoming" && s.previewUrl)
-        .map((s) => s.previewUrl!);
-      const installPhotos = slots
-        .filter((s) => s.kind === "install" && s.previewUrl)
-        .map((s) => s.previewUrl!);
+      const incMax = item.templateSpec?.incomingSlots ?? 4;
+      const instMax = item.templateSpec?.installSlots ?? 4;
+      const templateId = incMax === 1 && instMax === 1 ? "safety_facilities_1x1" : incMax === 2 && instMax === 2 ? "template_2x2" : incMax === 3 && instMax === 3 ? "template_3x3" : "template_4x4";
+
+      const photos: { kind: "incoming" | "install"; slot: number; url: string }[] = [];
+      for (let slot = 0; slot < incMax; slot++) {
+        const s = slots.find((x) => x.kind === "incoming" && x.slot === slot);
+        const url = typeof s?.previewUrl === "string" && s.previewUrl.length > 0 ? s.previewUrl : "";
+        if (url) photos.push({ kind: "incoming", slot, url });
+      }
+      for (let slot = 0; slot < instMax; slot++) {
+        const s = slots.find((x) => x.kind === "install" && x.slot === slot);
+        const url = typeof s?.previewUrl === "string" && s.previewUrl.length > 0 ? s.previewUrl : "";
+        if (url) photos.push({ kind: "install", slot, url });
+      }
 
       return {
         no: idx + 1,
         date: item.useDate ?? "",
         itemName: `${item.name} [${item.qtyLabel}]`,
-        inboundPhotos,
-        installPhotos,
+        photos,
+        templateId,
+        evidence_no: String(item.evidenceNo ?? idx + 1),
       };
     });
   }, [itemsWithPhotos, allItemSlots]);
@@ -502,13 +552,13 @@ function WorkspacePageContent() {
   const incomingMax = selectedItem?.templateSpec.incomingSlots ?? 1;
   const installMax = selectedItem?.templateSpec.installSlots ?? 4;
 
-  function updateSlot(kind: PhotoKind, slotIndex: number, file?: File) {
+  function updateSlot(kind: PhotoKind, slot: number, file?: File) {
     if (!selectedItemId) return;
 
     setAllItemSlots((prev) => {
       const currentSlots = prev[selectedItemId] ?? makeSlots(selectedItem?.templateSpec ?? DEFAULT_TEMPLATE_SPEC);
       const next = currentSlots.map((s) => ({ ...s }));
-      const idx = next.findIndex((s) => s.kind === kind && s.slotIndex === slotIndex);
+      const idx = next.findIndex((s) => s.kind === kind && s.slot === slot);
       if (idx < 0) return prev;
       if (next[idx].previewUrl) URL.revokeObjectURL(next[idx].previewUrl);
       if (!file) {
@@ -518,7 +568,19 @@ function WorkspacePageContent() {
       }
       if (!file.type.startsWith("image/")) return prev;
       next[idx].file = file;
-      next[idx].previewUrl = URL.createObjectURL(file);
+      const url = URL.createObjectURL(file);
+      next[idx].previewUrl = typeof url === "string" && url.length > 0 ? url : undefined;
+
+      const spec = selectedItem?.templateSpec ?? DEFAULT_TEMPLATE_SPEC;
+      const templateId = spec.incomingSlots === 1 && spec.installSlots === 1 ? "safety_facilities_1x1" : spec.incomingSlots === 2 && spec.installSlots === 2 ? "template_2x2" : spec.incomingSlots === 3 && spec.installSlots === 3 ? "template_3x3" : "template_4x4";
+      const form = new FormData();
+      form.append("itemId", selectedItemId);
+      form.append("templateId", templateId);
+      form.append("kind", kind);
+      form.append("slot", String(slot));
+      form.append("file", file);
+      fetch("/api/photos/upload", { method: "POST", body: form }).catch((e) => console.warn("[upload]", e));
+
       return { ...prev, [selectedItemId]: next };
     });
   }
@@ -677,8 +739,9 @@ function WorkspacePageContent() {
         worksheet.getRow(photoRow1).height = PHOTO_ROW_HEIGHT;
         worksheet.getRow(photoRow2).height = PHOTO_ROW_HEIGHT;
 
-        const incomingSlots = itemSlots.filter(s => s.kind === "incoming");
-        const installSlots = itemSlots.filter(s => s.kind === "install");
+        // 슬롯 0~3 SSOT: find(kind, slot)로 매핑
+        const getIncomingSlot = (slot: number) => itemSlots.find(s => s.kind === "incoming" && s.slot === slot);
+        const getInstallSlot = (slot: number) => itemSlots.find(s => s.kind === "install" && s.slot === slot);
 
         for (let r = 0; r < 2; r++) {
           for (let c = 0; c < 2; c++) {
@@ -703,9 +766,9 @@ function WorkspacePageContent() {
         worksheet.mergeCells(photoRow1, 1, photoRow2, 1);
         worksheet.mergeCells(photoRow1, 4, photoRow2, 4);
 
-        // ✅ 반입 사진 삽입 (최대 4장) — 빌드 통과용 타입 우회 포함
+        // 반입 사진 삽입 (슬롯 0~3 고정)
         for (let i = 0; i < 4; i++) {
-          const slot = incomingSlots[i];
+          const slot = getIncomingSlot(i);
           const row = photoRow1 + Math.floor(i / 2);
           const col = 2 + (i % 2); // B=2, C=3
 
@@ -728,9 +791,9 @@ function WorkspacePageContent() {
           }
         }
 
-        // ✅ 설치 사진 삽입 (최대 4장) — 빌드 통과용 타입 우회 포함
+        // 설치 사진 삽입 (슬롯 0~3 고정)
         for (let i = 0; i < 4; i++) {
-          const slot = installSlots[i];
+          const slot = getInstallSlot(i);
           const row = photoRow1 + Math.floor(i / 2);
           const col = 5 + (i % 2); // E=5, F=6
 
@@ -1045,7 +1108,7 @@ function WorkspacePageContent() {
               <div className={styles.photoGrid}>
                 <div className={styles.photoRow}>
                   {Array.from({ length: incomingMax }, (_, i) => {
-                    const slot = slots.find((s) => s.kind === "incoming" && s.slotIndex === i);
+                    const slot = slots.find((s) => s.kind === "incoming" && s.slot === i);
                     return (
                       <PhotoDropSlot
                         key={`incoming_${i}`}
@@ -1060,7 +1123,7 @@ function WorkspacePageContent() {
                 </div>
                 <div className={styles.photoRow}>
                   {Array.from({ length: installMax }, (_, i) => {
-                    const slot = slots.find((s) => s.kind === "install" && s.slotIndex === i);
+                    const slot = slots.find((s) => s.kind === "install" && s.slot === i);
                     return (
                       <PhotoDropSlot
                         key={`install_${i}`}
@@ -1075,22 +1138,20 @@ function WorkspacePageContent() {
                 </div>
               </div>
 
-              {/* 저장 버튼 */}
+              {/* 저장 = DB 반영만(업로드 시 자동). 엑셀 생성은 내보내기에서만. */}
               <div className={styles.saveButtonArea}>
                 <button
                   type="button"
                   className={styles.saveButton}
-                  onClick={exportToExcel}
-                  disabled={itemsWithPhotos.length === 0}
+                  onClick={() => alert("사진은 슬롯 업로드 시 DB에 저장됩니다. 엑셀 파일이 필요하면 '엑셀로 내보내기'를 사용하세요.")}
+                  disabled={false}
                 >
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                     <polyline points="7 10 12 15 17 10" />
                     <line x1="12" y1="15" x2="12" y2="3" />
                   </svg>
-                  {itemsWithPhotos.length > 0
-                    ? `사진대지 저장 (${itemsWithPhotos.length}건)`
-                    : "사진대지 저장"}
+                  {itemsWithPhotos.length > 0 ? `저장됨 (${itemsWithPhotos.length}건)` : "저장 안내"}
                 </button>
               </div>
             </div>
@@ -1174,7 +1235,7 @@ function WorkspacePageContent() {
 
                 <div className={styles.panelPhotoGrid}>
                   {Array.from({ length: incomingMax }, (_, i) => {
-                    const slot = slots.find((s) => s.kind === "incoming" && s.slotIndex === i);
+                    const slot = slots.find((s) => s.kind === "incoming" && s.slot === i);
                     return (
                       <PhotoDropSlot
                         key={`panel_incoming_${i}`}
@@ -1188,7 +1249,7 @@ function WorkspacePageContent() {
                     );
                   })}
                   {Array.from({ length: installMax }, (_, i) => {
-                    const slot = slots.find((s) => s.kind === "install" && s.slotIndex === i);
+                    const slot = slots.find((s) => s.kind === "install" && s.slot === i);
                     return (
                       <PhotoDropSlot
                         key={`panel_install_${i}`}
@@ -1269,12 +1330,47 @@ function WorkspacePageContent() {
               onClick={(e) => e.stopPropagation()}
             >
               <div className={styles.previewHeader}>
-                <h2 className={styles.previewTitle}>사진대지 미리보기</h2>
+                <h2 className={styles.previewTitle}>
+                  {previewTab === "photo" ? "사진대지 미리보기" : "항목별 사용 내역서 미리보기"}
+                </h2>
                 <div className={styles.previewActions}>
+                  <div className={styles.previewTabs}>
+                    <button
+                      type="button"
+                      className={previewTab === "photo" ? styles.previewTabActive : styles.previewTab}
+                      onClick={() => setPreviewTab("photo")}
+                    >
+                      사진대지
+                    </button>
+                    <button
+                      type="button"
+                      className={previewTab === "usage" ? styles.previewTabActive : styles.previewTab}
+                      onClick={() => setPreviewTab("usage")}
+                    >
+                      항목별 사용 내역서
+                    </button>
+                  </div>
+                  <button
+                    type="button"
+                    className={styles.previewPrintBtn}
+                    onClick={() => window.print()}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <polyline points="6 9 6 2 18 2 18 9" />
+                      <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+                    </svg>
+                    인쇄
+                  </button>
                   <button
                     type="button"
                     className={styles.previewExportBtn}
-                    onClick={exportToExcel}
+                    onClick={() => {
+                      if (!selectedDocId) {
+                        alert("문서를 선택하세요.");
+                        return;
+                      }
+                      window.location.href = `/expense/export?docId=${encodeURIComponent(selectedDocId)}`;
+                    }}
                   >
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
@@ -1294,7 +1390,79 @@ function WorkspacePageContent() {
               </div>
 
               <div className={styles.previewContent}>
-                <PhotoSheetPage items={photoSheetItems} preview />
+                {previewTab === "photo" ? (
+                  <div className={styles.previewPhotoWrap}>
+                    <PhotoSheetPage items={photoSheetItems} preview />
+                  </div>
+                ) : (
+                  <div className={styles.previewUsageWrap}>
+                    <div className={styles.previewUsageTitle}>
+                      {docs.find((d) => d.id === selectedDocId)?.title ?? "항목별 사용 내역서"}
+                    </div>
+                    <div className={styles.previewUsageTableWrap}>
+                      <table className={styles.previewUsageTable}>
+                        <thead>
+                          <tr>
+                            <th className={styles.previewUsageThSeq}>순번</th>
+                            <th className={styles.previewUsageThDate}>사용일자</th>
+                            <th className={styles.previewUsageThName}>사용내역</th>
+                            <th className={styles.previewUsageThQty}>수량</th>
+                            <th className={styles.previewUsageThPrice}>단가</th>
+                            <th className={styles.previewUsageThAmount}>금액</th>
+                            <th className={styles.previewUsageThProof}>증빙번호</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {groupedItems.length === 0 ? (
+                            <tr>
+                              <td colSpan={7} className={styles.previewUsageEmpty}>
+                                품목이 없습니다.
+                              </td>
+                            </tr>
+                          ) : (
+                            (() => {
+                              let seqNo = 0;
+                              return groupedItems.map((grp) => (
+                                <React.Fragment key={grp.category}>
+                                  <tr className={styles.previewUsageGroupRow}>
+                                    <td colSpan={7} className={styles.previewUsageGroupCell}>
+                                      {grp.label}
+                                    </td>
+                                  </tr>
+                                  {grp.items.map((it) => {
+                                    seqNo += 1;
+                                    return (
+                                      <tr key={it.id} className={styles.previewUsageDataRow}>
+                                        <td className={styles.previewUsageTdSeq}>{seqNo}</td>
+                                    <td className={styles.previewUsageTdDate}>{it.useDate ?? "—"}</td>
+                                    <td className={styles.previewUsageTdName}>{it.name}</td>
+                                    <td className={styles.previewUsageTdQty}>{it.qty ?? it.qtyLabel}</td>
+                                    <td className={styles.previewUsageTdPrice}>{it.unitPrice?.toLocaleString("ko-KR") ?? "—"}</td>
+                                    <td className={styles.previewUsageTdAmount}>{it.amount?.toLocaleString("ko-KR") ?? "—"}</td>
+                                        <td className={styles.previewUsageTdProof}>{it.proofNo ?? it.evidenceNo}</td>
+                                      </tr>
+                                    );
+                                  })}
+                                </React.Fragment>
+                              ));
+                            })()
+                          )}
+                        </tbody>
+                        {groupedItems.length > 0 && (
+                          <tfoot>
+                            <tr className={styles.previewUsageTotalRow}>
+                              <td colSpan={3} className={styles.previewUsageTdName}>합계</td>
+                              <td className={styles.previewUsageTdQty}>{totalQty.toLocaleString("ko-KR")}</td>
+                              <td className={styles.previewUsageTdPrice}>—</td>
+                              <td className={styles.previewUsageTdAmount}>{totalAmount.toLocaleString("ko-KR")}</td>
+                              <td />
+                            </tr>
+                          </tfoot>
+                        )}
+                      </table>
+                    </div>
+                  </div>
+                )}
               </div>
             </motion.div>
           </motion.div>

@@ -377,7 +377,7 @@ export default function HomePage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.9, ease: "easeOut", delay: 0.3 }}
           >
-            {kor ? <>안전관리비 정산을,<br />체계적으로 관리합니다.</> : <>Evidence docs,<br />automated with ease</>}
+            {kor ? <>안전관리비 정산을,<br />체계적으로 <span style={{ whiteSpace: "nowrap" }}>관리합니다.</span></> : <>Evidence docs,<br />automated with ease</>}
           </motion.h1>
 
           <motion.div

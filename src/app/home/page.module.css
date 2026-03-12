@@ -259,7 +259,7 @@
 
 .heroTitle {
   margin: 0;
-  font-size: clamp(40px, 6.5vw, 72px);
+  font-size: clamp(32px, 5.2vw, 56px);
   line-height: 1.14;
   letter-spacing: -0.5px;
   font-weight: 700;
@@ -1160,7 +1160,7 @@
 /* 640px 이하 — 히어로/섹션 패딩 */
 @media (max-width: 640px) {
   .heroCopy  { gap: 18px; }
-  .heroTitle { font-size: clamp(34px, 9vw, 48px); }
+  .heroTitle { font-size: clamp(28px, 7.5vw, 40px); }
   .ctaHero   { width: 100%; justify-content: center; }
 
   .svcInner { padding: 56px 16px; gap: 32px; }

@@ -1162,6 +1162,53 @@
     display: flex;
     align-items: center;
     gap: var(--ws-space-2);
+    flex-wrap: wrap;
+  }
+
+  .previewTabs {
+    display: flex;
+    gap: 2px;
+  }
+
+  .previewTab,
+  .previewTabActive {
+    padding: 6px 12px;
+    border: none;
+    border-radius: var(--ws-radius-md);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    background: var(--ws-surface-1);
+    color: var(--ws-text-secondary);
+  }
+
+  .previewTab:hover {
+    background: var(--ws-surface-2);
+    color: var(--ws-text-primary);
+  }
+
+  .previewTabActive {
+    background: var(--ws-accent);
+    color: white;
+  }
+
+  .previewPrintBtn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    background: var(--ws-surface-2);
+    border: 1px solid var(--ws-border-light);
+    border-radius: var(--ws-radius-md);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ws-text-primary);
+    cursor: pointer;
+    transition: all var(--ws-transition-fast);
+  }
+
+  .previewPrintBtn:hover {
+    background: var(--ws-surface-1);
   }
 
   .previewExportBtn {
@@ -1212,6 +1259,89 @@
     overflow-y: auto;
     padding: var(--ws-space-5);
     background: var(--ws-surface-1);
+  }
+
+  .previewPhotoWrap {
+    background: #f9fafb;
+    padding: var(--ws-space-4);
+    border-radius: var(--ws-radius-lg);
+  }
+
+  .previewUsageWrap {
+    background: #fff;
+    padding: var(--ws-space-4);
+    border-radius: var(--ws-radius-lg);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  }
+
+  .previewUsageTitle {
+    font-size: 18px;
+    font-weight: 700;
+    text-align: center;
+    margin-bottom: var(--ws-space-4);
+    padding-bottom: var(--ws-space-2);
+    border-bottom: 2px solid #333;
+  }
+
+  .previewUsageTableWrap {
+    overflow-x: auto;
+  }
+
+  .previewUsageTable {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+
+  .previewUsageTable th,
+  .previewUsageTable td {
+    border: 1px solid #d1d5db;
+    padding: 8px 10px;
+    text-align: left;
+  }
+
+  .previewUsageTable th {
+    background: #f3f4f6;
+    font-weight: 600;
+    color: #111827;
+  }
+
+  .previewUsageThSeq,
+  .previewUsageTdSeq { width: 56px; text-align: center; }
+  .previewUsageThDate,
+  .previewUsageTdDate { width: 90px; }
+  .previewUsageThName,
+  .previewUsageTdName { min-width: 140px; }
+  .previewUsageThQty,
+  .previewUsageTdQty { width: 70px; text-align: right; }
+  .previewUsageThPrice,
+  .previewUsageTdPrice { width: 90px; text-align: right; }
+  .previewUsageThAmount,
+  .previewUsageTdAmount { width: 100px; text-align: right; }
+  .previewUsageThProof,
+  .previewUsageTdProof { width: 72px; text-align: center; }
+
+  .previewUsageGroupRow .previewUsageGroupCell {
+    background: #e5e7eb;
+    font-weight: 600;
+    padding: 10px 12px;
+    border: 1px solid #d1d5db;
+  }
+
+  .previewUsageDataRow td {
+    vertical-align: middle;
+  }
+
+  .previewUsageTotalRow td {
+    font-weight: 600;
+    background: #f9fafb;
+    border: 1px solid #d1d5db;
+  }
+
+  .previewUsageEmpty {
+    padding: 24px;
+    text-align: center;
+    color: var(--ws-text-tertiary);
   }
 
   .previewEmpty {
@@ -1583,5 +1713,31 @@
       opacity: 1;
       transform: none;
       animation: none;
+    }
+  }
+
+  /* 인쇄: 미리보기 모달만 출력 */
+  @media print {
+    .previewHeader {
+      display: none !important;
+    }
+    .previewOverlay {
+      position: fixed !important;
+      inset: 0 !important;
+      background: #fff !important;
+      padding: 0 !important;
+      align-items: flex-start !important;
+    }
+    .previewModal {
+      max-width: none !important;
+      max-height: none !important;
+      box-shadow: none !important;
+      border-radius: 0 !important;
+    }
+    .previewContent {
+      padding: 16px !important;
+    }
+    .previewUsageWrap {
+      box-shadow: none !important;
     }
   }
