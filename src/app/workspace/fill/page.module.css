@@ -370,6 +370,12 @@
   border-right: 2px solid #000 !important;
 }
 
+/* 테이블 외곽선 보정: 배포/로컬에서 마지막 열 border 누락 대비 */
+.tableOuterThick {
+  outline: 2px solid #000;
+  outline-offset: -2px;
+}
+
 /* 편집 가능 셀 hover */
 .cellEditable:active {
   background-color: rgba(37, 99, 235, 0.06) !important;

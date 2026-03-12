@@ -237,7 +237,7 @@ function PreviewSheet({
       <div className={styles.previewPageName}>{sheet.name}</div>
       <div className={styles.previewPageInner} style={{ height: A4_H }}>
         <div style={{ zoom, width: totalW, height: totalH, overflow: "hidden" }}>
-          <table className={styles.table} style={{ borderCollapse: "collapse", tableLayout: "fixed", background: "#fff" }}>
+          <table className={`${styles.table} ${styles.tableOuterThick}`} style={{ borderCollapse: "collapse", tableLayout: "fixed", background: "#fff" }}>
             <colgroup>{colWidths.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
             <tbody>
               {trimmedRows.map((row, ri) => (
@@ -1134,7 +1134,7 @@ table{border-collapse:collapse;table-layout:fixed;background:#fff}td{box-sizing:
           ) : sheet && (
             <div key={`table-${activeSheet}`} className={styles.viewport}>
               <div className={isAllowanceSheet(sheet.name) ? styles.sheetDocument : styles.sheetTableWrap}>
-              <table className={styles.table}>
+              <table className={`${styles.table} ${styles.tableOuterThick}`}>
                 <colgroup>{displayColWidths.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
                 <tbody>
                   {displayRows.map((row, ri) => (
