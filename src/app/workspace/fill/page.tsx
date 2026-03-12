@@ -1222,12 +1222,12 @@ table{border-collapse:collapse;table-layout:fixed;background:#fff}td{box-sizing:
         </>)}
       </div>
 
-      {/* ── 인쇄 미리보기 모달: 선택된 시트만 표시 ── */}
-      {showPreview && sheet && (
+      {/* ── 인쇄 미리보기 모달: 모든 시트를 순서대로 표시 ── */}
+      {showPreview && (
         <div className={styles.previewOverlay}>
           <div className={styles.previewHeader}>
             <span className={styles.previewTitle}>
-              인쇄 미리보기 <span className={styles.previewCount}>· {sheet.name}</span>
+              인쇄 미리보기 <span className={styles.previewCount}>{sheets.length}개 시트</span>
             </span>
             <div className={styles.previewHeaderActions}>
               <button type="button" className={styles.previewPrintBtn} onClick={() => window.print()}>
@@ -1246,16 +1246,18 @@ table{border-collapse:collapse;table-layout:fixed;background:#fff}td{box-sizing:
             </div>
           </div>
           <div className={styles.previewScroll} id="previewScrollContent">
-            {isPhotoSheet(sheet.name) ? (
-              <div className={styles.previewPhotoWrap}>
-                <PhotoSheetView
-                  sheetName={sheet.name}
-                  blocks={photoBlocks[sheet.name] ?? []}
-                  a4Mode
-                />
-              </div>
-            ) : (
-              <PreviewSheet sheet={sheet} sheetIdx={activeSheet} formValues={formValues} />
+            {sheets.map((s, i) =>
+              isPhotoSheet(s.name) ? (
+                <div key={i} className={styles.previewPhotoWrap}>
+                  <PhotoSheetView
+                    sheetName={s.name}
+                    blocks={photoBlocks[s.name] ?? []}
+                    a4Mode
+                  />
+                </div>
+              ) : (
+                <PreviewSheet key={i} sheet={s} sheetIdx={i} formValues={formValues} />
+              )
             )}
             <button type="button" className={styles.previewCloseBottom} onClick={() => setShowPreview(false)}>
               닫기
