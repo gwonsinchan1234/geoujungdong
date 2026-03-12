@@ -101,6 +101,10 @@ const A4_H = 842;
 const PHOTO_KEYWORDS = ["사진대지", "사진", "보호구", "시설물", "위험성", "건강관리", "교육"];
 const isPhotoSheet = (name: string) => PHOTO_KEYWORDS.some(k => name.includes(k));
 
+/** 수당·인건비 시트: 문서형 레이아웃(파란 테두리, 지급 내역 등) 적용 */
+const ALLOWANCE_KEYWORDS = ["수당", "인건비", "업무수당"];
+const isAllowanceSheet = (name: string) => ALLOWANCE_KEYWORDS.some(k => name.includes(k));
+
 function xlsxCellStr(ws: XLSX.WorkSheet, r: number, c: number): string {
   const cell = ws[XLSX.utils.encode_cell({ r, c })];
   if (!cell) return "";
@@ -224,13 +228,16 @@ function PreviewSheet({
 }: { sheet: ParsedSheet; sheetIdx: number; formValues: Record<string, string> }) {
   const { trimmedRows, usedCols, colWidths, rowOffset, colOffset } = trimSheet(sheet, sheetIdx, formValues);
   const totalW = colWidths.reduce((a, b) => a + b, 0) || A4_W;
-  const zoom = totalW > 0 ? Math.min(1, A4_W / totalW) : 1;
+  const totalH = trimmedRows.reduce((sum, r) => sum + (r.height ?? 20), 0) || A4_H;
+  // 모바일에서도 한 화면에 전체가 보이도록 (가로/세로 모두) A4 안으로 축소
+  const zoom = Math.min(1, A4_W / totalW, A4_H / totalH);
+  const isDoc = isAllowanceSheet(sheet.name);
   return (
-    <div className={styles.previewPage} style={{ width: A4_W, minHeight: A4_H }}>
+    <div className={`${styles.previewPage} ${isDoc ? styles.previewPageDocument : ""}`} style={{ width: A4_W, minHeight: A4_H }}>
       <div className={styles.previewPageName}>{sheet.name}</div>
       <div className={styles.previewPageInner} style={{ height: A4_H }}>
-        <div style={{ zoom, width: totalW, minHeight: "100%", overflow: "visible" }}>
-          <table style={{ borderCollapse: "collapse", tableLayout: "fixed", background: "#fff" }}>
+        <div style={{ zoom, width: totalW, height: totalH, overflow: "hidden" }}>
+          <table className={styles.table} style={{ borderCollapse: "collapse", tableLayout: "fixed", background: "#fff" }}>
             <colgroup>{colWidths.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
             <tbody>
               {trimmedRows.map((row, ri) => (
@@ -781,7 +788,13 @@ export default function FillPage() {
       const buf = await file.arrayBuffer();
       setRawBuf(buf);
       setFileName(file.name);
-      const parsed = await parseExcelBuffer(buf);
+      let parsed = await parseExcelBuffer(buf);
+      // 갑지 시트를 맨 앞으로 (모바일·웹 동일하게)
+      const gabjiIdx = parsed.findIndex(s => s.name.trim() === "갑지" || s.name.includes("갑지"));
+      if (gabjiIdx > 0) {
+        const gabji = parsed[gabjiIdx];
+        parsed = [gabji, ...parsed.slice(0, gabjiIdx), ...parsed.slice(gabjiIdx + 1)];
+      }
       // v5 debug
       console.log("[v5] sheets:", parsed.map((s, i) => `${i}:${s.name} printArea=${JSON.stringify(s.printArea)}`));
       const s0 = parsed[0];
@@ -997,17 +1010,8 @@ table{border-collapse:collapse;table-layout:fixed;background:#fff}td{box-sizing:
   return (
     <div className={styles.page}>
 
-      {/* ── TOP BAR ── */}
+      {/* ── TOP BAR: 업로드가 모바일·웹 모두 맨 앞(갑)에 오도록 순서 고정 ── */}
       <div className={styles.topBar}>
-        {!isStandalone && (
-          <button type="button" className={styles.pwaBtn} onClick={() => setShowPwaGuide(true)}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-              <path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2z"/>
-              <line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
-            </svg>
-            <span>앱 설치</span>
-          </button>
-        )}
         <label className={styles.uploadBtn}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
@@ -1024,6 +1028,15 @@ table{border-collapse:collapse;table-layout:fixed;background:#fff}td{box-sizing:
             : <span className={styles.filePlaceholder}>엑셀 파일을 업로드하세요</span>}
           {editedCount > 0 && <span className={styles.editBadge}>{editedCount}셀 수정됨</span>}
         </div>
+        {!isStandalone && (
+          <button type="button" className={styles.pwaBtn} onClick={() => setShowPwaGuide(true)}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+              <path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2z"/>
+              <line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            <span>앱 설치</span>
+          </button>
+        )}
         {sheets.length > 0 && (<>
           {/* 저장: 모든 시트에서 표시. 사진대지 → 서버 저장, 그 외 → 수정본 다운로드 */}
           <button type="button" className={styles.saveBtn}
@@ -1120,6 +1133,7 @@ table{border-collapse:collapse;table-layout:fixed;background:#fff}td{box-sizing:
             </div>
           ) : sheet && (
             <div key={`table-${activeSheet}`} className={styles.viewport}>
+              <div className={isAllowanceSheet(sheet.name) ? styles.sheetDocument : styles.sheetTableWrap}>
               <table className={styles.table}>
                 <colgroup>{displayColWidths.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
                 <tbody>
@@ -1154,6 +1168,7 @@ table{border-collapse:collapse;table-layout:fixed;background:#fff}td{box-sizing:
                   ))}
                 </tbody>
               </table>
+              </div>
             </div>
           )}
         </>)}

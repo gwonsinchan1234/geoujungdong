@@ -327,6 +327,28 @@
 }
 .photoRetryBtn:hover { background: #1d4ed8; }
 
+/* 테이블 시트 공통 래퍼 (기본) */
+.sheetTableWrap {
+  display: block;
+  width: fit-content;
+  min-width: 100%;
+}
+
+/* 수당·인건비 시트: 문서형 레이아웃 (파란 테두리, 안전관리자 인건비 및 업무수당 스타일) */
+.sheetDocument {
+  display: block;
+  width: fit-content;
+  min-width: 100%;
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 20px 24px;
+  background: #fff;
+  border: 2px solid #2563eb;
+  border-radius: 4px;
+  box-shadow: 0 2px 16px rgba(37, 99, 235, 0.12);
+  box-sizing: border-box;
+}
+
 .table {
   border-collapse: collapse;
   table-layout: fixed;
@@ -334,9 +356,18 @@
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
 }
 
+.sheetDocument .table {
+  box-shadow: none;
+}
+
 .table td {
   box-sizing: border-box;
   cursor: pointer;
+}
+
+/* 테이블 오른쪽 끝 굵은 테두리 (항목별사용내역서 등) */
+.table tr td:last-child {
+  border-right: 2px solid #000 !important;
 }
 
 /* 편집 가능 셀 hover */
@@ -499,10 +530,18 @@
   flex-shrink: 0;
 }
 
+/* 수당·인건비 시트 미리보기: 문서형 파란 테두리 */
+.previewPageDocument {
+  border: 2px solid #2563eb;
+  box-shadow: 0 2px 16px rgba(37, 99, 235, 0.15);
+}
+.previewPageDocument .previewPageInner {
+  padding: 16px 20px;
+}
+
 .previewPageInner {
   flex: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: hidden;
   padding: 12px 0;
   display: flex;
   flex-direction: column;
