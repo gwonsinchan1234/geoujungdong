@@ -230,8 +230,9 @@ function PreviewSheet({
   const { trimmedRows, usedCols, colWidths, rowOffset, colOffset } = trimSheet(sheet, sheetIdx, formValues);
   const totalW  = colWidths.reduce((a, b) => a + b, 0) || A4_W;
   const totalH  = trimmedRows.reduce((sum, row) => sum + (row.height ?? 20), 0);
-  const SAFE = 0.9; // 여유를 두고 조금 더 줄이기
-  const scale   = Math.min(1, SAFE * A4_W / totalW, SAFE * A4_H / (totalH || A4_H));
+  const widthScale  = Math.min(1, A4_W / totalW);
+  const heightScale = totalH > 0 ? Math.min(1, A4_H / totalH) : 1;
+  const scale       = Math.min(widthScale, heightScale);
   const scaledH = Math.ceil(totalH * scale);
   return (
     <div className={styles.previewPage}>
@@ -906,8 +907,9 @@ export default function FillPage() {
       const { trimmedRows, usedCols, colWidths, rowOffset, colOffset } = trimSheet(sheet, sheetIdx, formValues);
       const totalW  = colWidths.reduce((a, b) => a + b, 0) || A4_W;
       const totalH  = trimmedRows.reduce((s, r) => s + (r.height ?? 20), 0);
-      const SAFE = 0.9;
-      const scale   = Math.min(1, SAFE * A4_W / totalW, SAFE * A4_H / (totalH || A4_H));
+      const widthScale  = Math.min(1, A4_W / totalW);
+      const heightScale = totalH > 0 ? Math.min(1, A4_H / totalH) : 1;
+      const scale       = Math.min(widthScale, heightScale);
       const scaledH = Math.ceil(totalH * scale);
       const colgroup = colWidths.map(w => `<col style="width:${w}px">`).join("");
       const tbody = trimmedRows.map((row, ri) =>
@@ -975,8 +977,9 @@ table{border-collapse:collapse;table-layout:fixed;background:#fff}td{box-sizing:
     const { trimmedRows, usedCols, colWidths, rowOffset, colOffset } = trimSheet(sheet, activeSheet, formValues);
     const totalW  = colWidths.reduce((a, b) => a + b, 0) || A4_W;
     const totalH  = trimmedRows.reduce((s, r) => s + (r.height ?? 20), 0);
-    const SAFE = 0.9;
-    const scale   = Math.min(1, SAFE * A4_W / totalW, SAFE * A4_H / (totalH || A4_H));
+    const widthScale  = Math.min(1, A4_W / totalW);
+    const heightScale = totalH > 0 ? Math.min(1, A4_H / totalH) : 1;
+    const scale       = Math.min(widthScale, heightScale);
     const scaledH = Math.ceil(totalH * scale);
     const colgroup = colWidths.map(w => `<col style="width:${w}px">`).join("");
     const tbody = trimmedRows.map((row, ri) =>
