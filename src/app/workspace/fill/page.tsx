@@ -228,17 +228,16 @@ function PreviewSheet({
   sheet, sheetIdx, formValues,
 }: { sheet: ParsedSheet; sheetIdx: number; formValues: Record<string, string> }) {
   const { trimmedRows, usedCols, colWidths, rowOffset, colOffset } = trimSheet(sheet, sheetIdx, formValues);
-  const totalW = colWidths.reduce((a, b) => a + b, 0) || A4_W;
-  const totalH = trimmedRows.reduce((sum, r) => sum + (r.height ?? 20), 0) || A4_H;
-  // 모바일에서도 한 화면에 전체가 보이도록 (가로/세로 모두) A4 안으로 축소
-  const zoom = Math.min(1, A4_W / totalW, A4_H / totalH);
-  const isDoc = isAllowanceSheet(sheet.name);
+  const totalW  = colWidths.reduce((a, b) => a + b, 0) || A4_W;
+  const scale   = Math.min(1, A4_W / totalW);
+  const totalH  = trimmedRows.reduce((sum, row) => sum + (row.height ?? 20), 0);
+  const scaledH = Math.ceil(totalH * scale);
   return (
-    <div className={`${styles.previewPage} ${isDoc ? styles.previewPageDocument : ""}`} style={{ width: A4_W, minHeight: A4_H }}>
+    <div className={styles.previewPage}>
       <div className={styles.previewPageName}>{sheet.name}</div>
-      <div className={styles.previewPageInner} style={{ height: A4_H }}>
-        <div style={{ zoom, width: totalW, height: totalH, overflow: "hidden" }}>
-          <table className={`${styles.table} ${styles.tableOuterThick}`} style={{ borderCollapse: "collapse", tableLayout: "fixed", background: "#fff" }}>
+      <div className={styles.previewClip} style={{ height: scaledH }}>
+        <div className={styles.previewWrap} style={{ transform: `scale(${scale.toFixed(4)})`, width: totalW }}>
+          <table style={{ borderCollapse: "collapse", tableLayout: "fixed", background: "#fff" }}>
             <colgroup>{colWidths.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
             <tbody>
               {trimmedRows.map((row, ri) => (
