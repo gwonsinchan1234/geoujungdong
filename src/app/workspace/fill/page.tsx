@@ -229,9 +229,10 @@ function PreviewSheet({
 }: { sheet: ParsedSheet; sheetIdx: number; formValues: Record<string, string> }) {
   const { trimmedRows, usedCols, colWidths, rowOffset, colOffset } = trimSheet(sheet, sheetIdx, formValues);
   const totalW = colWidths.reduce((a, b) => a + b, 0) || A4_W;
-  // CSS zoom으로 스케일 — transform:scale 과 달리 레이아웃 크기도 함께 축소되므로
-  // 높이 추정 오차에 의한 잘림이 발생하지 않음
-  const scale  = Math.min(1, A4_W / totalW);
+  const totalH = trimmedRows.reduce((s, r) => s + (r.height ?? 20), 0) || A4_H;
+  const LABEL_H = 33; // previewPageName 높이
+  // 너비·높이 모두 고려해 A4 한 장에 딱 맞게 축소
+  const scale  = Math.min(1, A4_W / totalW, (A4_H - LABEL_H) / totalH);
   return (
     <div className={styles.previewPage}>
       <div className={styles.previewPageName}>{sheet.name}</div>
