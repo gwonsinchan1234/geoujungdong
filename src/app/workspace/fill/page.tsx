@@ -964,6 +964,103 @@ table{border-collapse:collapse;table-layout:fixed;background:#fff}td{box-sizing:
     win.document.close();
   }, [sheets, formValues, fileName]);
 
+  // ── 사진대지 새 창 인쇄 (window.print 대신 새 창 HTML 생성) ──
+  const handlePhotoSheetPrint = useCallback(async () => {
+    const s = sheets[activeSheet];
+    if (!s) return;
+    const blocks = photoBlocks[s.name] ?? [];
+
+    // blob: URL → data URI 변환 (새 창에서 blob: 접근 불가)
+    const toDataUri = async (url: string): Promise<string> => {
+      if (!url || !url.startsWith("blob:")) return url;
+      try {
+        const res = await fetch(url);
+        const blob = await res.blob();
+        return await new Promise(resolve => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.readAsDataURL(blob);
+        });
+      } catch { return url; }
+    };
+
+    const resolvedBlocks = await Promise.all(blocks.map(async b => ({
+      ...b,
+      photos: await Promise.all(b.photos.map(async p => ({ ...p, url: p.url ? await toDataUri(p.url) : "" }))),
+    })));
+
+    const photoGridHtml = (photos: typeof resolvedBlocks[0]["photos"], count: number) => {
+      const sorted = photos.sort((a, b) => a.slot_index - b.slot_index).slice(0, 4);
+      const gridCols = count <= 1 ? "1fr" : "1fr 1fr";
+      const gridRows = count <= 2 ? "1fr" : "1fr 1fr";
+      const cells = sorted.map((p, i) => {
+        const span = count === 3 && i === 2 ? "grid-column:1/-1;" : "";
+        return p.url
+          ? `<div style="${span}position:relative;overflow:hidden;"><img src="${p.url}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;" /></div>`
+          : `<div style="${span}background:#e5e7eb;"></div>`;
+      }).join("");
+      const tmpl = count === 3
+        ? "grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;"
+        : `grid-template-columns:${gridCols};grid-template-rows:${gridRows};`;
+      return `<div style="display:grid;${tmpl}gap:2px;width:100%;height:100%;">${cells}</div>`;
+    };
+
+    const BLOCKS_PER_PAGE = 3;
+    const pages: typeof resolvedBlocks[] = [];
+    for (let i = 0; i < resolvedBlocks.length; i += BLOCKS_PER_PAGE) pages.push(resolvedBlocks.slice(i, i + BLOCKS_PER_PAGE));
+
+    const pagesHtml = pages.map((pageBlocks, pi) => {
+      const pageBreak = pi < pages.length - 1 ? "page-break-after:always;" : "";
+      const blocksHtml = pageBlocks.map(block => {
+        const lp = block.photos.filter(p => p.side === "left");
+        const rp = block.photos.filter(p => p.side === "right");
+        return `<div class="bc">
+          <div class="bh">NO. ${block.no}</div>
+          <div class="sh"><div class="shc">반입사진</div><div class="shc">${block.right_header || "지급/설치사진"}</div></div>
+          <div class="gr">
+            <div class="gw">${photoGridHtml(lp, Math.min(lp.length, 4))}</div>
+            <div class="gd"></div>
+            <div class="gw">${photoGridHtml(rp, Math.min(rp.length, 4))}</div>
+          </div>
+          <div class="bf">
+            <div class="fs"><span class="fl">날짜</span><span class="fv">${block.left_date ?? ""}</span><span class="fl">항목</span><span class="fv">${block.left_label ?? ""}</span></div>
+            <div class="fd"></div>
+            <div class="fs"><span class="fl">날짜</span><span class="fv">${block.right_date ?? ""}</span><span class="fl">항목</span><span class="fv">${block.right_label ?? ""}</span></div>
+          </div>
+        </div>`;
+      }).join("");
+      return `<div style="${pageBreak}"><div class="pt">${s.name}</div>${blocksHtml}</div>`;
+    }).join("");
+
+    const win = window.open("", "_blank");
+    if (!win) return;
+    win.document.write(`<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><title>${s.name}</title>
+<style>
+@page{size:A4 portrait;margin:12mm}*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,'Apple SD Gothic Neo',sans-serif;background:#fff}
+.pt{font-size:13px;font-weight:700;text-align:center;color:#111827;padding:6px 0 10px;border-bottom:2px solid #111827;margin-bottom:10px;}
+.bc{border:1.5px solid #374151;border-radius:4px;overflow:hidden;margin-bottom:10px;}
+.bh{background:#111827;padding:6px 12px;font-size:13px;font-weight:700;color:#fff;}
+.sh{display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid #d1d5db;}
+.shc{font-size:11px;font-weight:700;color:#374151;text-align:center;padding:5px 0;background:#f3f4f6;}
+.shc:first-child{border-right:1px solid #d1d5db;}
+.gr{display:grid;grid-template-columns:1fr 1px 1fr;height:200px;}
+.gw{padding:4px;}
+.gd{background:#d1d5db;}
+.bf{display:grid;grid-template-columns:1fr 1px 1fr;border-top:1px solid #d1d5db;background:#f9fafb;}
+.fs{display:grid;grid-template-columns:auto 1fr;gap:2px 8px;padding:7px 10px;align-items:baseline;}
+.fl{font-size:10px;font-weight:700;color:#6b7280;}
+.fv{font-size:11px;color:#111827;font-weight:500;}
+.fd{background:#d1d5db;}
+.pb{position:fixed;top:16px;right:16px;padding:10px 22px;background:#2563eb;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;}
+@media print{.pb{display:none}}
+</style></head><body>
+<button class="pb" onclick="window.print()">인쇄</button>
+${pagesHtml}
+</body></html>`);
+    win.document.close();
+  }, [sheets, activeSheet, photoBlocks]);
+
   // ── 현재 활성 시트만 새 창 인쇄 ──────────────────────────────
   const sheet = sheets[activeSheet];
   const handlePrintActive = useCallback(() => {
@@ -1230,7 +1327,7 @@ table{border-collapse:collapse;table-layout:fixed;background:#fff}td{box-sizing:
               인쇄 미리보기 <span className={styles.previewCount}>· {sheet.name}</span>
             </span>
             <div className={styles.previewHeaderActions}>
-              <button type="button" className={styles.previewPrintBtn} onClick={() => window.print()}>
+              <button type="button" className={styles.previewPrintBtn} onClick={() => isPhotoSheet(sheet.name) ? handlePhotoSheetPrint() : window.print()}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
                   <polyline points="6 9 6 2 18 2 18 9" />
                   <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
