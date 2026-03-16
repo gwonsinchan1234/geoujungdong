@@ -229,10 +229,8 @@ function PreviewSheet({
 }: { sheet: ParsedSheet; sheetIdx: number; formValues: Record<string, string> }) {
   const { trimmedRows, usedCols, colWidths, rowOffset, colOffset } = trimSheet(sheet, sheetIdx, formValues);
   const totalW = colWidths.reduce((a, b) => a + b, 0) || A4_W;
-  const totalH = trimmedRows.reduce((s, r) => s + (r.height ?? 20), 0) || A4_H;
-  const LABEL_H = 33; // previewPageName 높이
-  // 너비·높이 모두 고려해 A4 한 장에 딱 맞게 축소
-  const scale  = Math.min(1, A4_W / totalW, (A4_H - LABEL_H) / totalH);
+  // 너비만 A4에 맞춤 — 높이는 자연스럽게 늘어나도록 (미리보기 스크롤)
+  const scale  = Math.min(1, A4_W / totalW);
   return (
     <div className={styles.previewPage}>
       <div className={styles.previewPageName}>{sheet.name}</div>
