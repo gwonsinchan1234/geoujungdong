@@ -278,13 +278,9 @@
 .fitHost {
   width: 100%;
   padding-bottom: 16px;
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
 }
 .fitZoom {
   transform-origin: top left;
-  flex-shrink: 0;
 }
 
 .viewport::-webkit-scrollbar { width: 6px; height: 6px; }

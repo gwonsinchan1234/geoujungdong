@@ -228,40 +228,37 @@ function PreviewSheet({
   sheet, sheetIdx, formValues,
 }: { sheet: ParsedSheet; sheetIdx: number; formValues: Record<string, string> }) {
   const { trimmedRows, usedCols, colWidths, rowOffset, colOffset } = trimSheet(sheet, sheetIdx, formValues);
-  const totalW  = colWidths.reduce((a, b) => a + b, 0) || A4_W;
-  const totalH  = trimmedRows.reduce((sum, row) => sum + (row.height ?? 20), 0);
-  // 미리보기에서는 가로만 A4 폭에 맞추고, 세로는 스크롤로 보도록 함
-  const scale   = Math.min(1, A4_W / totalW);
-  const scaledH = Math.ceil(totalH * scale);
+  const totalW = colWidths.reduce((a, b) => a + b, 0) || A4_W;
+  // CSS zoom으로 스케일 — transform:scale 과 달리 레이아웃 크기도 함께 축소되므로
+  // 높이 추정 오차에 의한 잘림이 발생하지 않음
+  const scale  = Math.min(1, A4_W / totalW);
   return (
     <div className={styles.previewPage}>
       <div className={styles.previewPageName}>{sheet.name}</div>
-      <div className={styles.previewClip} style={{ height: scaledH }}>
-        <div className={styles.previewWrap} style={{ transform: `scale(${scale.toFixed(4)})`, width: totalW }}>
-          <table style={{ borderCollapse: "collapse", tableLayout: "fixed", background: "#fff" }}>
-            <colgroup>{colWidths.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
-            <tbody>
-              {trimmedRows.map((row, ri) => (
-                <tr key={ri} style={row.height !== null ? { height: row.height } : undefined}>
-                  {row.cells.slice(0, usedCols).map((cell, ci) => {
-                    if (cell.skip) return null;
-                    const ref = `${colLetter(ci + 1 + colOffset)}${ri + 1 + rowOffset}`;
-                    const ov  = formValues[`${sheetIdx}__${ref}`];
-                    return (
-                      <td key={ci}
-                        rowSpan={cell.rowSpan > 1 ? cell.rowSpan : undefined}
-                        colSpan={cell.colSpan > 1 ? cell.colSpan : undefined}
-                        style={cell.style as React.CSSProperties}
-                        className={ov !== undefined ? styles.cellHighlight : undefined}>
-                        {toCellDisplayString(ov ?? cell.value)}
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+      <div style={{ zoom: scale, width: totalW } as React.CSSProperties}>
+        <table style={{ borderCollapse: "collapse", tableLayout: "fixed", background: "#fff" }}>
+          <colgroup>{colWidths.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
+          <tbody>
+            {trimmedRows.map((row, ri) => (
+              <tr key={ri} style={row.height !== null ? { height: row.height } : undefined}>
+                {row.cells.slice(0, usedCols).map((cell, ci) => {
+                  if (cell.skip) return null;
+                  const ref = `${colLetter(ci + 1 + colOffset)}${ri + 1 + rowOffset}`;
+                  const ov  = formValues[`${sheetIdx}__${ref}`];
+                  return (
+                    <td key={ci}
+                      rowSpan={cell.rowSpan > 1 ? cell.rowSpan : undefined}
+                      colSpan={cell.colSpan > 1 ? cell.colSpan : undefined}
+                      style={cell.style as React.CSSProperties}
+                      className={ov !== undefined ? styles.cellHighlight : undefined}>
+                      {toCellDisplayString(ov ?? cell.value)}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );
@@ -290,20 +287,24 @@ function FitToWidth(props: {
   // zoom 기반 폭맞춤: transform 대비 1px 테두리 깨짐이 훨씬 덜함(Chromium)
   const boxW = contentWidth;
   const boxH = contentHeight;
+  // 뷰포트보다 좁을 때 가운데 정렬 (zoom 후 실제 점유 폭 = boxW * scale)
+  const leftOffset = Math.max(0, (availW - boxW * scale) / 2);
 
   return (
     <div ref={hostRef} className={styles.fitHost}>
-      <div
-        className={styles.fitZoom}
-        style={{
-          width: boxW,
-          height: boxH,
-          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-          // @ts-ignore: zoom은 표준 타입에 없지만 Chromium에서 동작
-          zoom: scale,
-        }}
-      >
-        {children}
+      <div style={{ marginLeft: leftOffset }}>
+        <div
+          className={styles.fitZoom}
+          style={{
+            width: boxW,
+            height: boxH,
+            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+            // @ts-ignore: zoom은 표준 타입에 없지만 Chromium에서 동작
+            zoom: scale,
+          }}
+        >
+          {children}
+        </div>
       </div>
     </div>
   );
@@ -905,9 +906,7 @@ export default function FillPage() {
     const sheetsHtml = sheets.map((sheet, sheetIdx) => {
       const { trimmedRows, usedCols, colWidths, rowOffset, colOffset } = trimSheet(sheet, sheetIdx, formValues);
       const totalW  = colWidths.reduce((a, b) => a + b, 0) || A4_W;
-      const totalH  = trimmedRows.reduce((s, r) => s + (r.height ?? 20), 0);
       const scale   = Math.min(1, A4_W / totalW);
-      const scaledH = Math.ceil(totalH * scale);
       const colgroup = colWidths.map(w => `<col style="width:${w}px">`).join("");
       const tbody = trimmedRows.map((row, ri) =>
         `<tr ${row.height !== null ? `style="height:${row.height}px"` : ""}>${
@@ -925,10 +924,9 @@ export default function FillPage() {
         }</tr>`
       ).join("");
       return `<div class="sheet-page"><div class="sheet-name">${sheet.name}</div>
-        <div class="clip" style="width:${A4_W}px;height:${scaledH}px">
-          <div class="wrap" style="transform:scale(${scale.toFixed(4)});width:${totalW}px">
-            <table><colgroup>${colgroup}</colgroup><tbody>${tbody}</tbody></table>
-          </div></div></div>`;
+        <div class="zoom-wrap" style="zoom:${scale.toFixed(4)};width:${totalW}px" data-w="${totalW}" data-zoom="${scale.toFixed(4)}">
+          <table><colgroup>${colgroup}</colgroup><tbody>${tbody}</tbody></table>
+        </div></div>`;
     }).join("");
     win.document.write(`<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>${fileName||"인쇄"}</title>
 <style>@page{size:A4 portrait;margin:15mm}*{box-sizing:border-box}body{margin:0;background:#f3f4f6;font-family:'Calibri','Apple SD Gothic Neo',sans-serif}
