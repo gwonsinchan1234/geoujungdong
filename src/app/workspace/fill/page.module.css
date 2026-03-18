@@ -465,9 +465,24 @@
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.15s;
+  transition: background 0.15s, opacity 0.15s;
+  white-space: nowrap;
 }
-.previewPrintBtn:hover { background: #1d4ed8; }
+.previewPrintBtn:hover:not(:disabled) { background: #1d4ed8; }
+.previewPrintBtn:disabled {
+  opacity: 0.7;
+  cursor: default;
+}
+
+.previewPrintSpinner {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.4);
+  border-top-color: #fff;
+  animation: spin 0.65s linear infinite;
+  flex-shrink: 0;
+}
 
 /* 스크롤 끝 닫기 버튼 */
 .previewCloseBottom {
