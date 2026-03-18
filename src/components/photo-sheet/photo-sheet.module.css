@@ -513,11 +513,15 @@
   height: 200px;
   min-height: unset;
   overflow: hidden;
+  /* grid-template-rows 명시 → 행 높이를 200px로 확정해 하위 height:100% 해석 보장 */
+  grid-template-rows: 200px;
 }
 
 .a4Block .gridWrap {
   padding: 0;
   overflow: hidden;
+  height: 200px; /* 명시적 높이 → photoGrid height:100% 정상 해석 */
+  box-sizing: border-box;
 }
 
 .a4Block .photoGrid {
