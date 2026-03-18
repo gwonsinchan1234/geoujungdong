@@ -43,6 +43,38 @@ const EVIDENCE_PHOTOS = [
 // ─────────────────────────────────────────────
 
 const kakaoEase = [0, 0.21, 0.03, 1.01] as const;
+const springEase = [0.16, 1, 0.3, 1] as const;
+
+function WordReveal({
+  children,
+  baseDelay = 0,
+}: {
+  children: string;
+  baseDelay?: number;
+}) {
+  const parts = children.split(/(\s+)/);
+  let wordIdx = 0;
+  return (
+    <>
+      {parts.map((part, i) => {
+        if (/^\s+$/.test(part)) return <span key={i}>&nbsp;</span>;
+        const delay = baseDelay + wordIdx++ * 0.11;
+        return (
+          <span key={i} className={styles.wordWrap}>
+            <motion.span
+              className={styles.wordInner}
+              initial={{ y: "108%", opacity: 0, filter: "blur(10px)" }}
+              animate={{ y: "0%", opacity: 1, filter: "blur(0px)" }}
+              transition={{ duration: 0.65, ease: springEase, delay }}
+            >
+              {part}
+            </motion.span>
+          </span>
+        );
+      })}
+    </>
+  );
+}
 
 function cx(...parts: Array<string | false | null | undefined>) {
   return parts.filter(Boolean).join(" ");
@@ -317,10 +349,14 @@ export default function HomePage() {
       <header className={styles.topbar}>
         <div className={styles.topbarInner}>
           <div className={styles.brand}>
-            <div className={styles.logo} aria-hidden />
-            <span className={styles.brandName}>
-              {kor ? "안전관리비 자동화" : "Safety Cost Automation"}
-            </span>
+            <Image
+              src="/safety.png"
+              alt="safetycost"
+              className={styles.brandLogoImg}
+              width={160}
+              height={40}
+              priority
+            />
           </div>
 
           <nav className={styles.nav}>
@@ -373,11 +409,23 @@ export default function HomePage() {
 
           <motion.h1
             className={styles.heroTitle}
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.9, ease: "easeOut", delay: 0.3 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.25, ease: "easeOut", delay: 0.28 }}
           >
-            {kor ? <>안전관리비 정산을,<br />체계적으로 <span style={{ whiteSpace: "nowrap" }}>관리합니다.</span></> : <>Evidence docs,<br />automated with ease</>}
+            {kor ? (
+              <>
+                <WordReveal baseDelay={0.32}>안전관리비 정산을,</WordReveal>
+                <br />
+                <WordReveal baseDelay={0.54}>체계적으로 관리합니다.</WordReveal>
+              </>
+            ) : (
+              <>
+                <WordReveal baseDelay={0.32}>Evidence docs,</WordReveal>
+                <br />
+                <WordReveal baseDelay={0.54}>automated with ease</WordReveal>
+              </>
+            )}
           </motion.h1>
 
           <motion.div

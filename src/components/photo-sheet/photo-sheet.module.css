@@ -65,7 +65,7 @@
 /* 섹션 헤더 (반입사진 | 지급사진) */
 .sectionHeaders {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr 1px 1fr;
   border-bottom: 1px solid #d1d5db;
 }
 
@@ -77,10 +77,6 @@
   padding: 5px 0;
   background: #f3f4f6;
   letter-spacing: 0.3px;
-}
-
-.sectionHeader:first-child {
-  border-right: 1px solid #d1d5db;
 }
 
 /* 그리드 영역 */

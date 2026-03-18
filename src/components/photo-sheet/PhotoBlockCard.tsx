@@ -173,6 +173,7 @@ export default function PhotoBlockCard({
       {/* ── 섹션 헤더 (반입사진 | 지급/설치사진) ── */}
       <div className={styles.sectionHeaders}>
         <div className={styles.sectionHeader}>반입사진</div>
+        <div className={styles.gridDivider} />
         <div className={styles.sectionHeader}>{block.right_header}</div>
       </div>
 

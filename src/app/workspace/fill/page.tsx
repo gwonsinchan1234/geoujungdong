@@ -9,6 +9,12 @@ import type { ParsedSheet } from "@/lib/parseExcel";
 import { photoDraft } from "@/lib/photoDraft";
 import { supabase } from "@/lib/supabaseClient";
 import styles from "./page.module.css";
+import GabjiFormView from "@/components/gabji-form/GabjiFormView";
+import { makeEmptyGabji, DEFAULT_ITEMS } from "@/components/gabji-form/types";
+import type { GabjiData } from "@/components/gabji-form/types";
+import ItemListView from "@/components/item-list/ItemListView";
+import type { ItemData } from "@/components/item-list/types";
+import { parseNum as parseItemNum, sumByCategory } from "@/components/item-list/types";
 
 // ── 이미지 압축 ──────────────────────────────────────────────────
 const MAX_UPLOAD_BYTES = 8 * 1024 * 1024; // 8MB (직접 Supabase 업로드 — Vercel 제한 없음)
@@ -55,6 +61,14 @@ function toCellDisplayString(v: unknown): string {
 }
 
 function trimSheet(sheet: ParsedSheet, sheetIdx: number, formValues: Record<string, string>) {
+  // 갑지(커버) 시트는 인쇄영역/내용기준 트리밍 없이 전체 시트를 그대로 사용
+  if (isCoverSheet(sheet.name)) {
+    const trimmedRows = sheet.rows;
+    const usedCols = sheet.colWidths.length;
+    const colWidths = sheet.colWidths;
+    return { trimmedRows, usedCols, colWidths, rowOffset: 0, colOffset: 0 };
+  }
+
   const pa = sheet.printArea;
   if (pa) {
     // Restrict to print area (1-based r1/c1/r2/c2 → 0-based slicing)
@@ -104,6 +118,12 @@ const isPhotoSheet = (name: string) => PHOTO_KEYWORDS.some(k => name.includes(k)
 /** 수당·인건비 시트: 문서형 레이아웃(파란 테두리, 지급 내역 등) 적용 */
 const ALLOWANCE_KEYWORDS = ["수당", "인건비", "업무수당"];
 const isAllowanceSheet = (name: string) => ALLOWANCE_KEYWORDS.some(k => name.includes(k));
+
+/** 갑지(커버) 시트 */
+const isCoverSheet = (name: string) => name.trim() === "갑지" || name.includes("갑지");
+
+/** 항목별세부내역 시트 */
+const isItemSheet = (name: string) => name.includes("항목별세부내역") || name.includes("항목별") || name === "항목";
 
 
 function xlsxCellStr(ws: XLSX.WorkSheet, r: number, c: number): string {
@@ -231,33 +251,41 @@ function PreviewSheet({
   const totalW = colWidths.reduce((a, b) => a + b, 0) || A4_W;
   // 너비만 A4에 맞춤 — 높이는 자연스럽게 늘어나도록 (미리보기 스크롤)
   const scale  = Math.min(1, A4_W / totalW);
+  const isCover = sheet.name.trim() === "갑지" || sheet.name.includes("갑지");
+
+  const tableNode = (
+    <table style={{ borderCollapse: "collapse", tableLayout: "fixed", background: "#fff" }}>
+      <colgroup>{colWidths.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
+      <tbody>
+        {trimmedRows.map((row, ri) => (
+          <tr key={ri} style={row.height !== null ? { height: row.height } : undefined}>
+            {row.cells.slice(0, usedCols).map((cell, ci) => {
+              if (cell.skip) return null;
+              const ref = `${colLetter(ci + 1 + colOffset)}${ri + 1 + rowOffset}`;
+              const ov  = formValues[`${sheetIdx}__${ref}`];
+              return (
+                <td
+                  key={ci}
+                  rowSpan={cell.rowSpan > 1 ? cell.rowSpan : undefined}
+                  colSpan={cell.colSpan > 1 ? cell.colSpan : undefined}
+                  style={cell.style as React.CSSProperties}
+                  className={ov !== undefined ? styles.cellHighlight : undefined}
+                >
+                  {toCellDisplayString(ov ?? cell.value)}
+                </td>
+              );
+            })}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+
   return (
-    <div className={styles.previewPage}>
+    <div className={isCover ? styles.previewPageCover : styles.previewPage}>
       <div className={styles.previewPageName}>{sheet.name}</div>
       <div style={{ zoom: scale, width: totalW } as React.CSSProperties}>
-        <table style={{ borderCollapse: "collapse", tableLayout: "fixed", background: "#fff" }}>
-          <colgroup>{colWidths.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
-          <tbody>
-            {trimmedRows.map((row, ri) => (
-              <tr key={ri} style={row.height !== null ? { height: row.height } : undefined}>
-                {row.cells.slice(0, usedCols).map((cell, ci) => {
-                  if (cell.skip) return null;
-                  const ref = `${colLetter(ci + 1 + colOffset)}${ri + 1 + rowOffset}`;
-                  const ov  = formValues[`${sheetIdx}__${ref}`];
-                  return (
-                    <td key={ci}
-                      rowSpan={cell.rowSpan > 1 ? cell.rowSpan : undefined}
-                      colSpan={cell.colSpan > 1 ? cell.colSpan : undefined}
-                      style={cell.style as React.CSSProperties}
-                      className={ov !== undefined ? styles.cellHighlight : undefined}>
-                      {toCellDisplayString(ov ?? cell.value)}
-                    </td>
-                  );
-                })}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        {tableNode}
       </div>
     </div>
   );
@@ -266,9 +294,10 @@ function PreviewSheet({
 function FitToWidth(props: {
   contentWidth: number;
   contentHeight: number;
+  zoomScale?: number; // Excel 시트 뷰 배율 (기본 100)
   children: React.ReactNode;
 }) {
-  const { contentWidth, contentHeight, children } = props;
+  const { contentWidth, contentHeight, zoomScale = 100, children } = props;
   const hostRef = useRef<HTMLDivElement | null>(null);
   const [hostW, setHostW] = useState<number>(0);
 
@@ -282,33 +311,292 @@ function FitToWidth(props: {
   }, []);
 
   const availW = Math.max(1, hostW);
-  const scale = contentWidth > 0 ? Math.min(1, availW / contentWidth) : 1;
-  // zoom 기반 폭맞춤: transform 대비 1px 테두리 깨짐이 훨씬 덜함(Chromium)
-  const boxW = contentWidth;
-  const boxH = contentHeight;
-  // 뷰포트보다 좁을 때 가운데 정렬 (zoom 후 실제 점유 폭 = boxW * scale)
-  const leftOffset = Math.max(0, (availW - boxW * scale) / 2);
+  // Excel 배율 우선, 뷰포트보다 넘치면 뷰포트에 맞게 축소
+  const naturalScale = zoomScale / 100;
+  const fittedScale  = contentWidth > 0 ? availW / contentWidth : 1;
+  const scale        = Math.min(naturalScale, fittedScale);
 
   return (
     <div ref={hostRef} className={styles.fitHost}>
-      <div style={{ marginLeft: leftOffset }}>
-        <div
-          className={styles.fitZoom}
-          style={{
-            width: boxW,
-            height: boxH,
-            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-            // @ts-ignore: zoom은 표준 타입에 없지만 Chromium에서 동작
-            zoom: scale,
-          }}
-        >
-          {children}
-        </div>
+      <div
+        className={styles.fitZoom}
+        style={{
+          width: contentWidth,
+          height: contentHeight,
+          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+          // @ts-ignore: zoom은 표준 타입에 없지만 Chromium에서 동작
+          zoom: scale,
+        }}
+      >
+        {children}
       </div>
     </div>
   );
 }
 
+
+// ── 갑지 폼 ──────────────────────────────────────────────────────
+
+/** 엑셀 시트에서 갑지 데이터 파싱 (최대한 읽고 없으면 기본값) */
+function parseGabjiFromSheet(sheet: ParsedSheet): GabjiData {
+  const d = makeEmptyGabji();
+
+  // ① 기본정보 라벨 → 오른쪽 값 셀 스캔
+  const BASIC: Array<{ field: keyof GabjiData; keywords: string[] }> = [
+    { field: "gongsamyeong",    keywords: ["공사명"] },
+    { field: "hyeonjangmyeong", keywords: ["현장명"] },
+    { field: "gongsageumaek",   keywords: ["공사금액", "계약금액"] },
+    { field: "gongsagigan",     keywords: ["공사기간", "공기"] },
+    { field: "baljuja",         keywords: ["발주자"] },
+    { field: "gongjungnyul",    keywords: ["공정율", "공정률"] },
+    { field: "signDate",        keywords: ["작성일", "작 성 일"] },
+    { field: "signRep",         keywords: ["현장대리인"] },
+    { field: "signSafety",      keywords: ["안전관리담당자", "안전관리자"] },
+  ];
+
+  for (let ri = 0; ri < sheet.rows.length; ri++) {
+    const row = sheet.rows[ri];
+    for (let ci = 0; ci < row.cells.length; ci++) {
+      const cell = row.cells[ci];
+      if (!cell || cell.skip) continue;
+      const text = toCellDisplayString(cell.value).replace(/[\s\u200b\u3000]/g, "");
+      for (const { field, keywords } of BASIC) {
+        if (d[field]) continue;
+        if (!keywords.some(k => text.includes(k.replace(/\s/g, "")))) continue;
+        for (let nc = ci + 1; nc < row.cells.length; nc++) {
+          const vc = row.cells[nc];
+          if (!vc || vc.skip) continue;
+          const val = toCellDisplayString(vc.value).trim();
+          if (val) (d as unknown as Record<string, string>)[field] = val;
+          break;
+        }
+      }
+    }
+  }
+
+  // ② 사용금액 항목 스캔 (표준 9개 항목 키워드)
+  const ITEM_KW = [
+    "안전관리자",  // 1
+    "안전시설비",  // 2
+    "개인보호구",  // 3
+    "사망사고",    // 4
+    "안전진단",    // 5
+    "안전보건교육", // 6
+    "건강관리",    // 7
+    "건설재해예방", // 8
+    "기타안전",    // 9
+  ];
+
+  const found = new Map<number, { plan: string; use: string }>();
+
+  for (let ri = 0; ri < sheet.rows.length; ri++) {
+    const row = sheet.rows[ri];
+    for (let ci = 0; ci < row.cells.length; ci++) {
+      const cell = row.cells[ci];
+      if (!cell || cell.skip) continue;
+      const text = toCellDisplayString(cell.value).replace(/[\s\u200b\u3000]/g, "");
+      const idx = ITEM_KW.findIndex(k => text.includes(k.replace(/\s/g, "")));
+      if (idx === -1 || found.has(idx)) continue;
+      // 오른쪽에서 숫자 셀 2개 탐색 (계획금액, 사용금액)
+      const nums: string[] = [];
+      for (let nc = ci + 1; nc < Math.min(ci + 12, row.cells.length) && nums.length < 2; nc++) {
+        const vc = row.cells[nc];
+        if (!vc || vc.skip) continue;
+        const v = toCellDisplayString(vc.value).trim();
+        if (v && !isNaN(parseFloat(v.replace(/,/g, "")))) nums.push(v);
+      }
+      found.set(idx, { plan: nums[0] ?? "", use: nums[1] ?? "" });
+    }
+  }
+
+  if (found.size > 0) {
+    d.items = DEFAULT_ITEMS.map((def, idx) => {
+      const hit = found.get(idx);
+      return hit ? { ...def, planAmount: hit.plan, useAmount: hit.use } : { ...def };
+    });
+  }
+
+  return d;
+}
+
+// ── 갑지 인쇄용 셀 오버라이드 계산 ──────────────────────────────
+// 기본 헤더 정보(공사명·금액·기간·발주자·공정율)만 안전하게 덮어씀
+// 항목별 금액은 항목 레이블이 키워드와 충돌할 수 있어 제외
+function gabjiPrintOverrides(
+  sheet: ParsedSheet,
+  sheetIdx: number,
+  data: GabjiData,
+  _itemAmounts: Record<number, number>,
+): Record<string, string> {
+  const overrides: Record<string, string> = {};
+
+  // 항목 레이블("안전관리자등" 등)과 겹치지 않는 고유 키워드만 사용
+  const BASIC_FIELDS: Array<{ field: keyof GabjiData; keywords: string[] }> = [
+    { field: "gongsamyeong",    keywords: ["공사명"] },
+    { field: "gongsageumaek",   keywords: ["공사금액", "계약금액"] },
+    { field: "gongsagigan",     keywords: ["공사기간"] },
+    { field: "baljuja",         keywords: ["발주자"] },
+    { field: "gongjungnyul",    keywords: ["누계공정율", "공정율", "공정률"] },
+    { field: "signDate",        keywords: ["작성일"] },
+    { field: "signRep",         keywords: ["현장대리인"] },
+    { field: "signSafety",      keywords: ["안전관리담당자"] },
+  ];
+  const matched = new Set<string>();
+
+  for (let ri = 0; ri < sheet.rows.length; ri++) {
+    const row = sheet.rows[ri];
+    for (let ci = 0; ci < row.cells.length; ci++) {
+      const cell = row.cells[ci];
+      if (!cell || cell.skip) continue;
+      const text = toCellDisplayString(cell.value).replace(/[\s\u200b\u3000]/g, "");
+
+      for (const { field, keywords } of BASIC_FIELDS) {
+        if (matched.has(field)) continue;
+        if (!keywords.some(k => text.includes(k.replace(/\s/g, "")))) continue;
+        // 라벨 오른쪽의 첫 번째 non-skip 셀에 값 기입
+        for (let nc = ci + 1; nc < row.cells.length; nc++) {
+          const vc = row.cells[nc];
+          if (!vc || vc.skip) continue;
+          matched.add(field);
+          const val = String((data as unknown as Record<string, string>)[field] ?? "");
+          if (val) overrides[`${sheetIdx}__${colLetter(nc + 1)}${ri + 1}`] = val;
+          break;
+        }
+      }
+    }
+  }
+  return overrides;
+}
+
+// ── 항목별세부내역 → ItemData[] 파싱 ────────────────────────────
+function parseItemsFromRaw(rawBuf: ArrayBuffer): ItemData[] {
+  const wb = XLSX.read(rawBuf, { type: "array", cellDates: true });
+  const ws = wb.Sheets["항목별세부내역"];
+  if (!ws) return [];
+
+  const range = XLSX.utils.decode_range(ws["!ref"] ?? "A1");
+  const items: ItemData[] = [];
+  let currentCategory = 0;
+  const noCounters = new Map<number, number>(); // categoryNo → auto-no counter
+
+  for (let r = range.s.r; r <= range.e.r; r++) {
+    // col0: 항목번호 헤더 ("1.", "2.", ...)
+    const col0 = xlsxCellStr(ws, r, 0);
+    const catMatch = col0.replace(/\s/g, "").match(/^(\d+)\./);
+    if (catMatch) {
+      currentCategory = parseInt(catMatch[1]);
+      continue;
+    }
+    if (currentCategory === 0) continue;
+
+    const usageDate = xlsxCellStr(ws, r, 1);
+    const name      = xlsxCellStr(ws, r, 2);
+    // col3: 수량(숫자) or 단위(문자) — 숫자면 수량으로 쓰고 단위는 EA 기본
+    const col3      = xlsxCellStr(ws, r, 3);
+    const col3Num   = parseItemNum(col3);
+    const isCol3Num = !isNaN(col3Num) && col3.trim() !== "";
+    const quantity  = isCol3Num ? col3Num : 1;
+    const unit      = isCol3Num ? "EA" : (col3.trim() || "EA");
+    const unitPriceStr = xlsxCellStr(ws, r, 4);
+    const amountStr    = xlsxCellStr(ws, r, 5);
+    const evidenceStr  = xlsxCellStr(ws, r, 6);
+
+    // 단가·금액이 없으면 데이터 행이 아님
+    const unitPrice = parseItemNum(unitPriceStr);
+    const amount    = parseItemNum(amountStr);
+    if (!unitPriceStr.trim() && !amountStr.trim()) continue;
+    if (!name.trim()) continue;
+
+    // 증빙번호: NO.X 형태 or 자동 부여
+    let evidenceNo = "";
+    const evMatch = evidenceStr.replace(/\s/g, "").toUpperCase().match(/^NO\.?(\d+)$/);
+    if (evMatch) {
+      evidenceNo = `NO.${evMatch[1]}`;
+    } else {
+      const cnt = (noCounters.get(currentCategory) ?? 0) + 1;
+      noCounters.set(currentCategory, cnt);
+      evidenceNo = `NO.${cnt}`;
+    }
+
+    items.push({
+      id:          `item-${r}-${currentCategory}`,
+      categoryNo:  currentCategory,
+      evidenceNo,
+      usageDate,
+      name,
+      quantity,
+      unit,
+      unitPrice,
+      amount: amount || quantity * unitPrice,
+      note:   evidenceStr && !evMatch ? evidenceStr : "",
+      hasPhoto: true, // 기본적으로 사진대지 대상
+    });
+  }
+  return items;
+}
+
+/** ItemData[] → 사진대지 PhotoBlock[] 생성 (parsePhotoBlocksFromRaw 대체) */
+function buildPhotoBlocksFromItems(
+  items: ItemData[],
+  sheetNames: string[],
+): Record<string, PhotoBlock[]> {
+  // categoryNo → 사진대지 시트명 매핑
+  const catToSheet = new Map<number, string>();
+  for (const name of sheetNames) {
+    if (!isPhotoSheet(name)) continue;
+    const m = name.match(/^(\d+)\./);
+    if (m) catToSheet.set(parseInt(m[1]), name);
+  }
+
+  const result: Record<string, PhotoBlock[]> = {};
+  let cumNo = 0;
+
+  // categoryNo 순 → 삽입 순서 유지
+  const photoItems = [...items]
+    .filter(i => i.hasPhoto)
+    .sort((a, b) => a.categoryNo - b.categoryNo);
+
+  for (const item of photoItems) {
+    const sheetName = catToSheet.get(item.categoryNo);
+    if (!sheetName) continue;
+    cumNo++;
+    if (!result[sheetName]) result[sheetName] = [];
+    const label = item.quantity > 1
+      ? `${item.name} [${item.quantity}${item.unit}]`
+      : item.name;
+    result[sheetName].push({
+      id:           `local_${sheetName}_${cumNo}`,
+      doc_id:       "local",
+      sheet_name:   sheetName,
+      no:           cumNo,
+      right_header: "지급 사진",
+      left_date:    item.usageDate,
+      right_date:   item.usageDate,
+      left_label:   label,
+      right_label:  label,
+      sort_order:   result[sheetName].length,
+      photos:       [],
+    });
+  }
+  return result;
+}
+
+/** 기존 photos를 새 블록 구조에 병합 (블록 no 기준 매칭) */
+function mergePhotoBlocks(
+  newBlocks: Record<string, PhotoBlock[]>,
+  prevBlocks: Record<string, PhotoBlock[]>,
+): Record<string, PhotoBlock[]> {
+  const merged: Record<string, PhotoBlock[]> = {};
+  for (const [sheetName, blocks] of Object.entries(newBlocks)) {
+    merged[sheetName] = blocks.map(nb => {
+      const existing = (prevBlocks[sheetName] ?? []).find(pb => pb.no === nb.no);
+      return existing
+        ? { ...nb, id: existing.id, doc_id: existing.doc_id, photos: existing.photos }
+        : nb;
+    });
+  }
+  return merged;
+}
 
 // ── Page ─────────────────────────────────────────────────────────
 export default function FillPage() {
@@ -319,6 +607,8 @@ export default function FillPage() {
   const [sheets,       setSheets]       = useState<ParsedSheet[]>([]);
   const [activeSheet,  setActiveSheet]  = useState(0);
   const [formValues,   setFormValues]   = useState<Record<string, string>>({});
+  const [gabjiData,    setGabjiData]    = useState<GabjiData>(makeEmptyGabji);
+  const [items,        setItems]        = useState<ItemData[]>([]);
   const [rawBuf,       setRawBuf]       = useState<ArrayBuffer | null>(null);
   const [fileName,     setFileName]     = useState("");
   const [loading,      setLoading]      = useState(false);
@@ -328,6 +618,7 @@ export default function FillPage() {
     ref: string; sheetIdx: number; originalValue: string;
   } | null>(null);
   const [editValue, setEditValue] = useState("");
+  const [inAppSaved, setInAppSaved] = useState(false);
 
   // ── 사진대지 ──────────────────────────────────────────────────
   // docId: 서버 upsert에 쓰이는 UUID (localStorage draft에서 복원 or 신규 생성)
@@ -364,6 +655,21 @@ export default function FillPage() {
   useEffect(() => {
     setIsStandalone(window.matchMedia("(display-mode: standalone)").matches);
   }, []);
+
+  // ── 사진 업로드 중 body 스크롤 잠금 ──────────────────────────────
+  useEffect(() => {
+    if (photoUploading) {
+      document.body.style.overflow = "hidden";
+      document.body.style.touchAction = "none";
+    } else {
+      document.body.style.overflow = "";
+      document.body.style.touchAction = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+      document.body.style.touchAction = "";
+    };
+  }, [photoUploading]);
 
   // ── PWA Share Target: SW 캐시에서 공유된 엑셀 파일 수신 ──────────
   useEffect(() => {
@@ -492,20 +798,22 @@ export default function FillPage() {
     let pId  = "";    // pending photo id (밖에서 finally가 접근 가능하게)
     let pUrl = "";    // local object URL
     try {
-      // 압축 → 크기 초과 시 재압축 (Vercel 4.5MB 제한 대응)
+      // ① 로컬 미리보기: 원본 File로 즉시 blob URL 생성
+      //    compressImage 결과 blob이 아닌 원본을 사용 → 모바일에서 100% 안전
+      //    (canvas.toBlob 결과물은 일부 iOS에서 createObjectURL이 실패할 수 있음)
+      pUrl = URL.createObjectURL(file);
+
+      // 업로드용 JPEG 변환 (포맷 통일 + 크기 제한)
       let compressed: Blob;
       try {
-        compressed = await compressImage(file, 1920, 0.8);
+        compressed = await compressImage(file, 4096, 0.97);
         if (compressed.size > MAX_UPLOAD_BYTES)
-          compressed = await compressImage(file, 1280, 0.7);
+          compressed = await compressImage(file, 2560, 0.92);
         if (compressed.size > MAX_UPLOAD_BYTES)
-          compressed = await compressImage(file, 960, 0.6);
+          compressed = await compressImage(file, 1920, 0.90);
       } catch {
         compressed = file;
       }
-
-      // ① 로컬 미리보기 즉시 표시 (같은 side·slot이 있으면 교체)
-      pUrl = URL.createObjectURL(compressed);
       pId  = `pending_${Date.now()}`;
       const pendingPhoto: BlockPhoto = { id: pId, block_id: blockId, side, slot_index: slotIndex, storage_path: "", url: pUrl };
       setPhotoBlocks(prev => {
@@ -594,7 +902,11 @@ export default function FillPage() {
                 ...b,
                 photos: b.photos.map(p => p.id !== pId ? p : {
                   id: photoRow.id as string, block_id: dbBlockId, side, slot_index: slotIndex,
-                  storage_path: storagePath, url: signed?.signedUrl || pUrl,
+                  storage_path: storagePath,
+                  // ★ 모바일 깨진 이미지 방지: signed URL(네트워크 요청)을 쓰지 않고
+                  //   로컬 blob URL(URL.createObjectURL)을 그대로 사용.
+                  //   signed URL은 페이지 재로드 시 GET /api/photo-blocks 에서 재생성됨.
+                  url: pUrl,
                 }),
               }));
             }
@@ -633,7 +945,9 @@ export default function FillPage() {
               ...b,
               photos: b.photos.map(p => p.id !== pId ? p : {
                 id: json.photoId!, block_id: json.blockId!, side, slot_index: slotIndex,
-                storage_path: "", url: json.signedUrl || pUrl,
+                storage_path: "",
+                // ★ API 폴백 경로도 동일하게 로컬 blob URL 사용 (모바일 호환)
+                url: pUrl,
               }),
             }));
           }
@@ -853,8 +1167,26 @@ export default function FillPage() {
       setFormValues({});
       setSelectedCell(null);
 
-      // 항목별세부내역 기반 블록 파싱 (항상 새로 파싱 — xlsx 원본이 단일 원본)
-      const freshBlocks = parsePhotoBlocksFromRaw(buf, parsed.map(s => s.name));
+      // 갑지·항목별세부내역: localStorage 저장본 우선, 없으면 엑셀 파싱
+      const savedFillData = (() => {
+        try { return JSON.parse(localStorage.getItem(`fill_data_${file.name}`) ?? "null"); } catch { return null; }
+      })();
+
+      if (savedFillData?.gabjiData && savedFillData?.items) {
+        setGabjiData(savedFillData.gabjiData);
+        setItems(savedFillData.items);
+      } else {
+        const gabjiSheet = parsed.find(s => isCoverSheet(s.name));
+        if (gabjiSheet) setGabjiData(parseGabjiFromSheet(gabjiSheet));
+        const parsedItems = parseItemsFromRaw(buf);
+        setItems(parsedItems);
+      }
+
+      // ── 사진대지 블록: items 기반 생성 (parsePhotoBlocksFromRaw 대체)
+      const resolvedItems: ItemData[] = savedFillData?.items ?? parseItemsFromRaw(buf);
+      const freshBlocks = resolvedItems.length > 0
+        ? buildPhotoBlocksFromItems(resolvedItems, parsed.map(s => s.name))
+        : parsePhotoBlocksFromRaw(buf, parsed.map(s => s.name)); // fallback
 
       // docId 복원 (사진 서버 연결용) — 블록 구조는 항상 freshBlocks 사용
       const draft = photoDraft.load(file.name);
@@ -899,178 +1231,81 @@ export default function FillPage() {
     }
   }, []);
 
-  const handlePrint = useCallback(() => {
-    const win = window.open("", "_blank");
-    if (!win) return;
-    const sheetsHtml = sheets.map((sheet, sheetIdx) => {
-      const { trimmedRows, usedCols, colWidths, rowOffset, colOffset } = trimSheet(sheet, sheetIdx, formValues);
-      const totalW  = colWidths.reduce((a, b) => a + b, 0) || A4_W;
-      const scale   = Math.min(1, A4_W / totalW);
-      const colgroup = colWidths.map(w => `<col style="width:${w}px">`).join("");
-      const tbody = trimmedRows.map((row, ri) =>
-        `<tr ${row.height !== null ? `style="height:${row.height}px"` : ""}>${
-          row.cells.slice(0, usedCols).map((cell, ci) => {
-            if (cell.skip) return "";
-            const ref = `${colLetter(ci + 1 + colOffset)}${ri + 1 + rowOffset}`;
-            const val = toCellDisplayString(formValues[`${sheetIdx}__${ref}`] ?? cell.value)
-              .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-            const css = Object.entries(cell.style)
-              .map(([k, v]) => `${k.replace(/([A-Z])/g, c => `-${c.toLowerCase()}`)}:${v}`).join(";");
-            const rs = cell.rowSpan > 1 ? ` rowspan="${cell.rowSpan}"` : "";
-            const cs = cell.colSpan > 1 ? ` colspan="${cell.colSpan}"` : "";
-            return `<td${rs}${cs} style="${css}">${val}</td>`;
-          }).join("")
-        }</tr>`
-      ).join("");
-      return `<div class="sheet-page"><div class="sheet-name">${sheet.name}</div>
-        <div class="zoom-wrap" style="zoom:${scale.toFixed(4)};width:${totalW}px" data-w="${totalW}" data-zoom="${scale.toFixed(4)}">
-          <table><colgroup>${colgroup}</colgroup><tbody>${tbody}</tbody></table>
-        </div></div>`;
-    }).join("");
-    win.document.write(`<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>${fileName||"인쇄"}</title>
-<style>@page{size:A4 portrait;margin:15mm}*{box-sizing:border-box}body{margin:0;background:#f3f4f6;font-family:'Calibri','Apple SD Gothic Neo',sans-serif}
-.print-btn{position:fixed;top:16px;right:16px;padding:10px 22px;background:#2563eb;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;z-index:10}
-.sheet-page{margin:16px auto;page-break-after:always;background:#fff;box-shadow:0 2px 12px rgba(0,0,0,0.15);overflow:hidden;width:fit-content;max-width:100vw}
-.sheet-page:last-child{page-break-after:avoid}
-.sheet-name{font-size:10pt;font-weight:700;color:#374151;margin-bottom:6px;padding:6px 12px;background:#f9fafb;border-bottom:1px solid #e5e7eb}
-.clip{overflow:hidden;position:relative}.wrap{transform-origin:top left;position:absolute;top:0;left:0}
-table{border-collapse:collapse;table-layout:fixed;background:#fff}td{box-sizing:border-box}
-@media(max-width:700px){body{background:#fff}.sheet-page{box-shadow:none;margin:0 auto}}
-@media print{.print-btn{display:none}body{background:#fff}.sheet-page{box-shadow:none;margin:0}}</style>
-<script>
-(function(){
-  function fitSheets(){
-    var vw=window.innerWidth;
-    document.querySelectorAll('.sheet-page').forEach(function(page){
-      var clip=page.querySelector('.clip');
-      var wrap=page.querySelector('.wrap');
-      if(!clip||!wrap)return;
-      var origW=parseInt(wrap.style.width)||680;
-      var avail=Math.min(vw-8,origW);
-      var sc=(avail/origW);
-      var origH=parseInt(clip.style.height)||400;
-      clip.style.width=avail+'px';
-      clip.style.height=Math.ceil(origH*(avail/origW))+'px';
-      wrap.style.transform='scale('+sc.toFixed(4)+')';
-    });
-  }
-  document.addEventListener('DOMContentLoaded',fitSheets);
-  window.addEventListener('resize',fitSheets);
-})();
-</script></head>
-<body><button class="print-btn" onclick="window.print()">인쇄</button>${sheetsHtml}</body></html>`);
-    win.document.close();
-  }, [sheets, formValues, fileName]);
-
   // ── 사진대지 새 창 인쇄 (window.print 대신 새 창 HTML 생성) ──
   const handlePhotoSheetPrint = useCallback(async () => {
     const s = sheets[activeSheet];
     if (!s) return;
     const blocks = photoBlocks[s.name] ?? [];
 
-    // blob: URL → data URI 변환 (새 창에서 blob: 접근 불가)
-    const toDataUri = async (url: string): Promise<string> => {
-      if (!url || !url.startsWith("blob:")) return url;
+    // PDF용 data URI 변환: 800px / 85% 재압축 (Puppeteer 네트워크 요청 없이 인라인 렌더링)
+    const toDataUriForPdf = async (url: string): Promise<string> => {
+      if (!url) return "";
       try {
-        const res = await fetch(url);
+        // Supabase 저장 사진 → signed URL로 먼저 변환
+        let fetchUrl = url;
+        if (!url.startsWith("blob:") && !url.startsWith("data:")) {
+          const match = url.match(/\/expense-evidence\/(.+?)(?:\?|$)/);
+          if (match) {
+            const { data } = await supabase.storage
+              .from("expense-evidence")
+              .createSignedUrl(match[1], 300);
+            if (data?.signedUrl) fetchUrl = data.signedUrl;
+          }
+        }
+        const res  = await fetch(fetchUrl);
         const blob = await res.blob();
         return await new Promise(resolve => {
-          const reader = new FileReader();
-          reader.onloadend = () => resolve(reader.result as string);
-          reader.readAsDataURL(blob);
+          const img    = new Image();
+          const objUrl = URL.createObjectURL(blob);
+          img.onload = () => {
+            URL.revokeObjectURL(objUrl);
+            const MAX = 800;
+            const scale = Math.min(1, MAX / Math.max(img.width, img.height));
+            const canvas = document.createElement("canvas");
+            canvas.width  = Math.round(img.width  * scale);
+            canvas.height = Math.round(img.height * scale);
+            canvas.getContext("2d")!.drawImage(img, 0, 0, canvas.width, canvas.height);
+            resolve(canvas.toDataURL("image/jpeg", 0.85));
+          };
+          img.onerror = () => { URL.revokeObjectURL(objUrl); resolve(""); };
+          img.src = objUrl;
         });
-      } catch { return url; }
+      } catch { return ""; }
     };
 
     const resolvedBlocks = await Promise.all(blocks.map(async b => ({
       ...b,
-      photos: await Promise.all(b.photos.map(async p => ({ ...p, url: p.url ? await toDataUri(p.url) : "" }))),
+      photos: await Promise.all(b.photos.map(async p => ({
+        ...p, url: await toDataUriForPdf(p.url ?? ""),
+      }))),
     })));
 
-    const photoGridHtml = (photos: typeof resolvedBlocks[0]["photos"], count: number) => {
-      const sorted = photos.sort((a, b) => a.slot_index - b.slot_index).slice(0, 4);
-      const gridCols = count <= 1 ? "1fr" : "1fr 1fr";
-      const gridRows = count <= 2 ? "1fr" : "1fr 1fr";
-      const cells = sorted.map((p, i) => {
-        const span = count === 3 && i === 2 ? "grid-column:1/-1;" : "";
-        return p.url
-          ? `<div style="${span}position:relative;overflow:hidden;"><img src="${p.url}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;" /></div>`
-          : `<div style="${span}background:#e5e7eb;"></div>`;
-      }).join("");
-      const tmpl = count === 3
-        ? "grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;"
-        : `grid-template-columns:${gridCols};grid-template-rows:${gridRows};`;
-      return `<div style="display:grid;${tmpl}gap:2px;width:100%;height:100%;">${cells}</div>`;
-    };
+    // Puppeteer API로 고품질 PDF 생성 (deviceScaleFactor:3 = ~288dpi)
+    const res = await fetch("/api/photo-pdf", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sheetName: s.name, blocks: resolvedBlocks }),
+    });
 
-    const BLOCKS_PER_PAGE = 3;
-    const pages: typeof resolvedBlocks[] = [];
-    for (let i = 0; i < resolvedBlocks.length; i += BLOCKS_PER_PAGE) pages.push(resolvedBlocks.slice(i, i + BLOCKS_PER_PAGE));
+    if (!res.ok) {
+      alert("PDF 생성에 실패했습니다. 잠시 후 다시 시도해주세요.");
+      return;
+    }
 
-    const pagesHtml = pages.map((pageBlocks, pi) => {
-      const pageBreak = pi < pages.length - 1 ? "page-break-after:always;" : "";
-      const blocksHtml = pageBlocks.map(block => {
-        const lp = block.photos.filter(p => p.side === "left");
-        const rp = block.photos.filter(p => p.side === "right");
-        return `<div class="bc">
-          <div class="bh">NO. ${block.no}</div>
-          <div class="sh"><div class="shc">반입사진</div><div class="shc">${block.right_header || "지급/설치사진"}</div></div>
-          <div class="gr">
-            <div class="gw">${photoGridHtml(lp, Math.min(lp.length, 4))}</div>
-            <div class="gd"></div>
-            <div class="gw">${photoGridHtml(rp, Math.min(rp.length, 4))}</div>
-          </div>
-          <div class="bf">
-            <div class="fs"><span class="fl">날짜</span><span class="fv">${block.left_date ?? ""}</span><span class="fl">항목</span><span class="fv">${block.left_label ?? ""}</span></div>
-            <div class="fd"></div>
-            <div class="fs"><span class="fl">날짜</span><span class="fv">${block.right_date ?? ""}</span><span class="fl">항목</span><span class="fv">${block.right_label ?? ""}</span></div>
-          </div>
-        </div>`;
-      }).join("");
-      return `<div style="${pageBreak}"><div class="pt">${s.name}</div>${blocksHtml}</div>`;
-    }).join("");
-
-    const win = window.open("", "_blank");
-    if (!win) return;
-    win.document.write(`<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><title>${s.name}</title>
-<style>
-@page{size:A4 portrait;margin:12mm}*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,'Apple SD Gothic Neo',sans-serif;background:#fff}
-.pt{font-size:13px;font-weight:700;text-align:center;color:#111827;padding:6px 0 10px;border-bottom:2px solid #111827;margin-bottom:10px;}
-.bc{border:1.5px solid #374151;border-radius:4px;overflow:hidden;margin-bottom:10px;}
-.bh{background:#111827;padding:6px 12px;font-size:13px;font-weight:700;color:#fff;}
-.sh{display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid #d1d5db;}
-.shc{font-size:11px;font-weight:700;color:#374151;text-align:center;padding:5px 0;background:#f3f4f6;}
-.shc:first-child{border-right:1px solid #d1d5db;}
-.gr{display:grid;grid-template-columns:1fr 1px 1fr;height:200px;}
-.gw{padding:4px;}
-.gd{background:#d1d5db;}
-.bf{display:grid;grid-template-columns:1fr 1px 1fr;border-top:1px solid #d1d5db;background:#f9fafb;}
-.fs{display:grid;grid-template-columns:auto 1fr;gap:2px 8px;padding:7px 10px;align-items:baseline;}
-.fl{font-size:10px;font-weight:700;color:#6b7280;}
-.fv{font-size:11px;color:#111827;font-weight:500;}
-.fd{background:#d1d5db;}
-.pb{position:fixed;top:16px;right:16px;padding:10px 22px;background:#2563eb;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;}
-@media print{.pb{display:none}}
-</style></head><body>
-<button class="pb" onclick="window.print()">인쇄</button>
-${pagesHtml}
-</body></html>`);
-    win.document.close();
+    const blob = await res.blob();
+    const url  = URL.createObjectURL(blob);
+    window.open(url, "_blank");
   }, [sheets, activeSheet, photoBlocks]);
 
-  // ── 현재 활성 시트만 새 창 인쇄 ──────────────────────────────
   const sheet = sheets[activeSheet];
-  const handlePrintActive = useCallback(() => {
+
+  // ── 현재 활성 시트 PDF 생성 요청 ──────────────────────────────
+  const handlePrintActive = useCallback(async () => {
     if (!sheet) return;
-    const win = window.open("", "_blank");
-    if (!win) return;
     const { trimmedRows, usedCols, colWidths, rowOffset, colOffset } = trimSheet(sheet, activeSheet, formValues);
-    const totalW  = colWidths.reduce((a, b) => a + b, 0) || A4_W;
-    const totalH  = trimmedRows.reduce((s, r) => s + (r.height ?? 20), 0);
-    const scale   = Math.min(1, A4_W / totalW);
-    const scaledH = Math.ceil(totalH * scale);
-    const colgroup = colWidths.map(w => `<col style="width:${w}px">`).join("");
+    const colgroup = colWidths
+      .map(() => `<col style="width:auto">`)
+      .join("");
     const tbody = trimmedRows.map((row, ri) =>
       `<tr ${row.height !== null ? `style="height:${row.height}px"` : ""}>${
         row.cells.slice(0, usedCols).map((cell, ci) => {
@@ -1087,19 +1322,41 @@ ${pagesHtml}
       }</tr>`
     ).join("");
     const sheetHtml = `<div class="sheet-page">
-      <div class="clip" style="width:${A4_W}px;height:${scaledH}px">
-        <div class="wrap" style="transform:scale(${scale.toFixed(4)});width:${totalW}px">
-          <table><colgroup>${colgroup}</colgroup><tbody>${tbody}</tbody></table>
-        </div></div></div>`;
-    win.document.write(`<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><title>${sheet.name}</title>
-<style>@page{size:A4 portrait;margin:15mm}*{box-sizing:border-box}body{margin:0;background:#f3f4f6;font-family:'Calibri','Apple SD Gothic Neo',sans-serif}
-.print-btn{position:fixed;top:16px;right:16px;padding:10px 22px;background:#2563eb;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;z-index:10}
-.sheet-page{margin:16px auto;background:#fff;box-shadow:0 2px 12px rgba(0,0,0,0.15);overflow:hidden;width:fit-content;max-width:100vw}
-.clip{overflow:hidden;position:relative}.wrap{transform-origin:top left;position:absolute;top:0;left:0}
-table{border-collapse:collapse;table-layout:fixed;background:#fff}td{box-sizing:border-box}
-@media print{.print-btn{display:none}body{background:#fff}.sheet-page{box-shadow:none;margin:0}}</style>
-</head><body><button class="print-btn" onclick="window.print()">인쇄</button>${sheetHtml}</body></html>`);
-    win.document.close();
+      <table class="sheet-table"><colgroup>${colgroup}</colgroup><tbody>${tbody}</tbody></table>
+    </div>`;
+    const fullHtml = `<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><title>${sheet.name}</title>
+<style>
+  @page{size:A4 portrait;margin:10mm}
+  *{box-sizing:border-box}
+  body{margin:0;background:#ffffff;font-family:'Calibri','Apple SD Gothic Neo',sans-serif}
+  .sheet-page{
+    margin:0 auto;
+    padding:0;
+  }
+  .sheet-table{
+    width:100%;
+    border-collapse:collapse;
+    table-layout:fixed;
+    background:#fff;
+  }
+  .sheet-table td{
+    box-sizing:border-box;
+  }
+</style>
+</head><body>${sheetHtml}</body></html>`;
+
+    const res = await fetch("/api/sheet-pdf", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sheetName: sheet.name, html: fullHtml }),
+    });
+    if (!res.ok) {
+      alert("PDF 생성에 실패했습니다. 잠시 후 다시 시도해주세요.");
+      return;
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    window.open(url, "_blank");
   }, [sheet, activeSheet, formValues]);
 
   const handleDownload = useCallback(() => {
@@ -1125,11 +1382,54 @@ table{border-collapse:collapse;table-layout:fixed;background:#fff}td{box-sizing:
   const editedCount = Object.keys(formValues).length;
   const isPhotoActive = sheet ? isPhotoSheet(sheet.name) : false;
 
-  /** 상단 저장 버튼: 사진대지 → 서버 저장, 그 외 → 수정본 엑셀 다운로드 */
+  const handleGabjiSave = useCallback((data: GabjiData) => {
+    setGabjiData(data);
+  }, []);
+
+  /** items 변경 → 갑지 useAmount 자동 갱신 + 사진대지 블록 재빌드 */
+  const handleItemsChange = useCallback((newItems: ItemData[]) => {
+    setItems(newItems);
+    // 갑지 items의 useAmount를 카테고리 합계로 자동 업데이트
+    setGabjiData(prev => ({
+      ...prev,
+      items: prev.items.map(gi => ({
+        ...gi,
+        useAmount: String(sumByCategory(newItems, gi.no)),
+      })),
+    }));
+    // 사진대지 재빌드 (기존 photos 보존)
+    if (sheets.length) {
+      const newBlocks = buildPhotoBlocksFromItems(newItems, sheets.map(s => s.name));
+      setPhotoBlocks(prev => mergePhotoBlocks(newBlocks, prev));
+    }
+  }, [sheets]);
+
+  const isCoverActive = sheet ? isCoverSheet(sheet.name) : false;
+  const isItemActive  = sheet ? isItemSheet(sheet.name)  : false;
+
+  /** 갑지·항목별세부내역: localStorage에 데이터 저장 */
+  const handleInAppSave = useCallback(() => {
+    if (!fileName) return;
+    try {
+      localStorage.setItem(
+        `fill_data_${fileName}`,
+        JSON.stringify({ gabjiData, items, savedAt: Date.now() }),
+      );
+    } catch { /* 저장 실패 무시 */ }
+    setInAppSaved(true);
+    setTimeout(() => setInAppSaved(false), 2200);
+  }, [fileName, gabjiData, items]);
+
+  /** 상단 저장 버튼:
+   *  사진대지    → 서버 저장
+   *  갑지·항목별 → 앱 내 저장 (localStorage)
+   *  그 외       → 수정본 엑셀 다운로드
+   */
   const handleSaveSheet = useCallback(() => {
-    if (isPhotoActive) handlePhotoSave();
-    else handleDownload();
-  }, [isPhotoActive, handlePhotoSave, handleDownload]);
+    if (isPhotoActive)              handlePhotoSave();
+    else if (isCoverActive || isItemActive) handleInAppSave();
+    else                            handleDownload();
+  }, [isPhotoActive, isCoverActive, isItemActive, handlePhotoSave, handleInAppSave, handleDownload]);
 
   // ── 인쇄 영역(printArea) 기반 표시 범위 계산 ─────────────────────
   const pa        = sheet?.printArea;
@@ -1177,7 +1477,8 @@ table{border-collapse:collapse;table-layout:fixed;background:#fff}td{box-sizing:
         )}
         {sheets.length > 0 && (<>
           {/* 저장: 모든 시트에서 표시. 사진대지 → 서버 저장, 그 외 → 수정본 다운로드 */}
-          <button type="button" className={styles.saveBtn}
+          <button type="button"
+            className={`${styles.saveBtn} ${inAppSaved ? styles.saveBtnDone : ""}`}
             onClick={handleSaveSheet} disabled={isPhotoActive && photoSaving}>
             {isPhotoActive && photoSaving
               ? <span className={styles.saveBtnSpinner} />
@@ -1187,7 +1488,11 @@ table{border-collapse:collapse;table-layout:fixed;background:#fff}td{box-sizing:
                   <polyline points="7 3 7 8 15 8"/>
                 </svg>
             }
-            <span>{isPhotoActive && photoSaving ? "저장 중…" : "저장"}</span>
+            <span>
+              {isPhotoActive && photoSaving ? "저장 중…"
+                : inAppSaved ? "저장 완료 ✓"
+                : "저장"}
+            </span>
           </button>
           {/* 인쇄: 항상 미리보기 먼저 표시 (항목별 세부내역·사진대지 공통) */}
           <button type="button" className={styles.printBtn} onClick={() => setShowPreview(true)}>
@@ -1240,7 +1545,21 @@ table{border-collapse:collapse;table-layout:fixed;background:#fff}td{box-sizing:
             )}
           </div>
 
-          {sheet && isPhotoSheet(sheet.name) ? (
+          {sheet && isCoverSheet(sheet.name) ? (
+            <div key={`gabji-${activeSheet}`} className={styles.viewport} style={{ overflowY: "auto" }}>
+              <GabjiFormView
+                data={gabjiData}
+                onSave={handleGabjiSave}
+                itemAmounts={Object.fromEntries(
+                  Array.from({ length: 9 }, (_, i) => [i + 1, sumByCategory(items, i + 1)])
+                )}
+              />
+            </div>
+          ) : sheet && isItemSheet(sheet.name) ? (
+            <div key={`items-${activeSheet}`} className={styles.viewportPhoto}>
+              <ItemListView items={items} onChange={handleItemsChange} />
+            </div>
+          ) : sheet && isPhotoSheet(sheet.name) ? (
             <div key={`photo-${activeSheet}`} className={styles.viewportPhoto}>
               {photoUploading && (
                 <div className={styles.overlay}>
@@ -1275,6 +1594,7 @@ table{border-collapse:collapse;table-layout:fixed;background:#fff}td{box-sizing:
               <FitToWidth
                 contentWidth={displayColWidths.reduce((a, b) => a + b, 0) || 1}
                 contentHeight={displayRows.reduce((sum, r) => sum + (r.height ?? 20), 0) || 1}
+                zoomScale={sheet.zoomScale}
               >
                 <table className={`${styles.table} ${styles.tableOuterThick}`}>
                   <colgroup>{displayColWidths.map((w, i) => <col key={i} style={{ width: w }} />)}</colgroup>
@@ -1325,7 +1645,11 @@ table{border-collapse:collapse;table-layout:fixed;background:#fff}td{box-sizing:
               인쇄 미리보기 <span className={styles.previewCount}>· {sheet.name}</span>
             </span>
             <div className={styles.previewHeaderActions}>
-              <button type="button" className={styles.previewPrintBtn} onClick={() => isPhotoSheet(sheet.name) ? handlePhotoSheetPrint() : window.print()}>
+              <button
+                type="button"
+                className={styles.previewPrintBtn}
+                onClick={() => window.print()}
+              >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
                   <polyline points="6 9 6 2 18 2 18 9" />
                   <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
@@ -1349,6 +1673,18 @@ table{border-collapse:collapse;table-layout:fixed;background:#fff}td{box-sizing:
                   a4Mode
                 />
               </div>
+            ) : isCoverSheet(sheet.name) ? (
+              <PreviewSheet
+                sheet={sheet}
+                sheetIdx={activeSheet}
+                formValues={{
+                  ...formValues,
+                  ...gabjiPrintOverrides(
+                    sheet, activeSheet, gabjiData,
+                    Object.fromEntries(Array.from({ length: 9 }, (_, i) => [i + 1, sumByCategory(items, i + 1)])),
+                  ),
+                }}
+              />
             ) : (
               <PreviewSheet sheet={sheet} sheetIdx={activeSheet} formValues={formValues} />
             )}

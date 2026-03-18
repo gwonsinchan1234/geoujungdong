@@ -20,6 +20,7 @@ export type ParsedSheet = {
   rows:       Array<{ height: number | null; cells: ParsedCell[] }>;
   colWidths:  number[];
   printArea?: { r1: number; c1: number; r2: number; c2: number } | null;
+  zoomScale:  number; // Excel 시트 뷰 확대/축소 (기본 100)
 };
 
 // ─────────────────────────────────────────────────────────────────
@@ -478,7 +479,10 @@ export async function parseExcelBuffer(arrayBuffer: ArrayBuffer): Promise<Parsed
       }
     }
 
-    return { name: ws.name, rows, colWidths, printArea };
+    const views = ws.views as Array<{ zoomScale?: number; zoomScaleNormal?: number }>;
+    const zoomScale = views?.[0]?.zoomScale ?? views?.[0]?.zoomScaleNormal ?? 100;
+
+    return { name: ws.name, rows, colWidths, printArea, zoomScale };
   });
 
   for (const group of SAME_LAYOUT_GROUPS) {

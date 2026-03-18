@@ -137,6 +137,7 @@
 }
 .saveBtn:hover:not(:disabled) { background: #6d28d9; }
 .saveBtn:disabled { opacity: 0.6; cursor: not-allowed; }
+.saveBtnDone { background: #059669 !important; }
 
 .saveBtnSpinner {
   display: inline-block;
@@ -179,7 +180,7 @@
 
 /* 로딩 오버레이 */
 .overlay {
-  position: absolute;
+  position: fixed;
   inset: 0;
   display: flex;
   flex-direction: column;
@@ -187,9 +188,10 @@
   justify-content: center;
   gap: 14px;
   background: rgba(255, 255, 255, 0.9);
-  z-index: 10;
+  z-index: 999;
   font-size: 13px;
   color: #6b7280;
+  touch-action: none;
 }
 
 .spinner {
@@ -280,7 +282,8 @@
   padding-bottom: 16px;
 }
 .fitZoom {
-  transform-origin: top left;
+  display: block;
+  margin: 0 auto;
 }
 
 .viewport::-webkit-scrollbar { width: 6px; height: 6px; }
@@ -522,7 +525,8 @@
 }
 
 /* A4 세로: 595×842px 기준, 전체 내용 스크롤로 표시 */
-.previewPage {
+.previewPage,
+.previewPageCover {
   background: #fff;
   box-shadow: 0 4px 32px rgba(0, 0, 0, 0.5);
   padding: 0;
@@ -615,7 +619,8 @@
     align-items: center;
   }
 
-  .previewPage {
+  .previewPage,
+  .previewPageCover {
     width: 595px;
     min-height: 842px;
     /* 한 화면에 들어가도록 스케일 (가로·세로 중 작은 비율), 100dvh 폴백 100vh */
@@ -634,7 +639,8 @@
 }
 
 @media (max-width: 400px) {
-  .previewPage {
+  .previewPage,
+  .previewPageCover {
     transform: scale(min(
       (100vw - 16px) / 595,
       (min(100dvh, 100vh) - 120px) / 842
@@ -663,41 +669,57 @@
   box-sizing: border-box;
 }
 
-/* ── @media print — 미리보기 모달 그대로 출력 ─────────────────── */
+/* ── @media print — 미리보기 모달만 출력 ──────────────────────── */
 @media print {
-  /* 페이지 여백 */
   @page { size: A4 portrait; margin: 12mm; }
 
-  /* 미리보기 모달 외 전부 숨김 */
-  body > * { display: none !important; }
+  /* visibility 방식: 모든 요소 숨김 → 미리보기만 표시
+     (display:none 과 달리 DOM 구조와 무관하게 동작) */
+  body * { visibility: hidden !important; }
+
+  .previewOverlay,
+  .previewOverlay * { visibility: visible !important; }
 
   .previewOverlay {
-    display: flex !important;
-    position: static !important;
+    position: fixed !important;
+    inset: 0 !important;
     background: #fff !important;
-    flex-direction: column;
+    overflow: visible !important;
+    display: flex !important;
+    flex-direction: column !important;
+    z-index: 99999 !important;
   }
 
   .previewHeader { display: none !important; }
 
   .previewScroll {
-    display: block !important;
     overflow: visible !important;
     padding: 0 !important;
     background: #fff !important;
-    flex: none !important;
+    flex: 1 !important;
   }
 
-  .previewPage {
+  .previewPage,
+  .previewPageCover {
     box-shadow: none !important;
     page-break-after: always;
     break-after: page;
-    margin-bottom: 0 !important;
+    margin: 0 !important;
+    width: auto !important;
+    min-height: auto !important;
+    transform: none !important;
   }
 
-  .previewPage:last-child {
+  .previewPage:last-child,
+  .previewPageCover:last-child {
     page-break-after: avoid;
     break-after: avoid;
+  }
+
+  .previewPage > div[style*="zoom"],
+  .previewPageCover > div[style*="zoom"] {
+    zoom: 1 !important;
+    width: 100% !important;
   }
 
   .previewPageName {
@@ -1088,3 +1110,139 @@
 }
 .pwaConfirm:hover { background: #1f2937; }
 .pwaConfirm:active { transform: scale(0.98); }
+
+/* ── 갑지 폼 ───────────────────────────────────────────────────── */
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(14px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0)     scale(1);    }
+}
+
+.gabjiForm {
+  padding: 16px;
+  padding-bottom: calc(32px + env(safe-area-inset-bottom, 0px));
+  max-width: 520px;
+  margin: 0 auto;
+  width: 100%;
+  box-sizing: border-box;
+  animation: fadeUp 0.45s cubic-bezier(0.16,1,0.3,1) both;
+}
+
+.gabjiCard {
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 2px 16px rgba(0,0,0,0.08), 0 1px 4px rgba(0,0,0,0.04);
+  overflow: hidden;
+}
+
+.gabjiCardHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 20px 20px 16px;
+  border-bottom: 1px solid #f0f2f5;
+  background: linear-gradient(135deg, #eff6ff 0%, #f8faff 100%);
+  color: #2563eb;
+}
+
+.gabjiCardHeader span {
+  font-size: 15px;
+  font-weight: 700;
+  color: #1e3a8a;
+  letter-spacing: -0.3px;
+}
+
+.gabjiField {
+  padding: 16px 20px;
+  border-bottom: 1px solid #f3f4f6;
+  animation: fadeUp 0.45s cubic-bezier(0.16,1,0.3,1) both;
+}
+
+.gabjiLabel {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  color: #9ca3af;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.gabjiInputRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.gabjiInput {
+  flex: 1;
+  height: 48px;
+  padding: 0 14px;
+  font-size: 16px; /* 16px: iOS 자동 줌 방지 */
+  font-weight: 500;
+  color: #111827;
+  background: #f9fafb;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 12px;
+  outline: none;
+  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s, transform 0.15s;
+  -webkit-appearance: none;
+  font-family: inherit;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.gabjiInput:focus {
+  border-color: #2563eb;
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(37,99,235,0.12);
+  transform: scale(1.005);
+}
+
+.gabjiInput::placeholder {
+  color: #d1d5db;
+  font-weight: 400;
+}
+
+.gabjiUnit {
+  font-size: 14px;
+  font-weight: 600;
+  color: #6b7280;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.gabjiNoRef {
+  display: block;
+  font-size: 11px;
+  color: #f59e0b;
+  margin-top: 5px;
+}
+
+.gabjiSaveRow {
+  padding: 16px 20px 20px;
+  background: #f9fafb;
+  border-top: 1px solid #f0f2f5;
+}
+
+.gabjiSaveBtn {
+  width: 100%;
+  height: 52px;
+  background: #2563eb;
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.15s;
+  font-family: inherit;
+  letter-spacing: -0.2px;
+}
+
+.gabjiSaveBtn:hover  { background: #1d4ed8; }
+.gabjiSaveBtn:active { transform: scale(0.97); }
+
+.gabjiSaveBtnDone {
+  background: #059669 !important;
+}

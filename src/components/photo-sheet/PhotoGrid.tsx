@@ -43,7 +43,12 @@ export default function PhotoGrid({
             <div key={p.id} className={styles.photoCell}>
               {p.url ? (
                 /* eslint-disable-next-line @next/next/no-img-element */
-                <img src={p.url} alt="" className={styles.photoImg} />
+                <img
+                  src={p.url}
+                  alt=""
+                  className={styles.photoImg}
+                  onError={(e) => { (e.currentTarget as HTMLImageElement).style.visibility = "hidden"; }}
+                />
               ) : (
                 <div className={styles.photoImgPlaceholder} aria-hidden />
               )}
@@ -74,6 +79,7 @@ export default function PhotoGrid({
                 src={photo.url}
                 alt={`사진 ${index + 1}`}
                 className={styles.photoImg}
+                onError={(e) => { (e.currentTarget as HTMLImageElement).style.visibility = "hidden"; }}
               />
             ) : (
               <div className={styles.photoImgPlaceholder} aria-hidden />
