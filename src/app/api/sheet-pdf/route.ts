@@ -56,11 +56,11 @@ async function launchBrowser() {
 
 // ── Route Handler ───────────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
-  const { sheetName, html }: { sheetName: string; html: string } = await req.json();
-
-  const browser = await launchBrowser();
-
+  let browser: Awaited<ReturnType<typeof launchBrowser>> | null = null;
   try {
+    const { sheetName, html }: { sheetName: string; html: string } = await req.json();
+    browser = await launchBrowser();
+
     const page = await browser.newPage();
     await page.setContent(html, { waitUntil: "networkidle0", timeout: 30000 });
 
@@ -77,8 +77,11 @@ export async function POST(req: NextRequest) {
         "Content-Disposition": `inline; filename="${encodeURIComponent(sheetName || "sheet")}.pdf"`,
       },
     });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return Response.json({ error: message }, { status: 500 });
   } finally {
-    await browser.close();
+    if (browser) await browser.close();
   }
 }
 

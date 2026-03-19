@@ -32,6 +32,11 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+vercel-env.txt
+
+# large/sensitive
+*.xlsx
+debug.log
 
 # vercel
 .vercel

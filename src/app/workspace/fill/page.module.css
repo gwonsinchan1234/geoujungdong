@@ -268,6 +268,15 @@
 
 /* ── Viewport + Table ──────────────────────────────────────────── */
 
+/* 갑지 탭 전용: padding 없이 GabjiEditor 꽉 채움 */
+.viewportGabji {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
 .viewport {
   flex: 1;
   overflow: auto;
@@ -418,7 +427,7 @@
   position: fixed;
   inset: 0;
   z-index: 200;
-  background: #1a1a1a;
+  background: #24292f;
   display: flex;
   flex-direction: column;
 }
@@ -528,12 +537,12 @@
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 32px 16px;
+  padding: 24px 20px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  gap: 32px;
+  gap: 24px;
   width: 100%;
   box-sizing: border-box;
   min-height: 0;
@@ -562,6 +571,16 @@
   padding: 8px 14px;
   border-bottom: 1px solid #e5e7eb;
   flex-shrink: 0;
+}
+
+.previewSheetViewport {
+  flex: 1;
+  overflow: hidden;
+  padding: 12px 0;
+  min-height: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
 }
 
 /* 수당·인건비 시트 미리보기: 문서형 파란 테두리 */
@@ -636,14 +655,8 @@
 
   .previewPage,
   .previewPageCover {
-    width: 595px;
+    width: min(595px, calc(100vw - 24px));
     min-height: 842px;
-    /* 한 화면에 들어가도록 스케일 (가로·세로 중 작은 비율), 100dvh 폴백 100vh */
-    transform: scale(min(
-      (100vw - 24px) / 595,
-      (min(100dvh, 100vh) - 140px) / 842
-    ));
-    transform-origin: top center;
     flex-shrink: 0;
   }
 
@@ -656,10 +669,7 @@
 @media (max-width: 400px) {
   .previewPage,
   .previewPageCover {
-    transform: scale(min(
-      (100vw - 16px) / 595,
-      (min(100dvh, 100vh) - 120px) / 842
-    ));
+    width: min(595px, calc(100vw - 16px));
   }
 }
 
@@ -731,9 +741,12 @@
     break-after: avoid;
   }
 
-  .previewPage > div[style*="zoom"],
-  .previewPageCover > div[style*="zoom"] {
-    zoom: 1 !important;
+  .previewSheetViewport {
+    overflow: visible !important;
+    padding: 0 !important;
+  }
+
+  .previewSheetViewport > div {
     width: 100% !important;
   }
 

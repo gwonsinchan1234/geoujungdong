@@ -1,0 +1,164 @@
+/* /gabji 페이지 진입 레이아웃 */
+
+.page {
+  height: 100vh;        /* GabjiEditor height:100% 체인 위해 명시 */
+  overflow: hidden;
+  background: #0f172a;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── 헤더: 현장명 + 월 선택기 ── */
+.selectorBar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 20px;
+  background: #0f172a;
+  border-bottom: 1px solid #1e293b;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+  animation: fadeUp 0.4s cubic-bezier(0.16,1,0.3,1) both;
+}
+
+.selectorLabel {
+  font-size: 12px;
+  color: #64748b;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.siteInput {
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid #334155;
+  border-radius: 7px;
+  background: #1e293b;
+  color: #f1f5f9;
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  min-width: 160px;
+  max-width: 260px;
+  width: 100%;
+}
+.siteInput:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59,130,246,.2);
+}
+.siteInput::placeholder { color: #475569; }
+
+.monthInput {
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid #334155;
+  border-radius: 7px;
+  background: #1e293b;
+  color: #f1f5f9;
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.15s;
+  color-scheme: dark;
+}
+.monthInput:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59,130,246,.2);
+}
+
+.loadBtn {
+  height: 34px;
+  padding: 0 16px;
+  background: #3b82f6;
+  color: #fff;
+  border: none;
+  border-radius: 7px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, transform 0.1s;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.loadBtn:hover  { background: #2563eb; }
+.loadBtn:active { transform: scale(0.97); }
+.loadBtn:disabled { background: #334155; color: #64748b; cursor: not-allowed; }
+
+.hint {
+  font-size: 11px;
+  color: #475569;
+}
+
+/* 에디터 영역: 남은 공간 채우기 */
+.editorArea {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: fadeUp 0.45s cubic-bezier(0.16,1,0.3,1) 0.1s both;
+}
+
+/* 빈 상태 */
+.emptyState {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: #475569;
+  animation: fadeUp 0.45s cubic-bezier(0.16,1,0.3,1) 0.15s both;
+}
+.emptyIcon { opacity: 0.35; }
+.emptyTitle { font-size: 16px; font-weight: 700; color: #64748b; }
+.emptyDesc  { font-size: 13px; color: #475569; text-align: center; line-height: 1.6; }
+
+/* 로그인 안내 */
+.authOverlay {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  animation: fadeUp 0.4s cubic-bezier(0.16,1,0.3,1) both;
+}
+.authCard {
+  background: #1e293b;
+  border-radius: 16px;
+  padding: 36px 40px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid #334155;
+}
+.authTitle { font-size: 18px; font-weight: 700; color: #f1f5f9; }
+.authDesc  { font-size: 13px; color: #94a3b8; line-height: 1.6; }
+.loginBtn {
+  height: 40px;
+  padding: 0 24px;
+  background: #3b82f6;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 4px;
+  transition: background 0.15s, transform 0.1s;
+}
+.loginBtn:hover  { background: #2563eb; }
+.loginBtn:active { transform: scale(0.97); }
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 768px) {
+  .selectorBar { padding: 10px 12px; gap: 8px; }
+  .siteInput { min-width: 120px; }
+}

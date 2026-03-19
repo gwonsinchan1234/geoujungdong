@@ -2,11 +2,12 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   reactCompiler: true,
+  serverExternalPackages: ["puppeteer-core", "@sparticuz/chromium"],
   experimental: {
     serverActions: {
       bodySizeLimit: "20mb",
     },
-    serverComponentsExternalPackages: ["puppeteer-core", "@sparticuz/chromium"],
+    proxyClientMaxBodySize: 20 * 1024 * 1024,
   },
   images: {
     remotePatterns: [

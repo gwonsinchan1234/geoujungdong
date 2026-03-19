@@ -317,7 +317,6 @@ export default function HomePage() {
   const [lang, setLang] = useState<Lang>("KOR");
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [videoReady, setVideoReady] = useState(false);
-  const [isMuted, setIsMuted] = useState(true);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
 
   useEffect(() => {
@@ -331,13 +330,6 @@ export default function HomePage() {
       v.removeEventListener("loadeddata", onLoaded);
       v.removeEventListener("error", onError);
     };
-  }, []);
-
-  const toggleMute = useCallback(() => {
-    const v = videoRef.current;
-    if (!v) return;
-    v.muted = !v.muted;
-    setIsMuted(v.muted);
   }, []);
 
   const kor = lang === "KOR";
@@ -437,16 +429,10 @@ export default function HomePage() {
             <a className={styles.ctaHero} href="/workspace/fill">
               {kor ? "시작하기" : "Get started"}
             </a>
-            {videoReady && (
-              <button
-                type="button"
-                className={styles.muteBtn}
-                onClick={toggleMute}
-                aria-label="Toggle mute"
-              >
-                {isMuted ? "🔇" : "🔊"}
-              </button>
-            )}
+            {/*
+              배경 영상 음소거 토글(🔇/🔊) 버튼 제거:
+              배포 버전 홈 화면에 불필요한 UI로 보여 사용자 혼선을 유발함.
+            */}
           </motion.div>
         </div>
 

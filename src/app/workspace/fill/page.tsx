@@ -9,7 +9,8 @@ import type { ParsedSheet } from "@/lib/parseExcel";
 import { photoDraft } from "@/lib/photoDraft";
 import { supabase } from "@/lib/supabaseClient";
 import styles from "./page.module.css";
-import GabjiFormView from "@/components/gabji-form/GabjiFormView";
+import GabjiEditor from "@/components/gabji/GabjiEditor";
+import type { GabjiDoc, GabjiItem as GNewItem } from "@/components/gabji/types";
 import { makeEmptyGabji, DEFAULT_ITEMS } from "@/components/gabji-form/types";
 import type { GabjiData } from "@/components/gabji-form/types";
 import ItemListView from "@/components/item-list/ItemListView";
@@ -60,52 +61,18 @@ function toCellDisplayString(v: unknown): string {
   return String(v);
 }
 
-function trimSheet(sheet: ParsedSheet, sheetIdx: number, formValues: Record<string, string>) {
-  // 갑지(커버) 시트는 인쇄영역/내용기준 트리밍 없이 전체 시트를 그대로 사용
-  if (isCoverSheet(sheet.name)) {
-    const trimmedRows = sheet.rows;
-    const usedCols = sheet.colWidths.length;
-    const colWidths = sheet.colWidths;
-    return { trimmedRows, usedCols, colWidths, rowOffset: 0, colOffset: 0 };
-  }
+function applyStateAction<T>(prev: T, action: React.SetStateAction<T>): T {
+  return typeof action === "function" ? (action as (p: T) => T)(prev) : action;
+}
 
-  const pa = sheet.printArea;
-  if (pa) {
-    // Restrict to print area (1-based r1/c1/r2/c2 → 0-based slicing)
-    const rowStart = pa.r1 - 1;
-    const colStart = pa.c1 - 1;
-    const trimmedRows = sheet.rows
-      .slice(rowStart, Math.min(pa.r2, sheet.rows.length))
-      .map(row => ({ ...row, cells: row.cells.slice(colStart, pa.c2) }));
-    const usedCols  = pa.c2 - colStart;
-    const colWidths = sheet.colWidths.slice(colStart, pa.c2);
-    return { trimmedRows, usedCols, colWidths, rowOffset: rowStart, colOffset: colStart };
-  }
-
-  let lastRow = sheet.rows.length - 1;
-  while (lastRow >= 0) {
-    const row = sheet.rows[lastRow];
-    const has = row.cells.some((c, ci) => {
-      if (c.skip) return false;
-      return toCellDisplayString(formValues[`${sheetIdx}__${colLetter(ci + 1)}${lastRow + 1}`] ?? c.value).trim() !== "";
-    });
-    if (has) break;
-    lastRow--;
-  }
-  const trimmedRows = sheet.rows.slice(0, lastRow + 1);
-  let lastCol = sheet.colWidths.length - 1;
-  while (lastCol >= 0) {
-    const has = trimmedRows.some((row, ri) => {
-      const c = row.cells[lastCol];
-      if (!c || c.skip) return false;
-      return toCellDisplayString(formValues[`${sheetIdx}__${colLetter(lastCol + 1)}${ri + 1}`] ?? c.value).trim() !== "";
-    });
-    if (has) break;
-    lastCol--;
-  }
-  const usedCols  = lastCol + 1;
-  const colWidths = sheet.colWidths.slice(0, usedCols);
-  return { trimmedRows, usedCols, colWidths, rowOffset: 0, colOffset: 0 };
+function trimSheet(sheet: ParsedSheet) {
+  return {
+    trimmedRows: sheet.rows,
+    usedCols: sheet.colWidths.length,
+    colWidths: sheet.colWidths,
+    rowOffset: sheet.renderRange.r1 - 1,
+    colOffset: sheet.renderRange.c1 - 1,
+  };
 }
 
 /** A4 세로 기준 (72dpi): 210mm × 297mm */
@@ -124,6 +91,12 @@ const isCoverSheet = (name: string) => name.trim() === "갑지" || name.includes
 
 /** 항목별세부내역 시트 */
 const isItemSheet = (name: string) => name.includes("항목별세부내역") || name.includes("항목별") || name === "항목";
+
+function toAbsoluteRef(sheet: ParsedSheet, ri: number, ci: number): string {
+  const absRow = sheet.renderRange.r1 + ri;
+  const absCol = sheet.renderRange.c1 + ci;
+  return `${colLetter(absCol)}${absRow}`;
+}
 
 
 function xlsxCellStr(ws: XLSX.WorkSheet, r: number, c: number): string {
@@ -247,10 +220,13 @@ function parsePhotoBlocksFromRaw(rawBuf: ArrayBuffer, sheetNames: string[]): Rec
 function PreviewSheet({
   sheet, sheetIdx, formValues,
 }: { sheet: ParsedSheet; sheetIdx: number; formValues: Record<string, string> }) {
-  const { trimmedRows, usedCols, colWidths, rowOffset, colOffset } = trimSheet(sheet, sheetIdx, formValues);
+  const { trimmedRows, usedCols, colWidths, rowOffset, colOffset } = trimSheet(sheet);
   const totalW = colWidths.reduce((a, b) => a + b, 0) || A4_W;
-  // 너비만 A4에 맞춤 — 높이는 자연스럽게 늘어나도록 (미리보기 스크롤)
-  const scale  = Math.min(1, A4_W / totalW);
+  const totalH = trimmedRows.reduce((sum, r) => sum + (r.height ?? 20), 0);
+  const mmToPx = (mm: number) => (mm * 72) / 25.4;
+  const availW = A4_W - mmToPx(20);
+  const availH = A4_H - mmToPx(26); // page title 영역 포함 여유
+  const previewScale = Math.min(1, availW / Math.max(1, totalW), availH / Math.max(1, totalH));
   const isCover = sheet.name.trim() === "갑지" || sheet.name.includes("갑지");
 
   const tableNode = (
@@ -284,8 +260,10 @@ function PreviewSheet({
   return (
     <div className={isCover ? styles.previewPageCover : styles.previewPage}>
       <div className={styles.previewPageName}>{sheet.name}</div>
-      <div style={{ zoom: scale, width: totalW } as React.CSSProperties}>
-        {tableNode}
+      <div className={styles.previewSheetViewport}>
+        <div style={{ width: totalW, height: totalH, zoom: previewScale } as React.CSSProperties}>
+          {tableNode}
+        </div>
       </div>
     </div>
   );
@@ -429,6 +407,8 @@ function gabjiPrintOverrides(
   _itemAmounts: Record<number, number>,
 ): Record<string, string> {
   const overrides: Record<string, string> = {};
+  const rowOffset = sheet.renderRange.r1 - 1;
+  const colOffset = sheet.renderRange.c1 - 1;
 
   // 항목 레이블("안전관리자등" 등)과 겹치지 않는 고유 키워드만 사용
   const BASIC_FIELDS: Array<{ field: keyof GabjiData; keywords: string[] }> = [
@@ -459,7 +439,7 @@ function gabjiPrintOverrides(
           if (!vc || vc.skip) continue;
           matched.add(field);
           const val = String((data as unknown as Record<string, string>)[field] ?? "");
-          if (val) overrides[`${sheetIdx}__${colLetter(nc + 1)}${ri + 1}`] = val;
+          if (val) overrides[`${sheetIdx}__${colLetter(nc + 1 + colOffset)}${ri + 1 + rowOffset}`] = val;
           break;
         }
       }
@@ -600,15 +580,27 @@ function mergePhotoBlocks(
 
 // ── Page ─────────────────────────────────────────────────────────
 export default function FillPage() {
+  type DocState = {
+    formValues: Record<string, string>;
+    gabjiData: GabjiData;
+    items: ItemData[];
+    photoBlocks: Record<string, PhotoBlock[]>;
+    savedAt: number;
+  };
+
   const fileInputRef  = useRef<HTMLInputElement>(null);
   const inputRef      = useRef<HTMLInputElement>(null);
   const selectedTdRef = useRef<HTMLTableCellElement>(null);
 
   const [sheets,       setSheets]       = useState<ParsedSheet[]>([]);
   const [activeSheet,  setActiveSheet]  = useState(0);
-  const [formValues,   setFormValues]   = useState<Record<string, string>>({});
-  const [gabjiData,    setGabjiData]    = useState<GabjiData>(makeEmptyGabji);
-  const [items,        setItems]        = useState<ItemData[]>([]);
+  const [docState,     setDocState]     = useState<DocState>({
+    formValues: {},
+    gabjiData: makeEmptyGabji(),
+    items: [],
+    photoBlocks: {},
+    savedAt: Date.now(),
+  });
   const [rawBuf,       setRawBuf]       = useState<ArrayBuffer | null>(null);
   const [fileName,     setFileName]     = useState("");
   const [loading,      setLoading]      = useState(false);
@@ -625,7 +617,6 @@ export default function FillPage() {
   const docIdRef       = useRef<string>("");
   const saveDraftTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const [photoBlocks,   setPhotoBlocks]   = useState<Record<string, PhotoBlock[]>>({});
   const [photoSlot,     setPhotoSlot]     = useState<{
     blockId: string; side: "left" | "right"; slotIndex: number;
   } | null>(null);
@@ -637,6 +628,35 @@ export default function FillPage() {
   const [saveToast,      setSaveToast]      = useState(false);
   const [showPwaGuide,   setShowPwaGuide]   = useState(false);
   const [isStandalone,   setIsStandalone]   = useState(true); // 기본 true → 설치 안내 숨김
+
+  const formValues = docState.formValues;
+  const gabjiData = docState.gabjiData;
+  const items = docState.items;
+  const photoBlocks = docState.photoBlocks;
+
+  const setFormValues = useCallback((action: React.SetStateAction<Record<string, string>>) => {
+    setDocState(prev => ({ ...prev, formValues: applyStateAction(prev.formValues, action), savedAt: Date.now() }));
+  }, []);
+  const setGabjiData = useCallback((action: React.SetStateAction<GabjiData>) => {
+    setDocState(prev => ({ ...prev, gabjiData: applyStateAction(prev.gabjiData, action), savedAt: Date.now() }));
+  }, []);
+  const setItems = useCallback((action: React.SetStateAction<ItemData[]>) => {
+    setDocState(prev => ({ ...prev, items: applyStateAction(prev.items, action), savedAt: Date.now() }));
+  }, []);
+  const setPhotoBlocks = useCallback((action: React.SetStateAction<Record<string, PhotoBlock[]>>) => {
+    setDocState(prev => ({ ...prev, photoBlocks: applyStateAction(prev.photoBlocks, action), savedAt: Date.now() }));
+  }, []);
+  const markSaved = useCallback(() => {
+    setDocState(prev => ({ ...prev, savedAt: Date.now() }));
+  }, []);
+
+  const previewData = useMemo(() => ({
+    formValues,
+    gabjiData,
+    items,
+    photoBlocks,
+    savedAt: docState.savedAt,
+  }), [formValues, gabjiData, items, photoBlocks, docState.savedAt]);
 
   // ── 사진대지 항목 드롭다운: 전체 블록에서 유니크 라벨 수집 ──────
   const availableLabels = useMemo(() => {
@@ -752,7 +772,7 @@ export default function FillPage() {
       }
       return next;
     });
-  }, []);
+  }, [setPhotoBlocks]);
 
   // ── 메타 수정: 로컬 즉시 반영, 최종 저장은 handlePhotoSave ──────
   const handleMetaUpdate: OnMetaUpdate = useCallback((blockId, fields) => {
@@ -763,7 +783,7 @@ export default function FillPage() {
       }
       return next;
     });
-  }, []);
+  }, [setPhotoBlocks]);
 
   // ── 사진 업로드: private Storage → signed URL ───────────────────
   // 프론트 슬롯 중복 체크(1차) + 서버 중복 체크(2차) + DB UNIQUE(3차)
@@ -965,7 +985,7 @@ export default function FillPage() {
       clearTimeout(timeoutId);
       setPhotoUploading(false);
     }
-  }, [photoSlot, photoBlocks]);
+  }, [photoSlot, photoBlocks, setPhotoBlocks]);
 
   // ── 최종 저장: 현재 사진대지 시트의 블록 메타를 서버에 일괄 upsert ──
   const handlePhotoSave = useCallback(async () => {
@@ -996,10 +1016,11 @@ export default function FillPage() {
       photoDraft.clear(fileName);
       setSaveToast(true);
       setTimeout(() => setSaveToast(false), 2200);
+      markSaved();
     } finally {
       setPhotoSaving(false);
     }
-  }, [sheets, activeSheet, photoBlocks, fileName]);
+  }, [sheets, activeSheet, photoBlocks, fileName, markSaved]);
 
   // ── 바텀시트 포커스 + 배경 스크롤 잠금 ──────────────────────────
   useEffect(() => {
@@ -1058,15 +1079,8 @@ export default function FillPage() {
       }
       if (!selectedCell) return;
 
-      // printArea 기반 표시 범위
-      const kbPa       = sheet.printArea;
-      const kbRowStart = kbPa ? kbPa.r1 - 1 : 0;
-      const kbColStart = kbPa ? kbPa.c1 - 1 : 0;
-      const rows = kbPa
-        ? sheet.rows.slice(kbRowStart, Math.min(kbPa.r2, sheet.rows.length))
-            .map(r => ({ ...r, cells: r.cells.slice(kbColStart, kbPa.c2) }))
-        : sheet.rows;
-      const maxCol = (kbPa ? kbPa.c2 - kbColStart : sheet.colWidths.length) - 1;
+      const rows = sheet.rows;
+      const maxCol = sheet.colWidths.length - 1;
 
       let { ri, ci } = selectedCell;
       const findNextCol = (startCi: number, dir: 1 | -1) => {
@@ -1079,7 +1093,7 @@ export default function FillPage() {
           if (!rows[r]?.cells[ci]?.skip) return r;
         return ri;
       };
-      const kbRef = () => `${colLetter(ci + 1 + kbColStart)}${ri + 1 + kbRowStart}`;
+      const kbRef = () => toAbsoluteRef(sheet, ri, ci);
 
       switch (e.key) {
         case "ArrowRight": e.preventDefault(); ci = findNextCol(ci, 1);  break;
@@ -1118,7 +1132,7 @@ export default function FillPage() {
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [editingCell, showPreview, sheets, activeSheet, selectedCell, formValues]);
+  }, [editingCell, showPreview, sheets, activeSheet, selectedCell, formValues, setFormValues]);
 
   const openSheet = useCallback((ref: string, sheetIdx: number, originalValue: string) => {
     setEditValue(formValues[mkKey(sheetIdx, ref)] ?? "");
@@ -1133,7 +1147,7 @@ export default function FillPage() {
       return { ...p, [key]: editValue };
     });
     setEditingCell(null);
-  }, [editingCell, editValue]);
+  }, [editingCell, editValue, setFormValues]);
 
   const handleCancel = useCallback(() => setEditingCell(null), []);
 
@@ -1173,6 +1187,10 @@ export default function FillPage() {
         try { return JSON.parse(localStorage.getItem(`fill_data_${file.name}`) ?? "null"); } catch { return null; }
       })();
 
+      if (savedFillData?.formValues && typeof savedFillData.formValues === "object") {
+        setFormValues(savedFillData.formValues as Record<string, string>);
+      }
+
       if (savedFillData?.gabjiData && savedFillData?.items) {
         setGabjiData(savedFillData.gabjiData);
         setItems(savedFillData.items);
@@ -1185,9 +1203,12 @@ export default function FillPage() {
 
       // ── 사진대지 블록: items 기반 생성 (parsePhotoBlocksFromRaw 대체)
       const resolvedItems: ItemData[] = savedFillData?.items ?? parseItemsFromRaw(buf);
-      const freshBlocks = resolvedItems.length > 0
+      let freshBlocks = resolvedItems.length > 0
         ? buildPhotoBlocksFromItems(resolvedItems, parsed.map(s => s.name))
         : parsePhotoBlocksFromRaw(buf, parsed.map(s => s.name)); // fallback
+      if (savedFillData?.photoBlocks && typeof savedFillData.photoBlocks === "object") {
+        freshBlocks = mergePhotoBlocks(freshBlocks, savedFillData.photoBlocks as Record<string, PhotoBlock[]>);
+      }
 
       // docId 복원 (사진 서버 연결용) — 블록 구조는 항상 freshBlocks 사용
       const draft = photoDraft.load(file.name);
@@ -1230,19 +1251,18 @@ export default function FillPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [setFormValues, setGabjiData, setItems, setPhotoBlocks]);
 
-  // ── 사진대지 새 창 인쇄 (window.print 대신 새 창 HTML 생성) ──
+  // ── 사진대지 새 창 브라우저 인쇄 ──────────────────────────────────
   const handlePhotoSheetPrint = useCallback(async () => {
     const s = sheets[activeSheet];
     if (!s) return;
-    const blocks = photoBlocks[s.name] ?? [];
+    const blocks = previewData.photoBlocks[s.name] ?? [];
 
-    // PDF용 data URI 변환: 800px / 85% 재압축 (Puppeteer 네트워크 요청 없이 인라인 렌더링)
-    const toDataUriForPdf = async (url: string): Promise<string> => {
+    // 사진 → data URI 변환 (새 창 인라인 렌더링용)
+    const toDataUri = async (url: string): Promise<string> => {
       if (!url) return "";
       try {
-        // Supabase 저장 사진 → signed URL로 먼저 변환
         let fetchUrl = url;
         if (!url.startsWith("blob:") && !url.startsWith("data:")) {
           const match = url.match(/\/expense-evidence\/(.+?)(?:\?|$)/);
@@ -1260,13 +1280,13 @@ export default function FillPage() {
           const objUrl = URL.createObjectURL(blob);
           img.onload = () => {
             URL.revokeObjectURL(objUrl);
-            const MAX = 800;
+            const MAX = 1200;
             const scale = Math.min(1, MAX / Math.max(img.width, img.height));
             const canvas = document.createElement("canvas");
             canvas.width  = Math.round(img.width  * scale);
             canvas.height = Math.round(img.height * scale);
             canvas.getContext("2d")!.drawImage(img, 0, 0, canvas.width, canvas.height);
-            resolve(canvas.toDataURL("image/jpeg", 0.85));
+            resolve(canvas.toDataURL("image/jpeg", 0.9));
           };
           img.onerror = () => { URL.revokeObjectURL(objUrl); resolve(""); };
           img.src = objUrl;
@@ -1277,42 +1297,111 @@ export default function FillPage() {
     const resolvedBlocks = await Promise.all(blocks.map(async b => ({
       ...b,
       photos: await Promise.all(b.photos.map(async p => ({
-        ...p, url: await toDataUriForPdf(p.url ?? ""),
+        ...p, url: await toDataUri(p.url ?? ""),
       }))),
     })));
 
-    // Puppeteer API로 고품질 PDF 생성 (deviceScaleFactor:3 = ~288dpi)
-    const res = await fetch("/api/photo-pdf", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sheetName: s.name, blocks: resolvedBlocks }),
-    });
+    // 클라이언트에서 직접 HTML 생성 → 새 창에서 window.print()
+    const BLOCKS_PER_PAGE = 3;
+    const pages: (typeof resolvedBlocks)[] = [];
+    for (let i = 0; i < resolvedBlocks.length; i += BLOCKS_PER_PAGE)
+      pages.push(resolvedBlocks.slice(i, i + BLOCKS_PER_PAGE));
 
-    if (!res.ok) {
-      alert("PDF 생성에 실패했습니다. 잠시 후 다시 시도해주세요.");
-      return;
-    }
+    const grid = (photos: { side: string; slot_index: number; url: string }[], count: number) => {
+      const sorted = [...photos].sort((a, b) => a.slot_index - b.slot_index).slice(0, 4);
+      const cols = count <= 1 ? "1fr" : "1fr 1fr";
+      const rows = count <= 2 ? "1fr" : "1fr 1fr";
+      const tmpl = count === 3
+        ? "grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;"
+        : `grid-template-columns:${cols};grid-template-rows:${rows};`;
+      const cells = sorted.map((p, i) => {
+        const span = count === 3 && i === 2 ? "grid-column:1/-1;" : "";
+        return p.url
+          ? `<div style="${span}position:relative;overflow:hidden;border-radius:2px"><img src="${p.url}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover"></div>`
+          : `<div style="${span}background:#e5e7eb;border-radius:2px"></div>`;
+      }).join("");
+      return `<div style="display:grid;${tmpl}gap:3px;width:100%;height:100%">${cells}</div>`;
+    };
 
-    const blob = await res.blob();
-    const url  = URL.createObjectURL(blob);
-    window.open(url, "_blank");
-  }, [sheets, activeSheet, photoBlocks]);
+    const pagesHtml = pages.map((pg, pi) => {
+      const br = pi < pages.length - 1 ? "page-break-after:always;" : "";
+      const bs = pg.map(b => {
+        const lp = b.photos.filter(p => p.side === "left");
+        const rp = b.photos.filter(p => p.side === "right");
+        return `<div class="bc">
+          <div class="bh">NO. ${b.no}</div>
+          <div class="sh"><div class="shc">반입사진</div><div class="shd"></div><div class="shc">${b.right_header || "지급/설치사진"}</div></div>
+          <div class="gr"><div class="gw">${grid(lp, Math.min(lp.length, 4))}</div><div class="gd"></div><div class="gw">${grid(rp, Math.min(rp.length, 4))}</div></div>
+          <div class="bf">
+            <div class="fs"><span class="fl">날짜</span><span class="fv">${b.left_date ?? ""}</span><span class="fl">항목</span><span class="fv">${b.left_label ?? ""}</span></div>
+            <div class="fd"></div>
+            <div class="fs"><span class="fl">날짜</span><span class="fv">${b.right_date ?? ""}</span><span class="fl">항목</span><span class="fv">${b.right_label ?? ""}</span></div>
+          </div>
+        </div>`;
+      }).join("");
+      return `<div style="${br}"><div class="pt">${s.name}</div>${bs}</div>`;
+    }).join("");
+
+    const html = `<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><title>${s.name}</title><style>
+@page{size:A4 portrait;margin:12mm}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,"Apple SD Gothic Neo",sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+img{image-rendering:high-quality;display:block}
+.pt{font-size:13px;font-weight:700;text-align:center;color:#111827;padding:6px 0 10px;border-bottom:2px solid #111827;margin-bottom:10px}
+.bc{border:1.5px solid #374151;border-radius:4px;overflow:hidden;margin-bottom:10px;break-inside:avoid}
+.bh{background:#111827;padding:6px 12px;font-size:13px;font-weight:700;color:#fff}
+.sh{display:grid;grid-template-columns:1fr 1px 1fr;border-bottom:1px solid #d1d5db}
+.shc{font-size:11px;font-weight:700;color:#374151;text-align:center;padding:5px 0;background:#f3f4f6}
+.shd{background:#d1d5db}
+.gr{display:grid;grid-template-columns:1fr 1px 1fr;height:52mm}
+.gw{padding:4px}.gd{background:#d1d5db}
+.bf{display:grid;grid-template-columns:1fr 1px 1fr;border-top:1px solid #d1d5db;background:#f9fafb}
+.fs{display:grid;grid-template-columns:auto 1fr;gap:2px 8px;padding:7px 10px;align-items:baseline}
+.fl{font-size:10px;font-weight:700;color:#6b7280}
+.fv{font-size:11px;color:#111827;font-weight:500}
+.fd{background:#d1d5db}
+</style></head><body>${pagesHtml}</body></html>`;
+
+    const w = window.open("", "_blank");
+    if (!w) { alert("팝업이 차단되었습니다. 팝업 허용 후 다시 시도해주세요."); return; }
+    w.document.open();
+    w.document.write(html);
+    w.document.close();
+    w.onload = () => { w.focus(); w.print(); };
+  }, [sheets, activeSheet, previewData]);
 
   const sheet = sheets[activeSheet];
 
-  // ── 현재 활성 시트 PDF 생성 요청 ──────────────────────────────
-  const handlePrintActive = useCallback(async () => {
+  // ── 현재 활성 시트 새 창 브라우저 인쇄 ───────────────────────────
+  const handlePrintActive = useCallback(() => {
     if (!sheet) return;
-    const { trimmedRows, usedCols, colWidths, rowOffset, colOffset } = trimSheet(sheet, activeSheet, formValues);
+    const { trimmedRows, usedCols, colWidths, rowOffset, colOffset } = trimSheet(sheet);
+    const effectiveFormValues = isCoverSheet(sheet.name)
+      ? {
+          ...previewData.formValues,
+          ...gabjiPrintOverrides(
+            sheet,
+            activeSheet,
+            previewData.gabjiData,
+            Object.fromEntries(Array.from({ length: 9 }, (_, i) => [i + 1, sumByCategory(previewData.items, i + 1)])),
+          ),
+        }
+      : previewData.formValues;
     const colgroup = colWidths
-      .map(() => `<col style="width:auto">`)
+      .map((w) => `<col style="width:${w}px">`)
       .join("");
+    const contentW = colWidths.reduce((a, b) => a + b, 0) || 1;
+    const contentH = trimmedRows.reduce((sum, r) => sum + (r.height ?? 20), 0) || 1;
+    const mmToPx = (mm: number) => (mm * 72) / 25.4;
+    const printableW = 595 - mmToPx(20);
+    const printableH = 842 - mmToPx(20);
+    const fitScale = Math.min(1, printableW / contentW, printableH / contentH);
     const tbody = trimmedRows.map((row, ri) =>
       `<tr ${row.height !== null ? `style="height:${row.height}px"` : ""}>${
         row.cells.slice(0, usedCols).map((cell, ci) => {
           if (cell.skip) return "";
           const ref = `${colLetter(ci + 1 + colOffset)}${ri + 1 + rowOffset}`;
-          const val = toCellDisplayString(formValues[`${activeSheet}__${ref}`] ?? cell.value)
+          const val = toCellDisplayString(effectiveFormValues[`${activeSheet}__${ref}`] ?? cell.value)
             .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
           const css = Object.entries(cell.style)
             .map(([k, v]) => `${k.replace(/([A-Z])/g, c => `-${c.toLowerCase()}`)}:${v}`).join(";");
@@ -1323,7 +1412,11 @@ export default function FillPage() {
       }</tr>`
     ).join("");
     const sheetHtml = `<div class="sheet-page">
-      <table class="sheet-table"><colgroup>${colgroup}</colgroup><tbody>${tbody}</tbody></table>
+      <div class="sheet-stage">
+        <div class="sheet-scale" style="width:${contentW}px;height:${contentH}px;zoom:${fitScale}">
+          <table class="sheet-table"><colgroup>${colgroup}</colgroup><tbody>${tbody}</tbody></table>
+        </div>
+      </div>
     </div>`;
     const fullHtml = `<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><title>${sheet.name}</title>
 <style>
@@ -1334,8 +1427,17 @@ export default function FillPage() {
     margin:0 auto;
     padding:0;
   }
-  .sheet-table{
+  .sheet-stage{
     width:100%;
+    height:${Math.round(printableH)}px;
+    display:flex;
+    align-items:flex-start;
+    justify-content:center;
+    overflow:hidden;
+  }
+  .sheet-scale{ transform-origin: top left; }
+  .sheet-table{
+    width:auto;
     border-collapse:collapse;
     table-layout:fixed;
     background:#fff;
@@ -1346,24 +1448,18 @@ export default function FillPage() {
 </style>
 </head><body>${sheetHtml}</body></html>`;
 
-    const res = await fetch("/api/sheet-pdf", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sheetName: sheet.name, html: fullHtml }),
-    });
-    if (!res.ok) {
-      alert("PDF 생성에 실패했습니다. 잠시 후 다시 시도해주세요.");
-      return;
-    }
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    window.open(url, "_blank");
-  }, [sheet, activeSheet, formValues]);
+    const w = window.open("", "_blank");
+    if (!w) { alert("팝업이 차단되었습니다. 팝업 허용 후 다시 시도해주세요."); return; }
+    w.document.open();
+    w.document.write(fullHtml);
+    w.document.close();
+    w.onload = () => { w.focus(); w.print(); };
+  }, [sheet, activeSheet, previewData]);
 
   const handleDownload = useCallback(() => {
     if (!rawBuf) return;
     const wb = XLSX.read(rawBuf.slice(0), { type: "array" });
-    for (const [key, val] of Object.entries(formValues)) {
+    for (const [key, val] of Object.entries(previewData.formValues)) {
       if (!val) continue;
       const [idxStr, cellRef] = key.split("__");
       const wsName = wb.SheetNames[Number(idxStr)];
@@ -1378,14 +1474,14 @@ export default function FillPage() {
     const a    = document.createElement("a");
     a.href = url; a.download = `수정_${fileName || "파일.xlsx"}`; a.click();
     URL.revokeObjectURL(url);
-  }, [rawBuf, formValues, fileName]);
+  }, [rawBuf, previewData, fileName]);
 
   const editedCount = Object.keys(formValues).length;
   const isPhotoActive = sheet ? isPhotoSheet(sheet.name) : false;
 
   const handleGabjiSave = useCallback((data: GabjiData) => {
     setGabjiData(data);
-  }, []);
+  }, [setGabjiData]);
 
   /** items 변경 → 갑지 useAmount 자동 갱신 + 사진대지 블록 재빌드 */
   const handleItemsChange = useCallback((newItems: ItemData[]) => {
@@ -1403,10 +1499,52 @@ export default function FillPage() {
       const newBlocks = buildPhotoBlocksFromItems(newItems, sheets.map(s => s.name));
       setPhotoBlocks(prev => mergePhotoBlocks(newBlocks, prev));
     }
-  }, [sheets]);
+  }, [sheets, setItems, setGabjiData, setPhotoBlocks]);
 
   const isCoverActive = sheet ? isCoverSheet(sheet.name) : false;
   const isItemActive  = sheet ? isItemSheet(sheet.name)  : false;
+
+  // ── 갑지 GabjiData → 새 GabjiEditor 타입으로 변환 ─────────────
+  const itemAmountsForGabji = useMemo(
+    () => Object.fromEntries(Array.from({ length: 9 }, (_, i) => [i + 1, sumByCategory(items, i + 1)])),
+    [items],
+  );
+
+  const gabjiEditorDoc = useMemo((): GabjiDoc => ({
+    site_name:               gabjiData.hyeonjangmyeong || fileName || "",
+    year_month:              (() => { const n = new Date(); return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,"0")}`; })(),
+    construction_company:    "",
+    address:                 "",
+    project_name:            gabjiData.gongsamyeong   || "",
+    representative_name:     gabjiData.signRep        || "",
+    client_name:             gabjiData.baljuja        || "",
+    contract_amount:         parseFloat(String(gabjiData.gongsageumaek).replace(/,/g,"")) || 0,
+    contract_amount_note:    "",
+    start_date:              "",
+    end_date:                "",
+    cumulative_progress_rate:parseFloat(String(gabjiData.gongjungnyul).replace(/[^0-9.]/g,"")) || 0,
+    budgeted_safety_cost:    0,
+    write_date:              "",
+    checker1_position:       "",
+    checker1_name:           "",
+    checker2_position:       "",
+    checker2_name:           "",
+  }), [gabjiData, fileName]);
+
+  const gabjiEditorItems = useMemo((): GNewItem[] =>
+    gabjiData.items.map(gi => {
+      const amt = itemAmountsForGabji[gi.no] ?? 0;
+      return {
+        item_code:      gi.no,
+        item_name:      gi.label,
+        prev_amount:    0,
+        current_amount: amt,
+        total_amount:   amt,
+        sort_order:     gi.no,
+      };
+    }),
+    [gabjiData.items, itemAmountsForGabji],
+  );
 
   /** 갑지·항목별세부내역: localStorage에 데이터 저장 */
   const handleInAppSave = useCallback(() => {
@@ -1414,12 +1552,19 @@ export default function FillPage() {
     try {
       localStorage.setItem(
         `fill_data_${fileName}`,
-        JSON.stringify({ gabjiData, items, savedAt: Date.now() }),
+        JSON.stringify({
+          formValues,
+          gabjiData,
+          items,
+          photoBlocks,
+          savedAt: Date.now(),
+        }),
       );
     } catch { /* 저장 실패 무시 */ }
+    markSaved();
     setInAppSaved(true);
     setTimeout(() => setInAppSaved(false), 2200);
-  }, [fileName, gabjiData, items]);
+  }, [fileName, formValues, gabjiData, items, photoBlocks, markSaved]);
 
   /** 상단 저장 버튼:
    *  사진대지    → 서버 저장
@@ -1432,19 +1577,11 @@ export default function FillPage() {
     else                            handleDownload();
   }, [isPhotoActive, isCoverActive, isItemActive, handlePhotoSave, handleInAppSave, handleDownload]);
 
-  // ── 인쇄 영역(printArea) 기반 표시 범위 계산 ─────────────────────
-  const pa        = sheet?.printArea;
-  const rowStart  = pa ? pa.r1 - 1 : 0; // 0-based
-  const colStart  = pa ? pa.c1 - 1 : 0; // 0-based
-  const displayRows = sheet
-    ? (pa
-        ? sheet.rows.slice(rowStart, Math.min(pa.r2, sheet.rows.length))
-            .map(r => ({ ...r, cells: r.cells.slice(colStart, pa.c2) }))
-        : sheet.rows)
-    : [];
-  const displayColWidths = sheet
-    ? (pa ? sheet.colWidths.slice(colStart, pa.c2) : sheet.colWidths)
-    : [];
+  const displayRows = sheet ? sheet.rows : [];
+  const displayColWidths = sheet ? sheet.colWidths : [];
+  const renderRangeLabel = sheet
+    ? `${colLetter(sheet.renderRange.c1)}${sheet.renderRange.r1}:${colLetter(sheet.renderRange.c2)}${sheet.renderRange.r2}`
+    : "";
 
   return (
     <div className={styles.page}>
@@ -1539,21 +1676,20 @@ export default function FillPage() {
                 {s.name}
               </button>
             ))}
-            {pa && (
+            {sheet && (
               <span style={{ fontSize: "10px", color: "#6b7280", padding: "0 6px", alignSelf: "center", whiteSpace: "nowrap" }}>
-                인쇄영역 {`${colLetter(pa.c1)}${pa.r1}:${colLetter(pa.c2)}${pa.r2}`} ({displayRows.length}행)
+                렌더링 범위 {renderRangeLabel} · {sheet.renderRange.source === "printArea" ? "Print Area" : "Used Range"} ({displayRows.length}행)
               </span>
             )}
           </div>
 
           {sheet && isCoverSheet(sheet.name) ? (
-            <div key={`gabji-${activeSheet}`} className={styles.viewport} style={{ overflowY: "auto" }}>
-              <GabjiFormView
-                data={gabjiData}
-                onSave={handleGabjiSave}
-                itemAmounts={Object.fromEntries(
-                  Array.from({ length: 9 }, (_, i) => [i + 1, sumByCategory(items, i + 1)])
-                )}
+            /* 새 갑지 에디터: 좌측 폼 + 우측 A4 미리보기 + DB 저장 */
+            <div key={`gabji-${activeSheet}`} className={styles.viewportGabji}>
+              <GabjiEditor
+                key={`gabji-editor-${fileName ?? "new"}`}
+                initialDoc={gabjiEditorDoc}
+                initialItems={gabjiEditorItems}
               />
             </div>
           ) : sheet && isItemSheet(sheet.name) ? (
@@ -1604,7 +1740,7 @@ export default function FillPage() {
                       <tr key={ri} style={row.height !== null ? { height: row.height } : undefined}>
                         {row.cells.map((cell, ci) => {
                           if (cell.skip) return null;
-                          const ref      = `${colLetter(ci + 1 + colStart)}${ri + 1 + rowStart}`;
+                          const ref      = toAbsoluteRef(sheet, ri, ci);
                           const key      = mkKey(activeSheet, ref);
                           const override = formValues[key];
                           const isSel    = selectedCell?.ri === ri && selectedCell?.ci === ci;
@@ -1651,22 +1787,19 @@ export default function FillPage() {
                 className={styles.previewPrintBtn}
                 disabled={pdfLoading}
                 onClick={async () => {
-                  setPdfLoading(true);
-                  try {
-                    if (isPhotoSheet(sheet.name)) {
-                      await handlePhotoSheetPrint();
-                    } else {
-                      await handlePrintActive();
-                    }
-                  } finally {
-                    setPdfLoading(false);
+                  if (isPhotoSheet(sheet.name)) {
+                    setPdfLoading(true);
+                    try { await handlePhotoSheetPrint(); }
+                    finally { setPdfLoading(false); }
+                  } else {
+                    handlePrintActive();
                   }
                 }}
               >
                 {pdfLoading ? (
                   <>
                     <div className={styles.previewPrintSpinner} />
-                    PDF 생성 중…
+                    처리 중…
                   </>
                 ) : (
                   <>
@@ -1675,7 +1808,7 @@ export default function FillPage() {
                       <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
                       <rect x="6" y="14" width="12" height="8" />
                     </svg>
-                    PDF 열기
+                    인쇄
                   </>
                 )}
               </button>
@@ -1691,7 +1824,7 @@ export default function FillPage() {
               <div className={styles.previewPhotoWrap}>
                 <PhotoSheetView
                   sheetName={sheet.name}
-                  blocks={photoBlocks[sheet.name] ?? []}
+                  blocks={previewData.photoBlocks[sheet.name] ?? []}
                   a4Mode
                 />
               </div>
@@ -1700,15 +1833,15 @@ export default function FillPage() {
                 sheet={sheet}
                 sheetIdx={activeSheet}
                 formValues={{
-                  ...formValues,
+                  ...previewData.formValues,
                   ...gabjiPrintOverrides(
-                    sheet, activeSheet, gabjiData,
-                    Object.fromEntries(Array.from({ length: 9 }, (_, i) => [i + 1, sumByCategory(items, i + 1)])),
+                    sheet, activeSheet, previewData.gabjiData,
+                    Object.fromEntries(Array.from({ length: 9 }, (_, i) => [i + 1, sumByCategory(previewData.items, i + 1)])),
                   ),
                 }}
               />
             ) : (
-              <PreviewSheet sheet={sheet} sheetIdx={activeSheet} formValues={formValues} />
+              <PreviewSheet sheet={sheet} sheetIdx={activeSheet} formValues={previewData.formValues} />
             )}
             <button type="button" className={styles.previewCloseBottom} onClick={() => setShowPreview(false)}>
               닫기

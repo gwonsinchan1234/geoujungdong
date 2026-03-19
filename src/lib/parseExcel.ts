@@ -20,6 +20,7 @@ export type ParsedSheet = {
   rows:       Array<{ height: number | null; cells: ParsedCell[] }>;
   colWidths:  number[];
   printArea?: { r1: number; c1: number; r2: number; c2: number } | null;
+  renderRange: { r1: number; c1: number; r2: number; c2: number; source: "printArea" | "usedRange" | "fullSheet" };
   zoomScale:  number; // Excel 시트 뷰 확대/축소 (기본 100)
 };
 
@@ -354,6 +355,76 @@ function mirrorNeighborBorders(rows: ParsedSheet["rows"]) {
   }
 }
 
+function parsePrintArea(ws: ExcelJS.Worksheet): ParsedSheet["printArea"] {
+  const paStr = (ws.pageSetup as { printArea?: string })?.printArea;
+  if (!paStr) return null;
+  const first = paStr.split(",")[0].trim();
+  const area = first.includes("!") ? first.slice(first.lastIndexOf("!") + 1) : first;
+  const pm = area.match(/^\$?([A-Z]+)\$?(\d+):\$?([A-Z]+)\$?(\d+)$/);
+  if (!pm) return null;
+  const colIdx = (s: string) =>
+    s.split("").reduce((n, ch) => n * 26 + ch.charCodeAt(0) - 64, 0);
+  return {
+    c1: colIdx(pm[1]),
+    r1: parseInt(pm[2], 10),
+    c2: colIdx(pm[3]),
+    r2: parseInt(pm[4], 10),
+  };
+}
+
+function detectUsedRange(ws: ExcelJS.Worksheet): { r1: number; c1: number; r2: number; c2: number } | null {
+  let r1 = Number.POSITIVE_INFINITY;
+  let c1 = Number.POSITIVE_INFINITY;
+  let r2 = 0;
+  let c2 = 0;
+  ws.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+    row.eachCell({ includeEmpty: false }, (_cell, colNumber) => {
+      if (rowNumber < r1) r1 = rowNumber;
+      if (colNumber < c1) c1 = colNumber;
+      if (rowNumber > r2) r2 = rowNumber;
+      if (colNumber > c2) c2 = colNumber;
+    });
+  });
+  if (!Number.isFinite(r1) || !Number.isFinite(c1) || r2 < 1 || c2 < 1) return null;
+  return { r1, c1, r2, c2 };
+}
+
+function clampRange(
+  range: { r1: number; c1: number; r2: number; c2: number },
+  rowCount: number,
+  colCount: number,
+): { r1: number; c1: number; r2: number; c2: number } {
+  const maxR = Math.max(1, rowCount);
+  const maxC = Math.max(1, colCount);
+  const r1 = Math.min(Math.max(1, range.r1), maxR);
+  const c1 = Math.min(Math.max(1, range.c1), maxC);
+  const r2 = Math.min(Math.max(r1, range.r2), maxR);
+  const c2 = Math.min(Math.max(c1, range.c2), maxC);
+  return { r1, c1, r2, c2 };
+}
+
+function cropToRenderRange(
+  rows: ParsedSheet["rows"],
+  colWidths: number[],
+  range: { r1: number; c1: number; r2: number; c2: number },
+): { rows: ParsedSheet["rows"]; colWidths: number[] } {
+  const rowStart = range.r1 - 1;
+  const colStart = range.c1 - 1;
+  const outRows = rows.slice(rowStart, range.r2).map((row, ri) => {
+    const rowsRemaining = range.r2 - (range.r1 + ri) + 1;
+    const sliced = row.cells.slice(colStart, range.c2).map((cell, ci) => {
+      if (cell.skip) return cell;
+      const colsRemaining = range.c2 - (range.c1 + ci) + 1;
+      const rowSpan = Math.max(1, Math.min(cell.rowSpan, rowsRemaining));
+      const colSpan = Math.max(1, Math.min(cell.colSpan, colsRemaining));
+      return { ...cell, rowSpan, colSpan };
+    });
+    return { ...row, cells: sliced };
+  });
+  const outColWidths = colWidths.slice(colStart, range.c2);
+  return { rows: outRows, colWidths: outColWidths };
+}
+
 export async function parseExcelBuffer(arrayBuffer: ArrayBuffer): Promise<ParsedSheet[]> {
   await new Promise<void>((r) => setTimeout(r, 0));
 
@@ -365,8 +436,19 @@ export async function parseExcelBuffer(arrayBuffer: ArrayBuffer): Promise<Parsed
   const themeMapResolved = themeMap ?? getWorkbookThemeColors(wb);
 
   const sheets: ParsedSheet[] = wb.worksheets.map((ws) => {
-    const rowCount = ws.rowCount ?? 0;
-    const colCount = ws.columnCount ?? 0;
+    const parsedPrintArea = parsePrintArea(ws);
+    const usedRange = detectUsedRange(ws);
+    const fallbackRange = {
+      r1: 1,
+      c1: 1,
+      r2: Math.max(1, ws.rowCount ?? 0),
+      c2: Math.max(1, ws.columnCount ?? 0),
+    };
+    const renderRangeSource = parsedPrintArea ? "printArea" : usedRange ? "usedRange" : "fullSheet";
+    const renderRangeRaw = parsedPrintArea ?? usedRange ?? fallbackRange;
+
+    const rowCount = Math.max(1, ws.rowCount ?? 0, renderRangeRaw.r2);
+    const colCount = Math.max(1, ws.columnCount ?? 0, renderRangeRaw.c2);
 
     const spanMap = new Map<string, { rowSpan: number; colSpan: number }>();
     const skipSet = new Set<string>();
@@ -462,36 +544,31 @@ export async function parseExcelBuffer(arrayBuffer: ArrayBuffer): Promise<Parsed
     // 테이블/범위 스타일에서 한쪽 셀에만 저장된 border 보정
     mirrorNeighborBorders(rows);
 
-    let printArea: ParsedSheet["printArea"] = null;
-    const paStr = (ws.pageSetup as { printArea?: string })?.printArea;
-    if (paStr) {
-      const first = paStr.split(",")[0].trim();
-      const pm = first.match(/^\$?([A-Z]+)\$?(\d+):\$?([A-Z]+)\$?(\d+)$/);
-      if (pm) {
-        const colIdx = (s: string) =>
-          s.split("").reduce((n, ch) => n * 26 + ch.charCodeAt(0) - 64, 0);
-        printArea = {
-          c1: colIdx(pm[1]),
-          r1: parseInt(pm[2], 10),
-          c2: colIdx(pm[3]),
-          r2: parseInt(pm[4], 10),
-        };
-      }
-    }
+    const renderRangeBase = clampRange(renderRangeRaw, rowCount, colCount);
+    const cropped = cropToRenderRange(rows, colWidths, renderRangeBase);
 
     const views = ws.views as Array<{ zoomScale?: number; zoomScaleNormal?: number }>;
     const zoomScale = views?.[0]?.zoomScale ?? views?.[0]?.zoomScaleNormal ?? 100;
 
-    return { name: ws.name, rows, colWidths, printArea, zoomScale };
+    return {
+      name: ws.name,
+      rows: cropped.rows,
+      colWidths: cropped.colWidths,
+      printArea: parsedPrintArea,
+      renderRange: { ...renderRangeBase, source: renderRangeSource },
+      zoomScale,
+    };
   });
 
   for (const group of SAME_LAYOUT_GROUPS) {
     const ref = sheets[group[0]];
     if (!ref) continue;
+    if (ref.renderRange.source === "printArea") continue;
     const refColCount = ref.colWidths.length;
     for (const idx of group.slice(1)) {
       const s = sheets[idx];
       if (!s) continue;
+      if (s.renderRange.source === "printArea") continue;
       s.colWidths = [...ref.colWidths];
       s.rows = s.rows.map((row) => {
         const cells = row.cells.slice(0, refColCount);

@@ -311,25 +311,6 @@
 }
 
 
-.muteBtn {
-  width: 46px;
-  height: 46px;
-  border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  background: rgba(0, 0, 0, 0.28);
-  color: #fff;
-  font-size: 18px;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  transition: background 0.2s;
-}
-
-.muteBtn:hover {
-  background: rgba(0, 0, 0, 0.50);
-}
-
 .scrollHint {
   position: absolute;
   bottom: 28px;
