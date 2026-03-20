@@ -16,6 +16,7 @@
   width: clamp(160px, 45vw, 260px);
   height: auto;
   object-fit: contain;
+  filter: brightness(0) invert(1);
 }
 
 /* ── Design tokens ── */
