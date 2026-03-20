@@ -8,6 +8,31 @@
 import React, { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
+import dynamic from "next/dynamic";
+
+// 데스크탑 전용 PDF 뷰어 (SSR 불가)
+const ItemListPdfViewer = dynamic(() => import("./ItemListPdfViewer"), {
+  ssr: false,
+  loading: () => (
+    <div style={{
+      display: "flex", alignItems: "center", justifyContent: "center",
+      height: "100%", color: "#94a3b8", fontSize: 13,
+      flexDirection: "column", gap: 10,
+    }}>
+      <div style={{
+        width: 28, height: 28,
+        border: "3px solid rgba(148,163,184,.3)", borderTopColor: "#94a3b8",
+        borderRadius: "50%", animation: "spin 0.75s linear infinite",
+      }} />
+      PDF 준비 중…
+    </div>
+  ),
+});
+
+function initIsMobile() {
+  if (typeof window === "undefined") return false;
+  return window.innerWidth <= 768;
+}
 import type { ItemData } from "./types";
 import {
   CATEGORY_LABELS, UNIT_SUGGESTIONS,
@@ -354,6 +379,13 @@ export default function ItemListView({ items, onChange, onSave, onPrint, saved }
   const [editingItem, setEditingItem] = useState<ItemData | null>(null);
   const [deletingId,  setDeletingId]  = useState<string | null>(null);
   const [mobileTab,   setMobileTab]   = useState<"list" | "preview">("list");
+  const [isMobile,    setIsMobile]    = useState(initIsMobile);
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
 
   const grouped = useMemo(() => {
     const map = new Map<number, ItemData[]>();
@@ -527,9 +559,12 @@ export default function ItemListView({ items, onChange, onSave, onPrint, saved }
           </div>
         </div>
 
-        {/* 우측 패널: A4 미리보기 */}
+        {/* 우측 패널: 데스크탑 → PDF 뷰어, 모바일 → HTML 미리보기 */}
         <div className={`${styles.rightPanel} ${mobileTab === "list" ? styles.mobileHidden : ""}`}>
-          <ItemListPreview items={items} />
+          {isMobile
+            ? <ItemListPreview items={items} />
+            : <ItemListPdfViewer items={items} />
+          }
         </div>
 
       </div>
