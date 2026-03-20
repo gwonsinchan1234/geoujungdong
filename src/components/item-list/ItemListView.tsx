@@ -1,14 +1,15 @@
 "use client";
 
 // 항목별세부내역 에디터
-// GabjiEditor와 동일한 레이아웃:
-//   다크 툴바 → 모바일탭 → 에디터바디(좌: 카테고리표 | 우: A4 미리보기)
+// GabjiEditor와 완전 동일한 레이아웃:
+//   다크 툴바(toolbarLeft/Right) → 모바일탭(tabBar/tabBtn/active)
+//   → 에디터바디(좌: 카테고리표 | 우: A4 미리보기)
 
 import React, { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import type { ItemData } from "./types";
 import {
-  CATEGORY_LABELS, CATEGORY_SHORT, UNIT_SUGGESTIONS,
+  CATEGORY_LABELS, UNIT_SUGGESTIONS,
   makeNewItem, fmtNum, parseNum, calcAmount,
 } from "./types";
 import styles from "./item-list.module.css";
@@ -63,10 +64,10 @@ function ItemListPreview({ items }: { items: ItemData[] }) {
   );
 
   return (
-    <div ref={outerRef} className={styles.previewOuter}>
+    <div ref={outerRef} className={styles.htmlPreviewOuter}>
       <div style={{ zoom: zoomVal, width: A4_PX }}>
-        <div className={styles.previewA4}>
-          <div className={styles.previewDocTitle}>항목별 세부내역서</div>
+        <div className={styles.a4Wrap}>
+          <div className={styles.a4Title}>항목별 세부내역서</div>
           <table className={styles.previewTable}>
             <colgroup>
               <col style={{ width: "7%" }} />
@@ -78,7 +79,7 @@ function ItemListPreview({ items }: { items: ItemData[] }) {
               <col style={{ width: "14%" }} />
             </colgroup>
             <thead>
-              <tr className={styles.previewTh}>
+              <tr>
                 <th>번호</th>
                 <th>사용일자</th>
                 <th>품명 / 규격</th>
@@ -90,23 +91,23 @@ function ItemListPreview({ items }: { items: ItemData[] }) {
             </thead>
             <tbody>
               <tr className={styles.previewSumRow}>
-                <td colSpan={6} className={styles.previewCenter}>합&nbsp;&nbsp;&nbsp;계</td>
+                <td colSpan={6} className={styles.previewSumLabel}>합&nbsp;&nbsp;&nbsp;계</td>
                 <td className={styles.previewRight}>{fmtNum(total)}</td>
               </tr>
               {Array.from(grouped.entries()).flatMap(([catNo, catItems]) => {
                 if (catItems.length === 0) return [];
                 return [
-                  <tr key={`ch-${catNo}`} className={styles.previewCatHead}>
+                  <tr key={`ch-${catNo}`} className={styles.previewCatRow}>
                     <td colSpan={6}>{catNo}. {CATEGORY_LABELS[catNo]}</td>
                     <td className={styles.previewRight}>{fmtNum(catSums[catNo])}</td>
                   </tr>,
                   ...catItems.map((item, idx) => (
                     <tr key={item.id}>
-                      <td className={styles.previewCenter}>{item.evidenceNo || `NO.${idx + 1}`}</td>
-                      <td className={styles.previewCenter}>{item.usageDate}</td>
+                      <td>{item.evidenceNo || `NO.${idx + 1}`}</td>
+                      <td>{item.usageDate}</td>
                       <td className={styles.previewLeft}>{item.name}</td>
-                      <td className={styles.previewCenter}>{item.quantity || ""}</td>
-                      <td className={styles.previewCenter}>{item.unit}</td>
+                      <td>{item.quantity || ""}</td>
+                      <td>{item.unit}</td>
                       <td className={styles.previewRight}>{item.unitPrice ? fmtNum(item.unitPrice) : ""}</td>
                       <td className={styles.previewRight}>{fmtNum(item.amount)}</td>
                     </tr>
@@ -145,29 +146,23 @@ function ItemRow({
       style={{ animationDelay: `${idx * 0.03}s` } as React.CSSProperties}
     >
       {/* NO */}
-      <td className={styles.tdNo}>
-        <span className={styles.evNo}>{item.evidenceNo || idx + 1}</span>
+      <td className={styles.itemNo}>
+        {item.evidenceNo || idx + 1}
       </td>
 
       {/* 품명 (expandable input) */}
-      <td className={styles.tdName}>
-        <div className={styles.nameWrap}>
-          <input
-            type="text"
-            className={styles.itemNameInput}
-            value={item.name}
-            onChange={e => onInlineChange(item.id, "name", e.target.value)}
-            placeholder="품명"
-          />
-          <span className={styles.itemBadges}>
-            {item.hasPhoto && <span>📷</span>}
-            {item.note     && <span>📝</span>}
-          </span>
-        </div>
+      <td className={styles.itemName}>
+        <input
+          type="text"
+          className={styles.itemNameInput}
+          value={item.name}
+          onChange={e => onInlineChange(item.id, "name", e.target.value)}
+          placeholder="품명"
+        />
       </td>
 
       {/* 금액 */}
-      <td className={styles.tdAmt}>
+      <td className={styles.itemAmtCell}>
         <input
           className={styles.itemAmtInput}
           inputMode="numeric"
@@ -201,7 +196,7 @@ function ItemRow({
 }
 
 // ══════════════════════════════════════════════════════════════════════
-// 항목 편집 폼 (바텀시트 내부) — 이전과 동일
+// 항목 편집 폼 (바텀시트 내부)
 // ══════════════════════════════════════════════════════════════════════
 function ItemEditForm({
   item, onSave, onCancel,
@@ -404,24 +399,29 @@ export default function ItemListView({ items, onChange }: Props) {
   return (
     <div className={styles.editor}>
 
-      {/* ── 툴바 (갑지 동일 다크 테마) ──────────────────────────── */}
+      {/* ── 툴바 — gabji .toolbar 완전 동일 ────────────────────── */}
       <div className={styles.toolbar}>
-        <span className={styles.toolbarTitle}>항목별세부내역</span>
-        <span className={styles.toolbarSep} />
-        <span className={styles.toolbarCount}>총 {items.length}건</span>
-        <span className={styles.toolbarTotal}>{fmtNum(total)}원</span>
+        <div className={styles.toolbarLeft}>
+          <span className={styles.toolbarTitle}>항목별세부내역</span>
+        </div>
+        <div className={styles.toolbarRight}>
+          <span className={styles.toolbarCount}>총 {items.length}건</span>
+          <span className={styles.toolbarTotal}>{fmtNum(total)}원</span>
+        </div>
       </div>
 
-      {/* ── 모바일 탭 (데스크탑 숨김) ───────────────────────────── */}
+      {/* ── 모바일 탭 — gabji .mobileTabs/.tabBar/.tabBtn/.active 동일 */}
       <div className={styles.mobileTabs}>
-        <button
-          className={`${styles.mobileTab} ${mobileTab === "list" ? styles.mobileTabActive : ""}`}
-          onClick={() => setMobileTab("list")}
-        >항목 편집</button>
-        <button
-          className={`${styles.mobileTab} ${mobileTab === "preview" ? styles.mobileTabActive : ""}`}
-          onClick={() => setMobileTab("preview")}
-        >미리보기</button>
+        <div className={styles.tabBar}>
+          <button
+            className={`${styles.tabBtn} ${mobileTab === "list" ? styles.active : ""}`}
+            onClick={() => setMobileTab("list")}
+          >항목 편집</button>
+          <button
+            className={`${styles.tabBtn} ${mobileTab === "preview" ? styles.active : ""}`}
+            onClick={() => setMobileTab("preview")}
+          >미리보기</button>
+        </div>
       </div>
 
       {/* ── 에디터 바디: 좌(항목 표) + 우(A4 미리보기) ──────────── */}
@@ -438,12 +438,11 @@ export default function ItemListView({ items, onChange }: Props) {
                   className={styles.section}
                   style={{ animationDelay: `${sectionIdx * 0.06}s` } as React.CSSProperties}
                 >
-                  {/* 카테고리 헤더 */}
+                  {/* 카테고리 헤더 — gabji .sectionTitle 동일 */}
                   <div className={styles.sectionTitle}>
-                    <span className={styles.catBadge}>{catNo}</span>
-                    <span className={styles.catLabel}>{CATEGORY_SHORT[catNo]}</span>
-                    {catSum > 0 && <span className={styles.catSum}>{fmtNum(catSum)}원</span>}
-                    <span className={styles.catCount}>{catItems.length}건</span>
+                    <span className={styles.sectionTitleName}>{catNo}. {CATEGORY_LABELS[catNo]}</span>
+                    {catSum > 0 && <span className={styles.sectionTitleSum}>{fmtNum(catSum)}원</span>}
+                    <span className={styles.sectionTitleCount}>{catItems.length}건</span>
                   </div>
 
                   {/* 항목 테이블 */}
@@ -453,8 +452,16 @@ export default function ItemListView({ items, onChange }: Props) {
                         <col className={styles.colNo} />
                         <col />
                         <col className={styles.colAmt} />
-                        <col className={styles.colActions} />
+                        <col style={{ width: "52px" }} />
                       </colgroup>
+                      <thead>
+                        <tr>
+                          <th>NO</th>
+                          <th>품명</th>
+                          <th>금액</th>
+                          <th></th>
+                        </tr>
+                      </thead>
                       <tbody>
                         {catItems.map((item, idx) => (
                           <ItemRow

@@ -1,68 +1,62 @@
 /* ════════════════════════════════════════════════════════════════
    항목별세부내역 에디터
-   GabjiEditor와 동일한 레이아웃·스타일 시스템
+   gabji.module.css 완전 동일 값 적용
    ════════════════════════════════════════════════════════════════ */
 
-/* ── 키프레임 ─────────────────────────────────────────────────── */
-
+/* ── 키프레임 (gabji.module.css 동일) ─────────────────────────── */
 @keyframes gabjiUp {
   from { opacity: 0; transform: translateY(14px) scale(0.98); }
-  to   { opacity: 1; transform: translateY(0)    scale(1); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
 }
-
 @keyframes itemIn {
   from { opacity: 0; transform: translateX(-8px); }
   to   { opacity: 1; transform: translateX(0); }
 }
-
 @keyframes nameExpand {
-  from { opacity: 0.6; transform: scaleX(0.96); }
-  to   { opacity: 1;   transform: scaleX(1); }
+  from { opacity: 0.6; transform: translateY(-50%) scaleX(0.92); }
+  to   { opacity: 1;   transform: translateY(-50%) scaleX(1); }
 }
-
 @keyframes fadeIn  { from { opacity: 0; } to { opacity: 1; } }
-
-@keyframes sheetUp {
-  from { transform: translateY(100%); }
-  to   { transform: translateY(0); }
-}
+@keyframes sheetUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+@keyframes spin    { to { transform: rotate(360deg); } }
 
 /* ════════════════════════════════════════════════════════════════
-   에디터 외곽 — GabjiEditor .editor 동일
+   에디터 외곽 — gabji .editor 완전 동일
    ════════════════════════════════════════════════════════════════ */
-
 .editor {
   display: flex;
   flex-direction: column;
   height: 100%;
+  min-height: 0;
   overflow: hidden;
-  background: #f0f2f5;
+  background: #f8fafc;
+  font-family: 'Malgun Gothic', '맑은 고딕', -apple-system, sans-serif;
+}
+
+.editorBody {
+  display: grid;
+  grid-template-columns: 400px 1fr;
+  flex: 1;
+  overflow: hidden;
+  min-height: 0;
 }
 
 /* ════════════════════════════════════════════════════════════════
-   툴바 — GabjiEditor .toolbar 동일 (다크 슬레이트)
+   툴바 — gabji .toolbar 완전 동일
    ════════════════════════════════════════════════════════════════ */
-
 .toolbar {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 0 12px;
-  height: 40px;
+  padding: 10px 16px;
   background: #1e293b;
-  border-bottom: 1px solid #0f172a;
+  border-bottom: 1px solid #334155;
   flex-shrink: 0;
+  flex-wrap: wrap;
 }
-
-.toolbarTitle {
-  font-size: 11px;
-  font-weight: 700;
-  color: #94a3b8;
-  letter-spacing: 0.3px;
-  white-space: nowrap;
-}
-
-.toolbarSep { flex: 1; }
+.toolbarLeft  { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; overflow: hidden; }
+.toolbarTitle { font-size: 13px; font-weight: 700; color: #f1f5f9; white-space: nowrap; letter-spacing: -0.02em; }
+.toolbarRight { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 
 .toolbarCount {
   font-size: 11px;
@@ -70,756 +64,404 @@
   color: #64748b;
   white-space: nowrap;
 }
-
 .toolbarTotal {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 800;
   color: #f1f5f9;
   letter-spacing: -0.5px;
   white-space: nowrap;
 }
 
-/* ════════════════════════════════════════════════════════════════
-   모바일 탭 — 데스크탑 숨김, 모바일만 표시
-   ════════════════════════════════════════════════════════════════ */
-
-.mobileTabs {
-  display: none;
-  flex-shrink: 0;
-  background: #fff;
-  border-bottom: 1px solid #e2e8f0;
+/* gabji 버튼 완전 동일 (미래 확장용 포함) */
+.btnPrimary {
+  height: 32px; padding: 0 14px; background: #3b82f6; color: #fff;
+  border: none; border-radius: 6px; font-size: 12px; font-weight: 600;
+  cursor: pointer; white-space: nowrap; transition: background 0.15s, transform 0.1s;
+  display: flex; align-items: center; gap: 5px; font-family: inherit;
 }
+.btnPrimary:hover  { background: #2563eb; box-shadow: 0 2px 8px rgba(59,130,246,.3); }
+.btnPrimary:active { transform: scale(0.97); }
 
-.mobileTab {
-  flex: 1;
-  padding: 11px 0;
-  font-size: 13px;
-  font-weight: 600;
-  color: #94a3b8;
-  background: none;
-  border: none;
-  cursor: pointer;
+.btnSecondary {
+  height: 32px; padding: 0 12px; background: transparent;
+  color: #94a3b8; border: 1px solid #475569; border-radius: 6px;
+  font-size: 12px; cursor: pointer; white-space: nowrap;
+  transition: background 0.15s, color 0.15s, transform 0.1s;
+  display: flex; align-items: center; gap: 5px; font-family: inherit;
+}
+.btnSecondary:hover  { background: #1e293b; color: #f1f5f9; border-color: #64748b; }
+.btnSecondary:active { transform: scale(0.97); }
+
+/* ════════════════════════════════════════════════════════════════
+   모바일 탭 — gabji .mobileTabs / .tabBar / .tabBtn 완전 동일
+   ════════════════════════════════════════════════════════════════ */
+.mobileTabs { display: none; flex-shrink: 0; background: #fff; }
+.tabBar {
+  display: flex;
+  background: #fff;
+  border-bottom: 2px solid #e2e8f0;
+}
+.tabBtn {
+  flex: 1; height: 40px; background: none; border: none;
+  font-size: 13px; font-weight: 500; color: #94a3b8; cursor: pointer;
+  border-bottom: 2px solid transparent; margin-bottom: -2px;
+  transition: color 0.15s, border-color 0.15s;
   font-family: inherit;
-  transition: color 0.15s;
-  -webkit-tap-highlight-color: transparent;
 }
-
-.mobileTabActive {
-  color: #3b82f6;
-  box-shadow: inset 0 -2px 0 #3b82f6;
-}
-
-.mobileHidden { display: none !important; }
+.tabBtn.active { color: #3b82f6; border-bottom-color: #3b82f6; font-weight: 700; }
+/* CSS Modules용: :global(.active) 대신 컴포넌트에서 styles.active 사용 */
+.active { color: #3b82f6; border-bottom-color: #3b82f6; font-weight: 700; }
 
 /* ════════════════════════════════════════════════════════════════
-   에디터 바디: 좌측 400px + 우측 flex
-   GabjiEditor .editorBody 동일
+   좌측 패널 — gabji .leftPanel 완전 동일
    ════════════════════════════════════════════════════════════════ */
-
-.editorBody {
-  display: grid;
-  grid-template-columns: 400px 1fr;
-  flex: 1;
-  min-height: 0;
-  overflow: hidden;
-}
-
-/* ── 좌측 패널 ─────────────────────────────────────────────── */
-
 .leftPanel {
-  overflow-y: auto;
   overflow-x: hidden;
-  background: #fff;
+  overflow-y: auto;
   border-right: 1px solid #e2e8f0;
-  -webkit-overflow-scrolling: touch;
-  min-height: 0;
-}
-
-.leftPanel::-webkit-scrollbar { width: 5px; }
-.leftPanel::-webkit-scrollbar-track { background: #f1f5f9; }
-.leftPanel::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
-
-.formWrap {
-  padding: 0 0 48px;
-}
-
-/* ── 우측 패널: A4 미리보기 ────────────────────────────────── */
-
-.rightPanel {
-  background: #4b5563;
-  flex: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
+  background: #fff;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  padding: 16px;
-  -webkit-overflow-scrolling: touch;
-  min-height: 0;
 }
+.formWrap { padding: 16px 16px 40px; display: flex; flex-direction: column; gap: 16px; }
+.section { animation: gabjiUp 0.45s cubic-bezier(0.16,1,0.3,1) both; }
+.section:nth-child(1) { animation-delay: 0.00s; }
+.section:nth-child(2) { animation-delay: 0.06s; }
+.section:nth-child(3) { animation-delay: 0.12s; }
+.section:nth-child(4) { animation-delay: 0.18s; }
+.section:nth-child(5) { animation-delay: 0.24s; }
+.section:nth-child(6) { animation-delay: 0.30s; }
+.section:nth-child(7) { animation-delay: 0.36s; }
+.section:nth-child(8) { animation-delay: 0.42s; }
+.section:nth-child(9) { animation-delay: 0.48s; }
 
-.rightPanel::-webkit-scrollbar { width: 5px; }
-.rightPanel::-webkit-scrollbar-track { background: #374151; }
-.rightPanel::-webkit-scrollbar-thumb { background: #6b7280; border-radius: 3px; }
-
-/* ════════════════════════════════════════════════════════════════
-   카테고리 섹션 — GabjiEditor .section 동일
-   ════════════════════════════════════════════════════════════════ */
-
-.section {
-  border-bottom: 6px solid #f0f2f5;
-  animation: gabjiUp 0.45s cubic-bezier(0.16,1,0.3,1) both;
-}
-
+/* gabji .sectionTitle 완전 동일 */
 .sectionTitle {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 12px 7px;
-  background: #f8fafc;
+  gap: 8px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #64748b;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+  padding-bottom: 5px;
   border-bottom: 1px solid #e2e8f0;
-  position: sticky;
-  top: 0;
-  z-index: 3;
 }
-
-.catBadge {
-  width: 20px;
-  height: 20px;
-  background: #3b82f6;
-  color: #fff;
-  border-radius: 50%;
-  font-size: 10px;
-  font-weight: 800;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.catLabel {
-  font-size: 11px;
-  font-weight: 700;
-  color: #374151;
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.catSum {
-  font-size: 11px;
-  font-weight: 700;
-  color: #3b82f6;
-  white-space: nowrap;
-}
-
-.catCount {
-  font-size: 10px;
-  color: #94a3b8;
-  background: #f1f5f9;
-  padding: 1px 6px;
-  border-radius: 8px;
-  white-space: nowrap;
-}
+.sectionTitleName { flex: 1; }
+.sectionTitleSum  { font-size: 11px; color: #3b82f6; font-weight: 700; letter-spacing: 0; text-transform: none; }
+.sectionTitleCount { font-size: 10px; color: #94a3b8; font-weight: 500; letter-spacing: 0; text-transform: none; }
 
 /* ════════════════════════════════════════════════════════════════
-   항목 테이블 — GabjiItemsForm .itemsTable 동일
+   항목 테이블 — gabji GabjiItemsForm .itemsTable 완전 동일
    ════════════════════════════════════════════════════════════════ */
+.itemsTable { width: 100%; border-collapse: collapse; font-size: 11.5px; table-layout: fixed; }
+.colNo   { width: 26px; }
+.colName { /* 나머지 전부 */ }
+.colAmt  { width: 72px; }
+@media (min-width: 900px) { .colAmt { width: 90px; } }
 
-.itemsTable {
-  width: 100%;
-  border-collapse: collapse;
-  table-layout: fixed;
-  font-size: 11.5px;
-  color: #1e293b;
+.itemsTable th {
+  background: #f8fafc; color: #64748b; font-weight: 600;
+  font-size: 10px; padding: 6px 5px; text-align: center;
+  border: 1px solid #e2e8f0; word-break: keep-all; line-height: 1.3;
 }
 
-.colNo      { width: 28px; }
-.colAmt     { width: 72px; }
-.colActions { width: 52px; }
+.itemRow { animation: itemIn 0.35s cubic-bezier(0.16,1,0.3,1) both; overflow: visible; }
 
-/* ── 항목 행 ────────────────────────────────────────────────── */
-
-.itemRow {
-  border-bottom: 1px solid #f3f4f6;
-  animation: itemIn 0.35s cubic-bezier(0.16,1,0.3,1) both;
-  transition: background 0.1s;
+.itemNo {
+  text-align: center; color: #94a3b8; font-size: 11px; font-weight: 700;
+  padding: 3px 5px; border: 1px solid #e2e8f0; width: 26px;
+  vertical-align: middle; background: #f8fafc;
 }
-
-.itemRow:hover { background: #f9fafb; }
-
-.tdNo {
-  padding: 0 0 0 6px;
-  text-align: center;
-  vertical-align: middle;
+.itemName {
+  border: 1px solid #e2e8f0; vertical-align: middle; padding: 0;
+  position: relative; overflow: visible;
 }
-
-.evNo {
-  display: inline-block;
-  font-size: 9px;
-  font-weight: 700;
-  color: #94a3b8;
-  background: #f1f5f9;
-  border-radius: 3px;
-  padding: 1px 4px;
-}
-
-.tdName {
-  padding: 3px 2px;
-  position: relative;
-  overflow: visible;
-  vertical-align: middle;
-}
-
-.nameWrap {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-}
-
-/* 품명 입력 — GabjiItemsForm .itemNameInput 동일 */
 .itemNameInput {
-  width: 100%;
-  height: 28px;
-  padding: 0 6px;
-  font-size: 11.5px;
-  font-weight: 500;
-  color: #1e293b;
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: 3px;
-  outline: none;
-  font-family: inherit;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  transition: border-color 0.15s, background 0.15s;
+  width: 100%; height: 28px; padding: 3px 7px;
+  border: none; outline: none; background: transparent;
+  color: #334155; font-size: 11px; line-height: 1.3;
   box-sizing: border-box;
-  cursor: pointer;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  border-radius: 0; cursor: pointer; font-family: inherit;
 }
-
-.itemNameInput:hover {
-  border-color: #e2e8f0;
-  background: #f8fafc;
-}
-
 .itemNameInput:focus {
-  position: absolute;
-  left: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  width: max(100%, 260px);
-  height: 32px;
-  background: #fff;
-  border: 1.5px solid #3b82f6;
-  border-radius: 4px;
-  box-shadow: 0 4px 16px rgba(59,130,246,0.15);
-  z-index: 30;
+  position: absolute; left: 0; top: 50%; transform: translateY(-50%);
+  min-width: max(100%, 260px); width: max(100%, 260px);
+  height: 30px; padding: 4px 8px;
+  background: #fff; border: 1.5px solid #3b82f6; border-radius: 4px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.13);
+  z-index: 30; cursor: text;
   animation: nameExpand 0.18s cubic-bezier(0.16,1,0.3,1);
-  text-overflow: clip;
-  white-space: normal;
 }
-
-.itemBadges {
-  display: flex;
-  gap: 1px;
-  flex-shrink: 0;
-  font-size: 10px;
-  opacity: 0.7;
+.itemAmtCell {
+  border: 1px solid #e2e8f0; padding: 2px 3px;
+  text-align: right; vertical-align: middle;
 }
-
-.tdAmt {
-  padding: 3px 2px;
-  vertical-align: middle;
-}
-
-/* 금액 입력 — GabjiItemsForm .itemAmtInput 동일 */
 .itemAmtInput {
-  width: 100%;
-  height: 26px;
-  padding: 0 6px;
-  font-size: 11.5px;
-  font-weight: 600;
-  color: #1e293b;
-  text-align: right;
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: 3px;
-  outline: none;
-  font-family: inherit;
-  transition: border-color 0.15s, background 0.15s;
-  box-sizing: border-box;
+  width: 100%; height: 26px; padding: 0 5px; border: none;
+  border-radius: 3px; font-size: 11.5px; text-align: right;
+  color: #1e293b; background: transparent; outline: none;
+  transition: background 0.12s; box-sizing: border-box; font-family: inherit;
 }
-
-.itemAmtInput:hover { border-color: #e2e8f0; }
-.itemAmtInput:focus {
-  background: #eff6ff;
-  border-color: #93c5fd;
-  box-shadow: 0 0 0 2px rgba(59,130,246,0.08);
-}
-
+.itemAmtInput:focus { background: #eff6ff; box-shadow: 0 0 0 2px rgba(59,130,246,.15); }
 .itemAmtInput::placeholder { color: #cbd5e1; }
 
-.tdActions {
-  padding: 2px 4px;
-  vertical-align: middle;
-}
+.tdActions { border: 1px solid #e2e8f0; vertical-align: middle; padding: 2px 3px; }
 
-.rowBtns {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  justify-content: center;
-}
+.rowBtns { display: flex; align-items: center; gap: 2px; justify-content: center; }
 
 .rowEditBtn {
-  width: 22px;
-  height: 22px;
-  border: none;
-  background: transparent;
-  color: #94a3b8;
-  cursor: pointer;
-  border-radius: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  transition: background 0.1s, color 0.1s;
-  flex-shrink: 0;
+  width: 22px; height: 22px; border: none; background: transparent;
+  color: #94a3b8; cursor: pointer; border-radius: 4px;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0; transition: background 0.1s, color 0.1s;
 }
-
 .rowEditBtn:hover { background: #f1f5f9; color: #3b82f6; }
 
 .rowDelBtn {
-  width: 22px;
-  height: 22px;
-  border: none;
-  background: transparent;
-  color: #94a3b8;
-  font-size: 11px;
-  cursor: pointer;
-  border-radius: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  transition: background 0.1s, color 0.1s;
-  flex-shrink: 0;
+  width: 22px; height: 22px; border: none; background: transparent;
+  color: #94a3b8; font-size: 11px; cursor: pointer; border-radius: 4px;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0; transition: background 0.1s, color 0.1s;
 }
-
 .rowDelBtn:hover { background: #fef2f2; color: #ef4444; }
 
-.delConfirm {
-  display: flex;
-  gap: 2px;
-  align-items: center;
-  justify-content: center;
-}
-
+.delConfirm { display: flex; gap: 2px; align-items: center; justify-content: center; }
 .delNo {
-  height: 22px;
-  padding: 0 5px;
-  font-size: 10px;
-  font-weight: 600;
-  background: #f1f5f9;
-  color: #64748b;
-  border: none;
-  border-radius: 3px;
-  cursor: pointer;
-  font-family: inherit;
+  height: 22px; padding: 0 5px; font-size: 10px; font-weight: 600;
+  background: #f1f5f9; color: #64748b; border: none; border-radius: 3px;
+  cursor: pointer; font-family: inherit;
 }
-
 .delYes {
-  height: 22px;
-  padding: 0 5px;
-  font-size: 10px;
-  font-weight: 700;
-  background: #ef4444;
-  color: #fff;
-  border: none;
-  border-radius: 3px;
-  cursor: pointer;
-  font-family: inherit;
+  height: 22px; padding: 0 5px; font-size: 10px; font-weight: 700;
+  background: #ef4444; color: #fff; border: none; border-radius: 3px;
+  cursor: pointer; font-family: inherit;
 }
 
-/* ── 항목 추가 버튼 ─────────────────────────────────────────── */
+/* totalRow — gabji .totalRow 동일 */
+.totalRow td {
+  background: #f1f5f9; font-weight: 700; font-size: 11.5px;
+  color: #1e293b; padding: 5px 7px; border: 1px solid #cbd5e1;
+}
 
+/* 항목 추가 버튼 */
 .addRowBtn {
-  display: block;
-  width: 100%;
-  padding: 9px 12px;
-  font-size: 12px;
-  font-weight: 600;
-  color: #3b82f6;
-  background: #fff;
-  border: none;
-  border-top: 1px dashed #e2e8f0;
-  text-align: left;
-  cursor: pointer;
-  font-family: inherit;
-  transition: background 0.12s;
+  display: block; width: 100%; padding: 9px 0;
+  font-size: 12px; font-weight: 600; color: #3b82f6;
+  background: #fff; border: none; border-top: 1px dashed #e2e8f0;
+  text-align: center; cursor: pointer; font-family: inherit;
+  transition: background 0.12s; margin-top: 2px;
 }
-
 .addRowBtn:hover  { background: #eff6ff; }
 .addRowBtn:active { background: #dbeafe; }
 
 /* ════════════════════════════════════════════════════════════════
-   A4 미리보기 — GabjiHtmlPreview 동일 구조
+   우측 패널 — gabji .rightPanel + .htmlPreviewOuter 완전 동일
    ════════════════════════════════════════════════════════════════ */
-
-.previewOuter {
-  width: 100%;
+.rightPanel {
+  overflow: hidden;
+  background: #555;
+  display: flex;
+  flex-direction: column;
 }
-
-.previewA4 {
-  width: 794px;
-  min-height: 400px;
-  background: #fff;
-  box-shadow: 0 4px 28px rgba(0,0,0,0.4);
-  padding: 28px 28px 40px;
+.htmlPreviewOuter {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: #555;
+  padding: 8px;
   box-sizing: border-box;
-  font-family: "맑은 고딕", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+}
+
+/* ── A4 용지 — gabji .a4Wrap 완전 동일 ──────────────────────── */
+.a4Wrap {
+  width: 210mm;
+  min-height: 297mm;
+  background: #fff;
+  padding: 14mm 12mm 12mm;
+  box-sizing: border-box;
+  font-family: 'Malgun Gothic', '맑은 고딕', 'NanumGothic', sans-serif;
   font-size: 9pt;
-  color: #111;
+  color: #000;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.25);
 }
 
-.previewDocTitle {
-  font-size: 13pt;
-  font-weight: 700;
+.a4Title {
   text-align: center;
-  margin-bottom: 16px;
-  letter-spacing: 2px;
+  font-size: 14pt;
+  font-weight: 900;
+  letter-spacing: 0.18em;
+  margin: 0 0 8pt;
+  line-height: 1.5;
+  color: #000;
 }
 
-/* 미리보기 테이블 */
+/* A4 미리보기 테이블 */
 .previewTable {
   width: 100%;
   border-collapse: collapse;
-  font-size: 8.5pt;
+  border: 1.5pt solid #000;
+  table-layout: fixed;
+  font-size: 8pt;
 }
-
-.previewTable td,
 .previewTable th {
-  border: 1px solid #bbb;
-  padding: 4px 5px;
-  text-align: center;
-  white-space: nowrap;
-}
-
-.previewTh th {
   background: #ebebeb;
-  border-color: #999;
   font-weight: 700;
+  text-align: center;
   font-size: 8pt;
+  padding: 3pt 3pt;
+  border: 0.5pt solid #999;
+  color: #000;
+  line-height: 1.3;
 }
-
-.previewLeft   { text-align: left !important; white-space: normal !important; }
-.previewRight  { text-align: right !important; font-variant-numeric: tabular-nums; }
-.previewCenter { text-align: center !important; }
-
-.previewCatHead td {
-  background: #f1f5f9;
+.previewTable td {
+  font-size: 7.5pt;
+  padding: 2.5pt 4pt;
+  border: 0.5pt solid #999;
+  text-align: center;
+  color: #000;
+}
+.previewLeft  { text-align: left !important; }
+.previewRight { text-align: right !important; font-variant-numeric: tabular-nums; }
+.previewCatRow td {
+  background: #f0f0f0;
   font-weight: 700;
   font-size: 8pt;
+  border: 0.5pt solid #aaa;
   text-align: left !important;
-  border-color: #aaa;
 }
-
 .previewSumRow td {
-  background: #dbeafe;
+  background: #f0f0f0;
   font-weight: 700;
-  border: 1.5px solid #888;
-  font-size: 9pt;
+  font-size: 8.5pt;
+  border: 0.5pt solid #999;
+  border-top: 1pt solid #000;
 }
+.previewSumLabel { text-align: center !important; font-size: 9.5pt; font-weight: 900; padding: 3pt 4pt; }
 
 /* ════════════════════════════════════════════════════════════════
    편집 바텀시트
    ════════════════════════════════════════════════════════════════ */
-
 .editBackdrop {
-  position: fixed;
-  inset: 0;
+  position: fixed; inset: 0;
   background: rgba(15,23,42,0.55);
   z-index: 200;
   backdrop-filter: blur(2px);
   -webkit-backdrop-filter: blur(2px);
   animation: fadeIn 0.18s ease;
 }
-
 .editSheet {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background: #fff;
-  border-radius: 20px 20px 0 0;
+  position: fixed; bottom: 0; left: 0; right: 0;
+  background: #fff; border-radius: 20px 20px 0 0;
   box-shadow: 0 -8px 40px rgba(0,0,0,0.18);
-  z-index: 210;
-  max-height: 92vh;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
+  z-index: 210; max-height: 92vh;
+  overflow-y: auto; -webkit-overflow-scrolling: touch;
   animation: sheetUp 0.3s cubic-bezier(0.16,1,0.3,1);
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
-
 @media (min-width: 640px) {
-  .editSheet {
-    left: 50%;
-    right: auto;
-    width: 540px;
-    transform: translateX(-50%);
-  }
+  .editSheet { left: 50%; right: auto; width: 540px; transform: translateX(-50%); }
 }
-
 .sheetHandle {
-  width: 40px;
-  height: 4px;
-  background: #e2e8f0;
-  border-radius: 2px;
-  margin: 12px auto 0;
+  width: 40px; height: 4px; background: #e2e8f0;
+  border-radius: 2px; margin: 12px auto 0;
 }
 
 /* ── 편집 폼 내부 ────────────────────────────────────────────── */
-
 .editForm { padding: 4px 0 0; }
-
 .editFormHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px 20px 12px;
-  border-bottom: 1px solid #f1f5f9;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 20px 12px; border-bottom: 1px solid #f1f5f9;
 }
-
-.editFormHeader h3 {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 700;
-  color: #1e293b;
-}
-
+.editFormHeader h3 { margin: 0; font-size: 16px; font-weight: 700; color: #1e293b; }
 .editFormClose {
-  width: 32px;
-  height: 32px;
-  border: none;
-  background: #f1f5f9;
-  border-radius: 50%;
-  font-size: 13px;
-  color: #64748b;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background 0.12s;
+  width: 32px; height: 32px; border: none; background: #f1f5f9;
+  border-radius: 50%; font-size: 13px; color: #64748b; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; transition: background 0.12s;
 }
-
 .editFormClose:hover { background: #e2e8f0; }
-
-.editFormBody {
-  padding: 12px 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.editField {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-
-.editField label {
-  font-size: 10.5px;
-  font-weight: 700;
-  color: #64748b;
-  letter-spacing: 0.04em;
-}
-
-.editFieldRow {
-  flex-direction: row;
-  gap: 10px;
-}
-
-.editHalf {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-
-.editHalf label {
-  font-size: 10.5px;
-  font-weight: 700;
-  color: #64748b;
-}
-
+.editFormBody { padding: 12px 20px; display: flex; flex-direction: column; gap: 14px; }
+.editField { display: flex; flex-direction: column; gap: 5px; }
+.editField label { font-size: 10.5px; font-weight: 700; color: #64748b; letter-spacing: 0.04em; }
+.editFieldRow { flex-direction: row; gap: 10px; }
+.editHalf { flex: 1; display: flex; flex-direction: column; gap: 5px; }
+.editHalf label { font-size: 10.5px; font-weight: 700; color: #64748b; }
 .editInput {
-  height: 44px;
-  padding: 0 12px;
-  font-size: 16px;
-  font-weight: 500;
-  color: #1e293b;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  outline: none;
+  height: 44px; padding: 0 12px; font-size: 16px; font-weight: 500;
+  color: #1e293b; background: #f8fafc; border: 1px solid #e2e8f0;
+  border-radius: 8px; outline: none;
   transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
-  -webkit-appearance: none;
-  font-family: inherit;
-  box-sizing: border-box;
-  width: 100%;
+  -webkit-appearance: none; font-family: inherit; box-sizing: border-box; width: 100%;
 }
-
-.editInput:focus {
-  border-color: #3b82f6;
-  background: #fff;
-  box-shadow: 0 0 0 3px rgba(59,130,246,0.1);
-}
-
+.editInput:focus { border-color: #3b82f6; background: #fff; box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
 .editInput::placeholder { color: #cbd5e1; font-weight: 400; }
-
 .editInputAuto { background: #f0fdf4; border-color: #bbf7d0; color: #065f46; }
 .editInputAuto:focus { border-color: #059669; box-shadow: 0 0 0 3px rgba(5,150,105,0.1); }
-
 .editInputRow { display: flex; align-items: center; gap: 7px; }
-
-.editUnit {
-  font-size: 13px;
-  font-weight: 600;
-  color: #64748b;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-
+.editUnit { font-size: 13px; font-weight: 600; color: #64748b; white-space: nowrap; flex-shrink: 0; }
 .editSelect {
-  height: 44px;
-  padding: 0 12px;
-  font-size: 15px;
-  font-weight: 500;
-  color: #1e293b;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  outline: none;
-  font-family: inherit;
-  width: 100%;
-  cursor: pointer;
-  -webkit-appearance: none;
-  transition: border-color 0.15s;
+  height: 44px; padding: 0 12px; font-size: 15px; font-weight: 500;
+  color: #1e293b; background: #f8fafc; border: 1px solid #e2e8f0;
+  border-radius: 8px; outline: none; font-family: inherit; width: 100%;
+  cursor: pointer; -webkit-appearance: none; transition: border-color 0.15s;
 }
-
 .editSelect:focus { border-color: #3b82f6; background: #fff; }
-
 .autoLabel {
-  font-size: 10px;
-  font-weight: 600;
-  color: #059669;
-  background: #f0fdf4;
-  padding: 1px 5px;
-  border-radius: 4px;
-  letter-spacing: 0;
-  margin-left: 4px;
+  font-size: 10px; font-weight: 600; color: #059669; background: #f0fdf4;
+  padding: 1px 5px; border-radius: 4px; letter-spacing: 0; margin-left: 4px;
 }
-
-.editFieldToggle {
-  flex-direction: row;
-  align-items: center;
-  justify-content: space-between;
-  padding: 4px 0;
-}
-
-.editFieldToggle label {
-  font-size: 13px;
-  font-weight: 600;
-  color: #374151;
-  letter-spacing: 0;
-}
-
+.editFieldToggle { flex-direction: row; align-items: center; justify-content: space-between; padding: 4px 0; }
+.editFieldToggle label { font-size: 13px; font-weight: 600; color: #374151; letter-spacing: 0; }
 .toggle {
-  height: 34px;
-  padding: 0 16px;
-  border-radius: 20px;
-  border: 1px solid #e2e8f0;
-  background: #f1f5f9;
-  color: #64748b;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.15s;
-  font-family: inherit;
+  height: 34px; padding: 0 16px; border-radius: 20px; border: 1px solid #e2e8f0;
+  background: #f1f5f9; color: #64748b; font-size: 13px; font-weight: 600;
+  cursor: pointer; transition: all 0.15s; font-family: inherit;
 }
-
 .toggleOn { background: #eff6ff; border-color: #93c5fd; color: #3b82f6; }
-
 .editFormActions {
-  display: flex;
-  gap: 10px;
-  padding: 14px 20px 20px;
-  border-top: 1px solid #f1f5f9;
+  display: flex; gap: 10px; padding: 14px 20px 20px; border-top: 1px solid #f1f5f9;
 }
-
 .editCancel {
-  flex: 1;
-  height: 48px;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  background: #fff;
-  font-size: 15px;
-  font-weight: 600;
-  color: #64748b;
-  cursor: pointer;
-  font-family: inherit;
-  transition: background 0.12s, transform 0.1s;
+  flex: 1; height: 48px; border: 1px solid #e2e8f0; border-radius: 10px;
+  background: #fff; font-size: 15px; font-weight: 600; color: #64748b;
+  cursor: pointer; font-family: inherit; transition: background 0.12s, transform 0.1s;
 }
-
 .editCancel:hover  { background: #f8fafc; }
 .editCancel:active { transform: scale(0.98); }
-
 .editSave {
-  flex: 2;
-  height: 48px;
-  border: none;
-  border-radius: 10px;
-  background: #3b82f6;
-  color: #fff;
-  font-size: 15px;
-  font-weight: 700;
-  cursor: pointer;
-  font-family: inherit;
-  transition: background 0.15s, transform 0.1s;
+  flex: 2; height: 48px; border: none; border-radius: 10px;
+  background: #3b82f6; color: #fff; font-size: 15px; font-weight: 700;
+  cursor: pointer; font-family: inherit; transition: background 0.15s, transform 0.1s;
   box-shadow: 0 2px 8px rgba(59,130,246,0.25);
 }
-
 .editSave:hover   { background: #2563eb; }
 .editSave:active  { transform: scale(0.98); }
 .editSave:disabled { background: #e2e8f0; color: #94a3b8; box-shadow: none; cursor: default; }
 
 /* ════════════════════════════════════════════════════════════════
-   반응형
+   반응형 — gabji @media 완전 동일
    ════════════════════════════════════════════════════════════════ */
-
 @media (max-width: 768px) {
-  .mobileTabs { display: flex; }
+  .editorBody { grid-template-columns: 1fr; grid-template-rows: 1fr; }
+  .mobileTabs { display: block; }
+  .leftPanel  { border-right: none; }
+  .rightPanel { padding: 0; background: #555; }
+  .mobileHidden { display: none !important; }
 
-  .editorBody {
-    grid-template-columns: 1fr;
-    overflow: auto;
-  }
-
-  .leftPanel {
-    border-right: none;
-    min-height: 0;
-  }
-
-  .rightPanel {
-    padding: 8px;
-    align-items: flex-start;
-  }
-}
-
-@media (min-width: 900px) {
-  .colAmt { width: 88px; }
+  .toolbar { padding: 7px 10px; gap: 5px; flex-wrap: wrap; align-items: center; }
+  .toolbarTitle { display: none; }
+  .toolbarLeft  { flex: 1; gap: 4px; min-width: 0; }
+  .toolbarRight { gap: 5px; }
+  .btnPrimary   { height: 32px; padding: 0 10px; font-size: 11px; }
+  .btnSecondary { height: 32px; padding: 0 9px;  font-size: 11px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
