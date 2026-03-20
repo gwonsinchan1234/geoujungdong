@@ -357,20 +357,14 @@ export default function HomePage() {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.25, ease: "easeOut" }}
           >
-            <motion.div
+            <motion.img
+              src="/safety.png"
+              alt="safetycost"
+              className={styles.splashLogo}
               initial={{ opacity: 0, scale: 0.82, filter: "blur(16px)" }}
               animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
               transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1], delay: 0.1 }}
-            >
-              <Image
-                src="/safety.png"
-                alt="safetycost"
-                width={220}
-                height={56}
-                priority
-                className={styles.splashLogo}
-              />
-            </motion.div>
+            />
           </motion.div>
         )}
       </AnimatePresence>

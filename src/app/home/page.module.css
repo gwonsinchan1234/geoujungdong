@@ -16,6 +16,11 @@
   width: clamp(140px, 40vw, 220px);
   height: auto;
   object-fit: contain;
+  display: block;
+  border: none;
+  outline: none;
+  box-shadow: none;
+  border-radius: 0;
 }
 
 /* ── Design tokens ── */
