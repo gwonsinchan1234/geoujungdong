@@ -320,10 +320,10 @@
 /* 인라인 편집 input */
 .footerInput {
   font-size: 11px;
-  color: #111827;
+  color: #111111;
   font-weight: 500;
   border: none;
-  border-bottom: 1.5px solid #2563eb;
+  border-bottom: 1.5px solid #111111;
   outline: none;
   background: transparent;
   padding: 0 0 1px;
@@ -365,7 +365,7 @@
 
 .labelSelectTrigger:focus {
   outline: none;
-  border-bottom-color: #2563eb;
+  border-bottom-color: #111111;
 }
 
 .labelSelectTriggerText {
@@ -436,18 +436,18 @@
 
 /* 현재 선택된(원래 배정된) 항목 */
 .labelSelectOptionActive {
-  background: #eff6ff;
-  color: #1d4ed8;
+  background: #f1f5f9;
+  color: #111111;
   font-weight: 700;
 }
 
 .labelSelectOptionActive:hover {
-  background: #dbeafe;
+  background: #e5e7eb;
 }
 
 .labelSelectCheck {
   font-size: 11px;
-  color: #2563eb;
+  color: #111111;
   width: 14px;
   flex-shrink: 0;
   font-weight: 700;

@@ -1,6 +1,7 @@
 /* ════════════════════════════════════════════════════════════════
-   항목별세부내역 에디터 — SaaS 통합 디자인 시스템
-   Design tokens: primary #2563eb, success #16a34a, bg #f8fafc
+   항목별세부내역 에디터 — Mono 디자인 시스템
+   Design tokens: text #111111, secondary #6b7280, border #e5e7eb,
+                  bg #f9fafb, card #ffffff
    ════════════════════════════════════════════════════════════════ */
 
 /* ── 키프레임 ─────────────────────────────────────────────────── */
@@ -26,7 +27,7 @@
 .editor {
   display: flex; flex-direction: column;
   height: 100%; min-height: 0; overflow: hidden;
-  background: #f8fafc;
+  background: #f9fafb;
   font-family: 'Malgun Gothic', '맑은 고딕', -apple-system, sans-serif;
 }
 .editorBody {
@@ -54,15 +55,15 @@
 .toolbarCount { font-size: 11px; font-weight: 500; color: #64748b; white-space: nowrap; flex-shrink: 0; }
 .toolbarTotal { font-size: 14px; font-weight: 800; color: #f1f5f9; letter-spacing: -0.5px; white-space: nowrap; flex-shrink: 0; }
 
-/* 버튼 — Primary */
+/* 버튼 — Primary (다크 툴바 위의 화이트 버튼) */
 .btnPrimary {
-  height: 32px; padding: 0 14px; background: #2563eb; color: #fff;
+  height: 32px; padding: 0 14px; background: #ffffff; color: #111111;
   border: none; border-radius: 7px; font-size: 12px; font-weight: 600;
   cursor: pointer; white-space: nowrap;
-  transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
+  transition: background 0.15s, transform 0.1s;
   display: flex; align-items: center; gap: 5px; font-family: inherit;
 }
-.btnPrimary:hover  { background: #1d4ed8; box-shadow: 0 2px 8px rgba(37,99,235,.35); }
+.btnPrimary:hover  { background: #f1f5f9; }
 .btnPrimary:active { transform: scale(0.97); }
 
 /* 버튼 — Secondary */
@@ -92,7 +93,7 @@
   border: 2px solid rgba(255,255,255,.3); border-top-color: #fff;
   border-radius: 50%; animation: spin 0.7s linear infinite;
 }
-.savedBadge { font-size: 11px; color: #4ade80; font-weight: 500; }
+.savedBadge { font-size: 11px; color: #94a3b8; font-weight: 500; }
 
 /* ════════════════════════════════════════════════════════════════
    모바일 탭바
@@ -105,8 +106,8 @@
   border-bottom: 2px solid transparent; margin-bottom: -2px;
   transition: color 0.15s, border-color 0.15s; font-family: inherit;
 }
-.tabBtn.active { color: #2563eb; border-bottom-color: #2563eb; font-weight: 600; }
-.active { color: #2563eb; border-bottom-color: #2563eb; font-weight: 600; }
+.tabBtn.active { color: #111111; border-bottom-color: #111111; font-weight: 600; }
+.active { color: #111111; border-bottom-color: #111111; font-weight: 600; }
 
 /* ════════════════════════════════════════════════════════════════
    좌측 패널 — 항목 카드 목록
@@ -114,7 +115,7 @@
 .leftPanel {
   overflow-x: hidden; overflow-y: auto;
   border-right: 1px solid #e5e7eb;
-  background: #f8fafc;
+  background: #f9fafb;
   display: flex; flex-direction: column;
 }
 .formWrap { padding: 12px 12px 60px; display: flex; flex-direction: column; gap: 10px; }
@@ -125,7 +126,7 @@
   border: 1px solid #e5e7eb;
   border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 1px 3px rgba(0,0,0,.05), 0 1px 8px rgba(0,0,0,.03);
+  box-shadow: 0 1px 3px rgba(0,0,0,.04), 0 1px 8px rgba(0,0,0,.02);
   animation: gabjiUp 0.45s cubic-bezier(0.16,1,0.3,1) both;
 }
 .sectionCard:nth-child(1) { animation-delay: 0.00s; }
@@ -141,16 +142,16 @@
 /* 섹션 헤더 (카드 상단) */
 .sectionHeader {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 11px 14px; background: #f8fafc;
+  padding: 11px 14px; background: #f9fafb;
   border-bottom: 1px solid #e5e7eb;
 }
 .sectionLeft  { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .sectionRight { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 
-/* 카테고리 번호 배지 */
+/* 카테고리 번호 배지 — 검정 원형 */
 .catNum {
   width: 24px; height: 24px; border-radius: 50%;
-  background: #2563eb; color: #fff;
+  background: #111111; color: #fff;
   font-size: 11px; font-weight: 700;
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0; letter-spacing: 0;
@@ -158,15 +159,15 @@
 
 /* 카테고리명 */
 .catName {
-  font-size: 12.5px; font-weight: 600; color: #111827;
+  font-size: 12.5px; font-weight: 600; color: #111111;
   letter-spacing: -0.01em;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   min-width: 0;
 }
 
-/* 금액 (초록) */
+/* 합계 금액 — bold로만 강조 */
 .catSum {
-  font-size: 13px; font-weight: 700; color: #16a34a;
+  font-size: 13px; font-weight: 700; color: #111111;
   letter-spacing: -0.3px; white-space: nowrap;
 }
 
@@ -178,7 +179,7 @@
 }
 
 /* ── 항목 테이블 ──────────────────────────────────────────────── */
-.tableWrap { /* inner wrap — no extra styling needed */ }
+.tableWrap { /* inner wrap */ }
 
 .itemsTable { width: 100%; border-collapse: collapse; font-size: 12px; table-layout: fixed; }
 .colNo  { width: 40px; }
@@ -187,7 +188,7 @@
 @media (min-width: 900px) { .colAmt { width: 96px; } }
 
 .itemsTable th {
-  background: #f8fafc; color: #6b7280; font-weight: 600;
+  background: #f9fafb; color: #6b7280; font-weight: 600;
   font-size: 10.5px; padding: 7px 6px; text-align: center;
   border-bottom: 2px solid #e5e7eb;
   word-break: keep-all; line-height: 1.3;
@@ -218,8 +219,8 @@
   position: absolute; left: 0; top: 50%; transform: translateY(-50%);
   min-width: max(100%, 260px); width: max(100%, 260px);
   height: 34px; padding: 4px 10px;
-  background: #fff; border: 1.5px solid #2563eb; border-radius: 6px;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+  background: #fff; border: 1.5px solid #111111; border-radius: 6px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.10);
   z-index: 30; cursor: text;
   animation: nameExpand 0.18s cubic-bezier(0.16,1,0.3,1);
 }
@@ -231,10 +232,10 @@
 .itemAmtInput {
   width: 100%; height: 28px; padding: 0 6px; border: none;
   border-radius: 4px; font-size: 12px; font-weight: 700; text-align: right;
-  color: #16a34a; background: transparent; outline: none;
+  color: #111111; background: transparent; outline: none;
   transition: background 0.12s; box-sizing: border-box; font-family: inherit;
 }
-.itemAmtInput:focus { background: #f0fdf4; }
+.itemAmtInput:focus { background: #f5f5f5; }
 .itemAmtInput::placeholder { color: #d1d5db; font-weight: 400; }
 
 .tdActions {
@@ -250,7 +251,7 @@
   display: flex; align-items: center; justify-content: center;
   padding: 0; transition: background 0.1s, color 0.1s;
 }
-.rowEditBtn:hover { background: #eff6ff; color: #2563eb; }
+.rowEditBtn:hover { background: #f5f5f5; color: #374151; }
 
 .rowDelBtn {
   width: 28px; height: 28px; border: none; background: transparent;
@@ -272,21 +273,22 @@
   cursor: pointer; font-family: inherit;
 }
 
+/* 합계 행 — 연한 회색 배경으로만 구분 */
 .totalRow td {
-  background: #f0fdf4; font-weight: 700; font-size: 12px;
-  color: #16a34a; padding: 7px 8px; border-top: 2px solid #e5e7eb;
+  background: #f4f4f5; font-weight: 700; font-size: 12px;
+  color: #111111; padding: 7px 8px; border-top: 2px solid #e5e7eb;
 }
 
 /* 항목 추가 버튼 */
 .addRowBtn {
   display: block; width: 100%; padding: 10px 0;
-  font-size: 12px; font-weight: 600; color: #2563eb;
+  font-size: 12px; font-weight: 600; color: #374151;
   background: #fff; border: none; border-top: 1px dashed #e5e7eb;
   text-align: center; cursor: pointer; font-family: inherit;
   transition: background 0.12s;
 }
-.addRowBtn:hover  { background: #eff6ff; }
-.addRowBtn:active { background: #dbeafe; }
+.addRowBtn:hover  { background: #f5f5f5; }
+.addRowBtn:active { background: #ebebeb; }
 
 /* ════════════════════════════════════════════════════════════════
    우측 패널 — A4 미리보기
@@ -369,7 +371,7 @@
   display: flex; align-items: center; justify-content: space-between;
   padding: 14px 20px 12px; border-bottom: 1px solid #f1f5f9;
 }
-.editFormHeader h3 { margin: 0; font-size: 16px; font-weight: 700; color: #111827; }
+.editFormHeader h3 { margin: 0; font-size: 16px; font-weight: 700; color: #111111; }
 .editFormClose {
   width: 32px; height: 32px; border: none; background: #f1f5f9;
   border-radius: 50%; font-size: 13px; color: #6b7280; cursor: pointer;
@@ -384,26 +386,28 @@
 .editHalf label { font-size: 11px; font-weight: 500; color: #6b7280; }
 .editInput {
   height: 44px; padding: 0 12px; font-size: 16px; font-weight: 500;
-  color: #111827; background: #f9fafb; border: 1.5px solid #e5e7eb;
+  color: #111111; background: #f9fafb; border: 1.5px solid #e5e7eb;
   border-radius: 8px; outline: none;
   transition: border-color 0.18s, box-shadow 0.18s, background 0.18s;
   -webkit-appearance: none; font-family: inherit; box-sizing: border-box; width: 100%;
 }
-.editInput:focus { border-color: #2563eb; background: #fff; box-shadow: 0 0 0 3px rgba(37,99,235,.1); }
+.editInput:focus { border-color: #111111; background: #fff; box-shadow: 0 0 0 3px rgba(0,0,0,.07); }
 .editInput::placeholder { color: #d1d5db; font-weight: 400; }
-.editInputAuto { background: #f0fdf4; border-color: #bbf7d0; color: #065f46; }
-.editInputAuto:focus { border-color: #16a34a; box-shadow: 0 0 0 3px rgba(22,163,74,.1); }
+/* 금액 자동 계산 인풋 — 회색 배경으로만 구분 */
+.editInputAuto { background: #f5f5f5; border-color: #e5e7eb; color: #374151; }
+.editInputAuto:focus { border-color: #111111; box-shadow: 0 0 0 3px rgba(0,0,0,.07); }
 .editInputRow { display: flex; align-items: center; gap: 7px; }
 .editUnit { font-size: 13px; font-weight: 600; color: #6b7280; white-space: nowrap; flex-shrink: 0; }
 .editSelect {
   height: 44px; padding: 0 12px; font-size: 15px; font-weight: 500;
-  color: #111827; background: #f9fafb; border: 1.5px solid #e5e7eb;
+  color: #111111; background: #f9fafb; border: 1.5px solid #e5e7eb;
   border-radius: 8px; outline: none; font-family: inherit; width: 100%;
   cursor: pointer; -webkit-appearance: none; transition: border-color 0.18s;
 }
-.editSelect:focus { border-color: #2563eb; background: #fff; }
+.editSelect:focus { border-color: #111111; background: #fff; }
+/* 자동계산 레이블 — 회색 톤 */
 .autoLabel {
-  font-size: 10px; font-weight: 600; color: #16a34a; background: #f0fdf4;
+  font-size: 10px; font-weight: 600; color: #6b7280; background: #f1f5f9;
   padding: 1px 5px; border-radius: 4px; letter-spacing: 0; margin-left: 4px;
 }
 .editFieldToggle { flex-direction: row; align-items: center; justify-content: space-between; padding: 4px 0; }
@@ -413,7 +417,7 @@
   background: #f9fafb; color: #6b7280; font-size: 13px; font-weight: 600;
   cursor: pointer; transition: all 0.15s; font-family: inherit;
 }
-.toggleOn { background: #eff6ff; border-color: #93c5fd; color: #2563eb; }
+.toggleOn { background: #f1f5f9; border-color: #d1d5db; color: #111111; }
 .editFormActions { display: flex; gap: 10px; padding: 14px 20px 20px; border-top: 1px solid #f1f5f9; }
 .editCancel {
   flex: 1; height: 48px; border: 1px solid #e5e7eb; border-radius: 10px;
@@ -424,13 +428,12 @@
 .editCancel:active { transform: scale(0.98); }
 .editSave {
   flex: 2; height: 48px; border: none; border-radius: 10px;
-  background: #2563eb; color: #fff; font-size: 15px; font-weight: 700;
+  background: #111111; color: #fff; font-size: 15px; font-weight: 700;
   cursor: pointer; font-family: inherit; transition: background 0.15s, transform 0.1s;
-  box-shadow: 0 2px 8px rgba(37,99,235,0.25);
 }
-.editSave:hover   { background: #1d4ed8; }
+.editSave:hover   { background: #000000; }
 .editSave:active  { transform: scale(0.98); }
-.editSave:disabled { background: #e5e7eb; color: #9ca3af; box-shadow: none; cursor: default; }
+.editSave:disabled { background: #e5e7eb; color: #9ca3af; cursor: default; }
 
 /* ════════════════════════════════════════════════════════════════
    반응형 (≤768px)
