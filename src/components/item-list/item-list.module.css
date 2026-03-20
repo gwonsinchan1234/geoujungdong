@@ -1,9 +1,9 @@
 /* ════════════════════════════════════════════════════════════════
-   항목별세부내역 에디터
-   gabji.module.css 완전 동일 값 적용
+   항목별세부내역 에디터 — SaaS 통합 디자인 시스템
+   Design tokens: primary #2563eb, success #16a34a, bg #f8fafc
    ════════════════════════════════════════════════════════════════ */
 
-/* ── 키프레임 (gabji.module.css 동일) ─────────────────────────── */
+/* ── 키프레임 ─────────────────────────────────────────────────── */
 @keyframes gabjiUp {
   from { opacity: 0; transform: translateY(14px) scale(0.98); }
   to   { opacity: 1; transform: translateY(0) scale(1); }
@@ -21,38 +21,27 @@
 @keyframes spin    { to { transform: rotate(360deg); } }
 
 /* ════════════════════════════════════════════════════════════════
-   에디터 외곽 — gabji .editor 완전 동일
+   에디터 외곽
    ════════════════════════════════════════════════════════════════ */
 .editor {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  min-height: 0;
-  overflow: hidden;
+  display: flex; flex-direction: column;
+  height: 100%; min-height: 0; overflow: hidden;
   background: #f8fafc;
   font-family: 'Malgun Gothic', '맑은 고딕', -apple-system, sans-serif;
 }
-
 .editorBody {
-  display: grid;
-  grid-template-columns: 400px 1fr;
-  flex: 1;
-  overflow: hidden;
-  min-height: 0;
+  display: grid; grid-template-columns: 420px 1fr;
+  flex: 1; overflow: hidden; min-height: 0;
 }
 
 /* ════════════════════════════════════════════════════════════════
-   툴바 — gabji .toolbar 완전 동일
+   툴바 (다크 테마)
    ════════════════════════════════════════════════════════════════ */
 .toolbar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  display: flex; align-items: center; gap: 8px;
   padding: 10px 16px;
-  background: #1e293b;
-  border-bottom: 1px solid #334155;
-  flex-shrink: 0;
-  flex-wrap: wrap;
+  background: #1e293b; border-bottom: 1px solid #334155;
+  flex-shrink: 0; flex-wrap: wrap;
 }
 .toolbarLeft  { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
 .toolbarTitle {
@@ -61,31 +50,25 @@
 }
 .toolbarRight { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 
-.toolbarCount {
-  font-size: 11px; font-weight: 500; color: #64748b;
-  white-space: nowrap; flex-shrink: 0;
-}
-.toolbarSep {
-  width: 1px; height: 14px; background: #334155; flex-shrink: 0;
-}
-.toolbarTotal {
-  font-size: 14px; font-weight: 800; color: #f1f5f9;
-  letter-spacing: -0.5px; white-space: nowrap; flex-shrink: 0;
-}
+.toolbarSep { width: 1px; height: 14px; background: #334155; flex-shrink: 0; }
+.toolbarCount { font-size: 11px; font-weight: 500; color: #64748b; white-space: nowrap; flex-shrink: 0; }
+.toolbarTotal { font-size: 14px; font-weight: 800; color: #f1f5f9; letter-spacing: -0.5px; white-space: nowrap; flex-shrink: 0; }
 
-/* 버튼 — gabji 완전 동일 */
+/* 버튼 — Primary */
 .btnPrimary {
-  height: 32px; padding: 0 14px; background: #3b82f6; color: #fff;
-  border: none; border-radius: 6px; font-size: 12px; font-weight: 600;
-  cursor: pointer; white-space: nowrap; transition: background 0.15s, transform 0.1s;
+  height: 32px; padding: 0 14px; background: #2563eb; color: #fff;
+  border: none; border-radius: 7px; font-size: 12px; font-weight: 600;
+  cursor: pointer; white-space: nowrap;
+  transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
   display: flex; align-items: center; gap: 5px; font-family: inherit;
 }
-.btnPrimary:hover  { background: #2563eb; box-shadow: 0 2px 8px rgba(59,130,246,.3); }
+.btnPrimary:hover  { background: #1d4ed8; box-shadow: 0 2px 8px rgba(37,99,235,.35); }
 .btnPrimary:active { transform: scale(0.97); }
 
+/* 버튼 — Secondary */
 .btnSecondary {
   height: 32px; padding: 0 12px; background: transparent;
-  color: #94a3b8; border: 1px solid #475569; border-radius: 6px;
+  color: #94a3b8; border: 1px solid #475569; border-radius: 7px;
   font-size: 12px; cursor: pointer; white-space: nowrap;
   transition: background 0.15s, color 0.15s, transform 0.1s;
   display: flex; align-items: center; gap: 5px; font-family: inherit;
@@ -93,9 +76,10 @@
 .btnSecondary:hover  { background: #1e293b; color: #f1f5f9; border-color: #64748b; }
 .btnSecondary:active { transform: scale(0.97); }
 
+/* 버튼 — Print */
 .btnPrint {
   height: 32px; padding: 0 12px; background: #0f172a;
-  color: #94a3b8; border: 1px solid #334155; border-radius: 6px;
+  color: #94a3b8; border: 1px solid #334155; border-radius: 7px;
   font-size: 12px; cursor: pointer; white-space: nowrap;
   transition: background 0.15s, color 0.15s, transform 0.1s;
   display: flex; align-items: center; gap: 5px; font-family: inherit;
@@ -111,97 +95,121 @@
 .savedBadge { font-size: 11px; color: #4ade80; font-weight: 500; }
 
 /* ════════════════════════════════════════════════════════════════
-   모바일 탭 — gabji .mobileTabs / .tabBar / .tabBtn 완전 동일
+   모바일 탭바
    ════════════════════════════════════════════════════════════════ */
 .mobileTabs { display: none; flex-shrink: 0; background: #fff; }
-.tabBar {
-  display: flex;
-  background: #fff;
-  border-bottom: 2px solid #e2e8f0;
-}
+.tabBar { display: flex; background: #fff; border-bottom: 2px solid #e5e7eb; }
 .tabBtn {
-  flex: 1; height: 40px; background: none; border: none;
-  font-size: 13px; font-weight: 500; color: #94a3b8; cursor: pointer;
+  flex: 1; height: 42px; background: none; border: none;
+  font-size: 13px; font-weight: 500; color: #9ca3af; cursor: pointer;
   border-bottom: 2px solid transparent; margin-bottom: -2px;
-  transition: color 0.15s, border-color 0.15s;
-  font-family: inherit;
+  transition: color 0.15s, border-color 0.15s; font-family: inherit;
 }
-.tabBtn.active { color: #3b82f6; border-bottom-color: #3b82f6; font-weight: 700; }
-/* CSS Modules용: :global(.active) 대신 컴포넌트에서 styles.active 사용 */
-.active { color: #3b82f6; border-bottom-color: #3b82f6; font-weight: 700; }
+.tabBtn.active { color: #2563eb; border-bottom-color: #2563eb; font-weight: 600; }
+.active { color: #2563eb; border-bottom-color: #2563eb; font-weight: 600; }
 
 /* ════════════════════════════════════════════════════════════════
-   좌측 패널 — gabji .leftPanel 완전 동일
+   좌측 패널 — 항목 카드 목록
    ════════════════════════════════════════════════════════════════ */
 .leftPanel {
-  overflow-x: hidden;
-  overflow-y: auto;
-  border-right: 1px solid #e2e8f0;
+  overflow-x: hidden; overflow-y: auto;
+  border-right: 1px solid #e5e7eb;
+  background: #f8fafc;
+  display: flex; flex-direction: column;
+}
+.formWrap { padding: 12px 12px 60px; display: flex; flex-direction: column; gap: 10px; }
+
+/* ── 섹션 카드 ────────────────────────────────────────────────── */
+.sectionCard {
   background: #fff;
-  display: flex;
-  flex-direction: column;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0,0,0,.05), 0 1px 8px rgba(0,0,0,.03);
+  animation: gabjiUp 0.45s cubic-bezier(0.16,1,0.3,1) both;
 }
-.formWrap { padding: 16px 16px 40px; display: flex; flex-direction: column; gap: 16px; }
-.section { animation: gabjiUp 0.45s cubic-bezier(0.16,1,0.3,1) both; }
-.section:nth-child(1) { animation-delay: 0.00s; }
-.section:nth-child(2) { animation-delay: 0.06s; }
-.section:nth-child(3) { animation-delay: 0.12s; }
-.section:nth-child(4) { animation-delay: 0.18s; }
-.section:nth-child(5) { animation-delay: 0.24s; }
-.section:nth-child(6) { animation-delay: 0.30s; }
-.section:nth-child(7) { animation-delay: 0.36s; }
-.section:nth-child(8) { animation-delay: 0.42s; }
-.section:nth-child(9) { animation-delay: 0.48s; }
+.sectionCard:nth-child(1) { animation-delay: 0.00s; }
+.sectionCard:nth-child(2) { animation-delay: 0.06s; }
+.sectionCard:nth-child(3) { animation-delay: 0.12s; }
+.sectionCard:nth-child(4) { animation-delay: 0.18s; }
+.sectionCard:nth-child(5) { animation-delay: 0.24s; }
+.sectionCard:nth-child(6) { animation-delay: 0.30s; }
+.sectionCard:nth-child(7) { animation-delay: 0.36s; }
+.sectionCard:nth-child(8) { animation-delay: 0.42s; }
+.sectionCard:nth-child(9) { animation-delay: 0.48s; }
 
-/* gabji .sectionTitle 완전 동일 */
-.sectionTitle {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 10px;
-  font-weight: 700;
-  color: #64748b;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
-  margin-bottom: 8px;
-  padding-bottom: 5px;
-  border-bottom: 1px solid #e2e8f0;
+/* 섹션 헤더 (카드 상단) */
+.sectionHeader {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 11px 14px; background: #f8fafc;
+  border-bottom: 1px solid #e5e7eb;
 }
-.sectionTitleName { flex: 1; }
-.sectionTitleSum  { font-size: 11px; color: #3b82f6; font-weight: 700; letter-spacing: 0; text-transform: none; }
-.sectionTitleCount { font-size: 10px; color: #94a3b8; font-weight: 500; letter-spacing: 0; text-transform: none; }
+.sectionLeft  { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.sectionRight { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 
-/* ════════════════════════════════════════════════════════════════
-   항목 테이블 — gabji GabjiItemsForm .itemsTable 완전 동일
-   ════════════════════════════════════════════════════════════════ */
-.itemsTable { width: 100%; border-collapse: collapse; font-size: 11.5px; table-layout: fixed; }
-.colNo   { width: 40px; }
+/* 카테고리 번호 배지 */
+.catNum {
+  width: 24px; height: 24px; border-radius: 50%;
+  background: #2563eb; color: #fff;
+  font-size: 11px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; letter-spacing: 0;
+}
+
+/* 카테고리명 */
+.catName {
+  font-size: 12.5px; font-weight: 600; color: #111827;
+  letter-spacing: -0.01em;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  min-width: 0;
+}
+
+/* 금액 (초록) */
+.catSum {
+  font-size: 13px; font-weight: 700; color: #16a34a;
+  letter-spacing: -0.3px; white-space: nowrap;
+}
+
+/* 건수 pill */
+.catCount {
+  font-size: 11px; font-weight: 600; color: #6b7280;
+  background: #f1f5f9; padding: 2px 8px; border-radius: 20px;
+  white-space: nowrap; flex-shrink: 0;
+}
+
+/* ── 항목 테이블 ──────────────────────────────────────────────── */
+.tableWrap { /* inner wrap — no extra styling needed */ }
+
+.itemsTable { width: 100%; border-collapse: collapse; font-size: 12px; table-layout: fixed; }
+.colNo  { width: 40px; }
 .colName { /* 나머지 전부 */ }
-.colAmt  { width: 80px; }
+.colAmt { width: 80px; }
 @media (min-width: 900px) { .colAmt { width: 96px; } }
 
 .itemsTable th {
-  background: #f8fafc; color: #64748b; font-weight: 600;
-  font-size: 10px; padding: 6px 5px; text-align: center;
-  border: 1px solid #e2e8f0; word-break: keep-all; line-height: 1.3;
+  background: #f8fafc; color: #6b7280; font-weight: 600;
+  font-size: 10.5px; padding: 7px 6px; text-align: center;
+  border-bottom: 2px solid #e5e7eb;
+  word-break: keep-all; line-height: 1.3;
 }
 
-.itemRow { animation: itemIn 0.35s cubic-bezier(0.16,1,0.3,1) both; overflow: visible; }
+.itemRow { animation: itemIn 0.35s cubic-bezier(0.16,1,0.3,1) both; }
+.itemRow:hover td { background: #f9fafb; }
 
 .itemNo {
-  text-align: center; color: #94a3b8; font-size: 10px; font-weight: 700;
-  padding: 3px 4px; border: 1px solid #e2e8f0; width: 40px;
-  vertical-align: middle; background: #f8fafc;
+  text-align: center; color: #9ca3af; font-size: 10px; font-weight: 700;
+  padding: 8px 4px; border-bottom: 1px solid #f1f5f9; width: 40px;
+  vertical-align: middle;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .itemName {
-  border: 1px solid #e2e8f0; vertical-align: middle; padding: 0;
+  border-bottom: 1px solid #f1f5f9; vertical-align: middle; padding: 0;
   position: relative; overflow: visible;
 }
 .itemNameInput {
-  width: 100%; height: 28px; padding: 3px 7px;
+  width: 100%; height: 32px; padding: 3px 8px;
   border: none; outline: none; background: transparent;
-  color: #334155; font-size: 11px; line-height: 1.3;
+  color: #374151; font-size: 12px; line-height: 1.3;
   box-sizing: border-box;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   border-radius: 0; cursor: pointer; font-family: inherit;
@@ -209,40 +217,44 @@
 .itemNameInput:focus {
   position: absolute; left: 0; top: 50%; transform: translateY(-50%);
   min-width: max(100%, 260px); width: max(100%, 260px);
-  height: 30px; padding: 4px 8px;
-  background: #fff; border: 1.5px solid #3b82f6; border-radius: 4px;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.13);
+  height: 34px; padding: 4px 10px;
+  background: #fff; border: 1.5px solid #2563eb; border-radius: 6px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.12);
   z-index: 30; cursor: text;
   animation: nameExpand 0.18s cubic-bezier(0.16,1,0.3,1);
 }
+
 .itemAmtCell {
-  border: 1px solid #e2e8f0; padding: 2px 3px;
+  border-bottom: 1px solid #f1f5f9; padding: 2px 5px;
   text-align: right; vertical-align: middle;
 }
 .itemAmtInput {
-  width: 100%; height: 26px; padding: 0 5px; border: none;
-  border-radius: 3px; font-size: 11.5px; text-align: right;
-  color: #1e293b; background: transparent; outline: none;
+  width: 100%; height: 28px; padding: 0 6px; border: none;
+  border-radius: 4px; font-size: 12px; font-weight: 700; text-align: right;
+  color: #16a34a; background: transparent; outline: none;
   transition: background 0.12s; box-sizing: border-box; font-family: inherit;
 }
-.itemAmtInput:focus { background: #eff6ff; box-shadow: 0 0 0 2px rgba(59,130,246,.15); }
-.itemAmtInput::placeholder { color: #cbd5e1; }
+.itemAmtInput:focus { background: #f0fdf4; }
+.itemAmtInput::placeholder { color: #d1d5db; font-weight: 400; }
 
-.tdActions { border: 1px solid #e2e8f0; vertical-align: middle; padding: 2px 3px; }
+.tdActions {
+  border-bottom: 1px solid #f1f5f9; vertical-align: middle;
+  padding: 2px 4px; width: 48px;
+}
 
 .rowBtns { display: flex; align-items: center; gap: 2px; justify-content: center; }
 
 .rowEditBtn {
-  width: 22px; height: 22px; border: none; background: transparent;
-  color: #94a3b8; cursor: pointer; border-radius: 4px;
+  width: 28px; height: 28px; border: none; background: transparent;
+  color: #9ca3af; cursor: pointer; border-radius: 6px;
   display: flex; align-items: center; justify-content: center;
   padding: 0; transition: background 0.1s, color 0.1s;
 }
-.rowEditBtn:hover { background: #f1f5f9; color: #3b82f6; }
+.rowEditBtn:hover { background: #eff6ff; color: #2563eb; }
 
 .rowDelBtn {
-  width: 22px; height: 22px; border: none; background: transparent;
-  color: #94a3b8; font-size: 11px; cursor: pointer; border-radius: 4px;
+  width: 28px; height: 28px; border: none; background: transparent;
+  color: #9ca3af; font-size: 11px; cursor: pointer; border-radius: 6px;
   display: flex; align-items: center; justify-content: center;
   padding: 0; transition: background 0.1s, color 0.1s;
 }
@@ -250,122 +262,81 @@
 
 .delConfirm { display: flex; gap: 2px; align-items: center; justify-content: center; }
 .delNo {
-  height: 22px; padding: 0 5px; font-size: 10px; font-weight: 600;
-  background: #f1f5f9; color: #64748b; border: none; border-radius: 3px;
+  height: 24px; padding: 0 6px; font-size: 10px; font-weight: 600;
+  background: #f1f5f9; color: #64748b; border: none; border-radius: 4px;
   cursor: pointer; font-family: inherit;
 }
 .delYes {
-  height: 22px; padding: 0 5px; font-size: 10px; font-weight: 700;
-  background: #ef4444; color: #fff; border: none; border-radius: 3px;
+  height: 24px; padding: 0 6px; font-size: 10px; font-weight: 700;
+  background: #ef4444; color: #fff; border: none; border-radius: 4px;
   cursor: pointer; font-family: inherit;
 }
 
-/* totalRow — gabji .totalRow 동일 */
 .totalRow td {
-  background: #f1f5f9; font-weight: 700; font-size: 11.5px;
-  color: #1e293b; padding: 5px 7px; border: 1px solid #cbd5e1;
+  background: #f0fdf4; font-weight: 700; font-size: 12px;
+  color: #16a34a; padding: 7px 8px; border-top: 2px solid #e5e7eb;
 }
 
 /* 항목 추가 버튼 */
 .addRowBtn {
-  display: block; width: 100%; padding: 9px 0;
-  font-size: 12px; font-weight: 600; color: #3b82f6;
-  background: #fff; border: none; border-top: 1px dashed #e2e8f0;
+  display: block; width: 100%; padding: 10px 0;
+  font-size: 12px; font-weight: 600; color: #2563eb;
+  background: #fff; border: none; border-top: 1px dashed #e5e7eb;
   text-align: center; cursor: pointer; font-family: inherit;
-  transition: background 0.12s; margin-top: 2px;
+  transition: background 0.12s;
 }
 .addRowBtn:hover  { background: #eff6ff; }
 .addRowBtn:active { background: #dbeafe; }
 
 /* ════════════════════════════════════════════════════════════════
-   우측 패널 — gabji .rightPanel + .htmlPreviewOuter 완전 동일
+   우측 패널 — A4 미리보기
    ════════════════════════════════════════════════════════════════ */
 .rightPanel {
-  overflow: hidden;
-  background: #555;
-  display: flex;
-  flex-direction: column;
+  overflow: hidden; background: #555;
+  display: flex; flex-direction: column;
 }
 .htmlPreviewOuter {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  overflow-x: hidden;
-  background: #555;
-  padding: 8px;
-  box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+  flex: 1; min-height: 0;
+  overflow-y: auto; overflow-x: hidden;
+  background: #555; padding: 8px; box-sizing: border-box;
+  display: flex; flex-direction: column; align-items: center;
 }
 
-/* ── A4 용지 — gabji .a4Wrap 완전 동일 ──────────────────────── */
+/* ── A4 용지 (변경 금지) ─────────────────────────────────────── */
 .a4Wrap {
-  width: 210mm;
-  min-height: 297mm;
-  background: #fff;
-  padding: 14mm 12mm 12mm;
-  box-sizing: border-box;
+  width: 210mm; min-height: 297mm; background: #fff;
+  padding: 14mm 12mm 12mm; box-sizing: border-box;
   font-family: 'Malgun Gothic', '맑은 고딕', 'NanumGothic', sans-serif;
-  font-size: 9pt;
-  color: #000;
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: 0;
+  font-size: 9pt; color: #000; position: relative;
+  display: flex; flex-direction: column; gap: 0;
   box-shadow: 0 2px 12px rgba(0,0,0,0.25);
 }
-
 .a4Title {
-  text-align: center;
-  font-size: 14pt;
-  font-weight: 900;
-  letter-spacing: 0.18em;
-  margin: 0 0 8pt;
-  line-height: 1.5;
-  color: #000;
+  text-align: center; font-size: 14pt; font-weight: 900;
+  letter-spacing: 0.18em; margin: 0 0 8pt; line-height: 1.5; color: #000;
 }
-
-/* A4 미리보기 테이블 */
 .previewTable {
-  width: 100%;
-  border-collapse: collapse;
-  border: 1.5pt solid #000;
-  table-layout: fixed;
-  font-size: 8pt;
+  width: 100%; border-collapse: collapse;
+  border: 1.5pt solid #000; table-layout: fixed; font-size: 8pt;
 }
 .previewTable th {
-  background: #ebebeb;
-  font-weight: 700;
-  text-align: center;
-  font-size: 8pt;
-  padding: 3pt 3pt;
-  border: 0.5pt solid #999;
-  color: #000;
-  line-height: 1.3;
+  background: #ebebeb; font-weight: 700; text-align: center;
+  font-size: 8pt; padding: 3pt 3pt; border: 0.5pt solid #999;
+  color: #000; line-height: 1.3;
 }
 .previewTable td {
-  font-size: 7.5pt;
-  padding: 2.5pt 4pt;
-  border: 0.5pt solid #999;
-  text-align: center;
-  color: #000;
+  font-size: 7.5pt; padding: 2.5pt 4pt;
+  border: 0.5pt solid #999; text-align: center; color: #000;
 }
 .previewLeft  { text-align: left !important; }
 .previewRight { text-align: right !important; font-variant-numeric: tabular-nums; }
 .previewCatRow td {
-  background: #f0f0f0;
-  font-weight: 700;
-  font-size: 8pt;
-  border: 0.5pt solid #aaa;
-  text-align: left !important;
+  background: #f0f0f0; font-weight: 700; font-size: 8pt;
+  border: 0.5pt solid #aaa; text-align: left !important;
 }
 .previewSumRow td {
-  background: #f0f0f0;
-  font-weight: 700;
-  font-size: 8.5pt;
-  border: 0.5pt solid #999;
-  border-top: 1pt solid #000;
+  background: #f0f0f0; font-weight: 700; font-size: 8.5pt;
+  border: 0.5pt solid #999; border-top: 1pt solid #000;
 }
 .previewSumLabel { text-align: center !important; font-size: 9.5pt; font-weight: 900; padding: 3pt 4pt; }
 
@@ -375,9 +346,7 @@
 .editBackdrop {
   position: fixed; inset: 0;
   background: rgba(15,23,42,0.55);
-  z-index: 200;
-  backdrop-filter: blur(2px);
-  -webkit-backdrop-filter: blur(2px);
+  z-index: 200; backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px);
   animation: fadeIn 0.18s ease;
 }
 .editSheet {
@@ -392,84 +361,79 @@
 @media (min-width: 640px) {
   .editSheet { left: 50%; right: auto; width: 540px; transform: translateX(-50%); }
 }
-.sheetHandle {
-  width: 40px; height: 4px; background: #e2e8f0;
-  border-radius: 2px; margin: 12px auto 0;
-}
+.sheetHandle { width: 40px; height: 4px; background: #e5e7eb; border-radius: 2px; margin: 12px auto 0; }
 
-/* ── 편집 폼 내부 ────────────────────────────────────────────── */
+/* 편집 폼 내부 */
 .editForm { padding: 4px 0 0; }
 .editFormHeader {
   display: flex; align-items: center; justify-content: space-between;
   padding: 14px 20px 12px; border-bottom: 1px solid #f1f5f9;
 }
-.editFormHeader h3 { margin: 0; font-size: 16px; font-weight: 700; color: #1e293b; }
+.editFormHeader h3 { margin: 0; font-size: 16px; font-weight: 700; color: #111827; }
 .editFormClose {
   width: 32px; height: 32px; border: none; background: #f1f5f9;
-  border-radius: 50%; font-size: 13px; color: #64748b; cursor: pointer;
+  border-radius: 50%; font-size: 13px; color: #6b7280; cursor: pointer;
   display: flex; align-items: center; justify-content: center; transition: background 0.12s;
 }
-.editFormClose:hover { background: #e2e8f0; }
+.editFormClose:hover { background: #e5e7eb; }
 .editFormBody { padding: 12px 20px; display: flex; flex-direction: column; gap: 14px; }
 .editField { display: flex; flex-direction: column; gap: 5px; }
-.editField label { font-size: 10.5px; font-weight: 700; color: #64748b; letter-spacing: 0.04em; }
+.editField label { font-size: 11px; font-weight: 500; color: #6b7280; }
 .editFieldRow { flex-direction: row; gap: 10px; }
 .editHalf { flex: 1; display: flex; flex-direction: column; gap: 5px; }
-.editHalf label { font-size: 10.5px; font-weight: 700; color: #64748b; }
+.editHalf label { font-size: 11px; font-weight: 500; color: #6b7280; }
 .editInput {
   height: 44px; padding: 0 12px; font-size: 16px; font-weight: 500;
-  color: #1e293b; background: #f8fafc; border: 1px solid #e2e8f0;
+  color: #111827; background: #f9fafb; border: 1.5px solid #e5e7eb;
   border-radius: 8px; outline: none;
-  transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+  transition: border-color 0.18s, box-shadow 0.18s, background 0.18s;
   -webkit-appearance: none; font-family: inherit; box-sizing: border-box; width: 100%;
 }
-.editInput:focus { border-color: #3b82f6; background: #fff; box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
-.editInput::placeholder { color: #cbd5e1; font-weight: 400; }
+.editInput:focus { border-color: #2563eb; background: #fff; box-shadow: 0 0 0 3px rgba(37,99,235,.1); }
+.editInput::placeholder { color: #d1d5db; font-weight: 400; }
 .editInputAuto { background: #f0fdf4; border-color: #bbf7d0; color: #065f46; }
-.editInputAuto:focus { border-color: #059669; box-shadow: 0 0 0 3px rgba(5,150,105,0.1); }
+.editInputAuto:focus { border-color: #16a34a; box-shadow: 0 0 0 3px rgba(22,163,74,.1); }
 .editInputRow { display: flex; align-items: center; gap: 7px; }
-.editUnit { font-size: 13px; font-weight: 600; color: #64748b; white-space: nowrap; flex-shrink: 0; }
+.editUnit { font-size: 13px; font-weight: 600; color: #6b7280; white-space: nowrap; flex-shrink: 0; }
 .editSelect {
   height: 44px; padding: 0 12px; font-size: 15px; font-weight: 500;
-  color: #1e293b; background: #f8fafc; border: 1px solid #e2e8f0;
+  color: #111827; background: #f9fafb; border: 1.5px solid #e5e7eb;
   border-radius: 8px; outline: none; font-family: inherit; width: 100%;
-  cursor: pointer; -webkit-appearance: none; transition: border-color 0.15s;
+  cursor: pointer; -webkit-appearance: none; transition: border-color 0.18s;
 }
-.editSelect:focus { border-color: #3b82f6; background: #fff; }
+.editSelect:focus { border-color: #2563eb; background: #fff; }
 .autoLabel {
-  font-size: 10px; font-weight: 600; color: #059669; background: #f0fdf4;
+  font-size: 10px; font-weight: 600; color: #16a34a; background: #f0fdf4;
   padding: 1px 5px; border-radius: 4px; letter-spacing: 0; margin-left: 4px;
 }
 .editFieldToggle { flex-direction: row; align-items: center; justify-content: space-between; padding: 4px 0; }
 .editFieldToggle label { font-size: 13px; font-weight: 600; color: #374151; letter-spacing: 0; }
 .toggle {
-  height: 34px; padding: 0 16px; border-radius: 20px; border: 1px solid #e2e8f0;
-  background: #f1f5f9; color: #64748b; font-size: 13px; font-weight: 600;
+  height: 34px; padding: 0 16px; border-radius: 20px; border: 1px solid #e5e7eb;
+  background: #f9fafb; color: #6b7280; font-size: 13px; font-weight: 600;
   cursor: pointer; transition: all 0.15s; font-family: inherit;
 }
-.toggleOn { background: #eff6ff; border-color: #93c5fd; color: #3b82f6; }
-.editFormActions {
-  display: flex; gap: 10px; padding: 14px 20px 20px; border-top: 1px solid #f1f5f9;
-}
+.toggleOn { background: #eff6ff; border-color: #93c5fd; color: #2563eb; }
+.editFormActions { display: flex; gap: 10px; padding: 14px 20px 20px; border-top: 1px solid #f1f5f9; }
 .editCancel {
-  flex: 1; height: 48px; border: 1px solid #e2e8f0; border-radius: 10px;
-  background: #fff; font-size: 15px; font-weight: 600; color: #64748b;
+  flex: 1; height: 48px; border: 1px solid #e5e7eb; border-radius: 10px;
+  background: #fff; font-size: 15px; font-weight: 600; color: #6b7280;
   cursor: pointer; font-family: inherit; transition: background 0.12s, transform 0.1s;
 }
-.editCancel:hover  { background: #f8fafc; }
+.editCancel:hover  { background: #f9fafb; }
 .editCancel:active { transform: scale(0.98); }
 .editSave {
   flex: 2; height: 48px; border: none; border-radius: 10px;
-  background: #3b82f6; color: #fff; font-size: 15px; font-weight: 700;
+  background: #2563eb; color: #fff; font-size: 15px; font-weight: 700;
   cursor: pointer; font-family: inherit; transition: background 0.15s, transform 0.1s;
-  box-shadow: 0 2px 8px rgba(59,130,246,0.25);
+  box-shadow: 0 2px 8px rgba(37,99,235,0.25);
 }
-.editSave:hover   { background: #2563eb; }
+.editSave:hover   { background: #1d4ed8; }
 .editSave:active  { transform: scale(0.98); }
-.editSave:disabled { background: #e2e8f0; color: #94a3b8; box-shadow: none; cursor: default; }
+.editSave:disabled { background: #e5e7eb; color: #9ca3af; box-shadow: none; cursor: default; }
 
 /* ════════════════════════════════════════════════════════════════
-   반응형 — gabji @media 완전 동일
+   반응형 (≤768px)
    ════════════════════════════════════════════════════════════════ */
 @media (max-width: 768px) {
   .editorBody { grid-template-columns: 1fr; grid-template-rows: 1fr; }
@@ -487,8 +451,13 @@
   .btnSecondary { height: 32px; padding: 0 9px;  font-size: 11px; }
   .btnPrint     { height: 32px; padding: 0 10px; font-size: 11px; }
   .btnPrimary svg, .btnSecondary svg, .btnPrint svg { width: 12px; height: 12px; }
+
+  .formWrap { padding: 10px 10px 60px; gap: 8px; }
+  .sectionCard { border-radius: 10px; }
+  .sectionHeader { padding: 10px 12px; }
+  .catName { font-size: 12px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .section, .itemRow { animation: none; }
+  .sectionCard, .itemRow { animation: none; }
 }

@@ -458,58 +458,65 @@ export default function ItemListView({ items, onChange, onSave, onPrint, saved }
             {Array.from(grouped.entries()).map(([catNo, catItems], sectionIdx) => {
               const catSum = catItems.reduce((s, i) => s + i.amount, 0);
               return (
-                <section
+                <div
                   key={catNo}
-                  className={styles.section}
+                  className={styles.sectionCard}
                   style={{ animationDelay: `${sectionIdx * 0.06}s` } as React.CSSProperties}
                 >
-                  {/* 카테고리 헤더 — gabji .sectionTitle 동일 */}
-                  <div className={styles.sectionTitle}>
-                    <span className={styles.sectionTitleName}>{catNo}. {CATEGORY_LABELS[catNo]}</span>
-                    {catSum > 0 && <span className={styles.sectionTitleSum}>{fmtNum(catSum)}원</span>}
-                    <span className={styles.sectionTitleCount}>{catItems.length}건</span>
+                  {/* 카테고리 헤더 */}
+                  <div className={styles.sectionHeader}>
+                    <div className={styles.sectionLeft}>
+                      <span className={styles.catNum}>{catNo}</span>
+                      <span className={styles.catName}>{CATEGORY_LABELS[catNo]}</span>
+                    </div>
+                    <div className={styles.sectionRight}>
+                      {catSum > 0 && <span className={styles.catSum}>{fmtNum(catSum)}원</span>}
+                      <span className={styles.catCount}>{catItems.length}건</span>
+                    </div>
                   </div>
 
                   {/* 항목 테이블 */}
                   {catItems.length > 0 && (
-                    <table className={styles.itemsTable}>
-                      <colgroup>
-                        <col className={styles.colNo} />
-                        <col />
-                        <col className={styles.colAmt} />
-                        <col style={{ width: "48px" }} />
-                      </colgroup>
-                      <thead>
-                        <tr>
-                          <th>NO</th>
-                          <th>품명</th>
-                          <th>금액</th>
-                          <th></th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {catItems.map((item, idx) => (
-                          <ItemRow
-                            key={item.id}
-                            item={item}
-                            idx={idx}
-                            deletingId={deletingId}
-                            onEdit={handleEdit}
-                            onDelete={handleDelete}
-                            onCancelDelete={() => setDeletingId(null)}
-                            onStartDelete={setDeletingId}
-                            onInlineChange={handleInlineChange}
-                          />
-                        ))}
-                      </tbody>
-                    </table>
+                    <div className={styles.tableWrap}>
+                      <table className={styles.itemsTable}>
+                        <colgroup>
+                          <col className={styles.colNo} />
+                          <col />
+                          <col className={styles.colAmt} />
+                          <col style={{ width: "48px" }} />
+                        </colgroup>
+                        <thead>
+                          <tr>
+                            <th>NO</th>
+                            <th>품명</th>
+                            <th>금액</th>
+                            <th></th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {catItems.map((item, idx) => (
+                            <ItemRow
+                              key={item.id}
+                              item={item}
+                              idx={idx}
+                              deletingId={deletingId}
+                              onEdit={handleEdit}
+                              onDelete={handleDelete}
+                              onCancelDelete={() => setDeletingId(null)}
+                              onStartDelete={setDeletingId}
+                              onInlineChange={handleInlineChange}
+                            />
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   )}
 
                   {/* 항목 추가 */}
                   <button className={styles.addRowBtn} onClick={() => handleAdd(catNo)}>
                     + 항목 추가
                   </button>
-                </section>
+                </div>
               );
             })}
           </div>
