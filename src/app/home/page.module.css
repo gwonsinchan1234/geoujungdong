@@ -1,5 +1,23 @@
 /* home/page.module.css — KakaoPay-inspired redesign */
 
+/* ── Splash overlay ── */
+.splash {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0; /* 첫 paint부터 invisible — Framer Motion이 JS로 덮어씀 */
+}
+
+.splashLogo {
+  width: clamp(160px, 45vw, 260px);
+  height: auto;
+  object-fit: contain;
+}
+
 /* ── Design tokens ── */
 :root {
   --yellow: #ffeb00;
@@ -221,6 +239,8 @@
 .heroBg {
   position: absolute;
   inset: 0;
+  /* 동영상 버퍼 전에도 히어로가 비어 보이지 않도록 */
+  background: linear-gradient(135deg, #1a1d22 0%, #2e3338 100%);
 }
 
 .heroVideo {
@@ -229,6 +249,13 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
+  opacity: 0;
+  transition: opacity 0.55s ease;
+  will-change: opacity;
+}
+
+.heroVideo[data-ready="true"] {
+  opacity: 1;
 }
 
 .heroOverlay {

@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
+import { useRouter } from "next/navigation";
 import styles from "./page.module.css";
 
 type Lang = "KOR" | "ENG";
@@ -317,11 +318,62 @@ export default function HomePage() {
   const [lang, setLang] = useState<Lang>("KOR");
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+  const [heroVideoReady, setHeroVideoReady] = useState(false);
+  const [splashVisible, setSplashVisible] = useState(false);
+  const router = useRouter();
 
   const kor = lang === "KOR";
 
+  const handleStart = useCallback((e: React.MouseEvent<HTMLAnchorElement>) => {
+    e.preventDefault();
+    setSplashVisible(true);
+    setTimeout(() => router.push("/workspace/fill"), 1400);
+  }, [router]);
+
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v) return;
+    // Chromium: 네트워크 우선순위 (타입 정의에 없어 DOM에 직접 설정)
+    v.setAttribute("fetchpriority", "high");
+    // 일부 모바일에서 muted autoplay가 지연될 때 보조
+    const tryPlay = () => {
+      void v.play().catch(() => {});
+    };
+    tryPlay();
+    v.addEventListener("canplay", tryPlay, { once: true });
+    return () => v.removeEventListener("canplay", tryPlay);
+  }, []);
+
   return (
     <div className={styles.page}>
+
+      {/* ── SPLASH OVERLAY ── */}
+      <AnimatePresence>
+        {splashVisible && (
+          <motion.div
+            className={styles.splash}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.25, ease: "easeOut" }}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.82, filter: "blur(16px)" }}
+              animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
+              transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1], delay: 0.1 }}
+            >
+              <Image
+                src="/safety.png"
+                alt="safetycost"
+                width={220}
+                height={56}
+                priority
+                className={styles.splashLogo}
+              />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ── TOPBAR ── */}
       <header className={styles.topbar}>
@@ -356,7 +408,7 @@ export default function HomePage() {
             <a className={styles.loginBtn} href="/login">
               {kor ? "로그인" : "Sign in"}
             </a>
-            <a className={styles.ctaTop} href="/workspace/fill">
+            <a className={styles.ctaTop} href="/workspace/fill" onClick={handleStart}>
               {kor ? "시작하기" : "Get started"}
             </a>
           </nav>
@@ -369,8 +421,15 @@ export default function HomePage() {
           <video
             ref={videoRef}
             className={styles.heroVideo}
+            data-ready={heroVideoReady ? "true" : "false"}
             src="/main.mp4"
-            autoPlay muted loop playsInline preload="metadata"
+            autoPlay
+            muted
+            loop
+            playsInline
+            preload="auto"
+            onLoadedData={() => setHeroVideoReady(true)}
+            onCanPlay={() => setHeroVideoReady(true)}
           />
           <div className={styles.heroOverlay} />
         </div>
@@ -412,7 +471,7 @@ export default function HomePage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, ease: "easeOut", delay: 0.5 }}
           >
-            <a className={styles.ctaHero} href="/workspace/fill">
+            <a className={styles.ctaHero} href="/workspace/fill" onClick={handleStart}>
               {kor ? "시작하기" : "Get started"}
             </a>
             {/*
@@ -617,7 +676,7 @@ export default function HomePage() {
               ? "업로드 하나로 안전관리비 정산을 끝내세요."
               : "One upload. All your safety docs done."}
           </p>
-          <a className={styles.ctaBtn} href="/workspace/fill">
+          <a className={styles.ctaBtn} href="/workspace/fill" onClick={handleStart}>
             {kor ? "무료로 시작하기" : "Start for free"}
           </a>
         </Reveal>
