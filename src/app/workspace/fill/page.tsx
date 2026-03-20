@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useRef, useState, useCallback, useEffect, useMemo } from "react";
+import Link from "next/link";
 import * as XLSX from "xlsx";
 import PhotoSheetView from "@/components/photo-sheet/PhotoSheetView";
 import type { PhotoBlock, BlockPhoto, OnSlotClick, OnPhotoDelete, OnMetaUpdate } from "@/components/photo-sheet/types";
@@ -645,6 +646,46 @@ function mergePhotoBlocks(
   return merged;
 }
 
+/** 로컬 저장용 블록 정리: 임시 blob/data URL은 저장하지 않고 서버 URL만 유지 */
+function sanitizePhotoBlocksForStorage(
+  blocks: Record<string, PhotoBlock[]>,
+): Record<string, PhotoBlock[]> {
+  const out: Record<string, PhotoBlock[]> = {};
+  for (const [sheetName, arr] of Object.entries(blocks)) {
+    out[sheetName] = arr.map((b) => ({
+      ...b,
+      photos: b.photos.map((p) => ({
+        ...p,
+        url: (p.url?.startsWith("http://") || p.url?.startsWith("https://")) ? p.url : "",
+      })),
+    }));
+  }
+  return out;
+}
+
+type SafetyLaborHistoryRow = {
+  id: string;
+  person_name: string;
+  payment_date: string;
+  amount: number;
+  attachment_count: number;
+  status: "미완료" | "완료";
+};
+
+function todayMonthKey() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function todayDateKey() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+const WORKBOOK_CACHE_NAME = "workspace-fill-cache-v1";
+const WORKBOOK_CACHE_KEY = "/workspace-fill/last-workbook";
+const WORKBOOK_META_KEY = "workspace_fill_last_workbook_name";
+
 // ── Page ─────────────────────────────────────────────────────────
 export default function FillPage() {
   type DocState = {
@@ -701,6 +742,16 @@ export default function FillPage() {
   const [saveToast,      setSaveToast]      = useState(false);
   const [showPwaGuide,   setShowPwaGuide]   = useState(false);
   const [isStandalone,   setIsStandalone]   = useState(true); // 기본 true → 설치 안내 숨김
+  const [laborRows,      setLaborRows]      = useState<SafetyLaborHistoryRow[]>([]);
+  const [laborLoading,   setLaborLoading]   = useState(false);
+  const [laborSearch,    setLaborSearch]    = useState("");
+  const [laborMonth,     setLaborMonth]     = useState(todayMonthKey());
+  const [laborPerson,    setLaborPerson]    = useState("");
+  const [laborNewName,   setLaborNewName]   = useState("");
+  const [laborNewDate,   setLaborNewDate]   = useState(todayDateKey());
+  const [laborNewAmount, setLaborNewAmount] = useState<number>(0);
+  const [allowanceMobileTab, setAllowanceMobileTab] = useState<"edit" | "preview">("edit");
+  const restoringWorkbookRef = useRef(false);
 
   const formValues      = docState.formValues;
   const gabjiData       = docState.gabjiData;
@@ -736,6 +787,46 @@ export default function FillPage() {
     photoBlocks,
     savedAt: docState.savedAt,
   }), [formValues, gabjiData, gabjiCellRefs, gabjiItemRefs, gabjiCellStyles, items, photoBlocks, docState.savedAt]);
+
+  const loadLaborRows = useCallback(async () => {
+    setLaborLoading(true);
+    try {
+      const qs = new URLSearchParams();
+      if (laborSearch.trim()) qs.set("search", laborSearch.trim());
+      if (laborMonth.trim()) qs.set("month", laborMonth.trim());
+      if (laborPerson.trim()) qs.set("person", laborPerson.trim());
+
+      const res = await fetch(`/api/safety-labor/documents?${qs.toString()}`, { cache: "no-store" });
+      const json = await res.json();
+      if (!res.ok || !json?.ok) throw new Error(json?.error ?? "안전관리자 인건비 조회 실패");
+      setLaborRows(Array.isArray(json.rows) ? json.rows : []);
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : "안전관리자 인건비 조회 실패");
+    } finally {
+      setLaborLoading(false);
+    }
+  }, [laborSearch, laborMonth, laborPerson]);
+
+  const createLaborDoc = useCallback(async () => {
+    try {
+      const res = await fetch("/api/safety-labor/documents", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          personName: laborNewName,
+          paymentDate: laborNewDate,
+          amount: Number(laborNewAmount),
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json?.ok) throw new Error(json?.error ?? "문서 생성 실패");
+      setLaborNewName("");
+      await loadLaborRows();
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : "문서 생성 실패");
+    }
+  }, [laborNewName, laborNewDate, laborNewAmount, loadLaborRows]);
+
 
   // ── 사진대지 항목 드롭다운: 전체 블록에서 유니크 라벨 수집 ──────
   const availableLabels = useMemo(() => {
@@ -1004,7 +1095,7 @@ export default function FillPage() {
                   // ★ 모바일 깨진 이미지 방지: signed URL(네트워크 요청)을 쓰지 않고
                   //   로컬 blob URL(URL.createObjectURL)을 그대로 사용.
                   //   signed URL은 페이지 재로드 시 GET /api/photo-blocks 에서 재생성됨.
-                  url: pUrl,
+                  url: signed?.signedUrl || pUrl,
                 }),
               }));
             }
@@ -1045,7 +1136,7 @@ export default function FillPage() {
                 id: json.photoId!, block_id: json.blockId!, side, slot_index: slotIndex,
                 storage_path: "",
                 // ★ API 폴백 경로도 동일하게 로컬 blob URL 사용 (모바일 호환)
-                url: pUrl,
+                url: json.signedUrl || pUrl,
               }),
             }));
           }
@@ -1224,11 +1315,8 @@ export default function FillPage() {
 
   const handleCancel = useCallback(() => setEditingCell(null), []);
 
-  // ── 파일 업로드: localStorage 드래프트 복원 or 신규 docId 생성 ──
-  const handleFile = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    e.target.value = "";
-    if (!file) return;
+  // ── 파일 파싱 공통 처리 (직접 업로드 + 새로고침 복원 공용) ──
+  const parseWorkbookFile = useCallback(async (file: File) => {
     setLoading(true);
     try {
       const buf = await file.arrayBuffer();
@@ -1259,6 +1347,7 @@ export default function FillPage() {
       const gabjiSheet  = parsed.find(s => isCoverSheet(s.name));
       const gabjiParsed = gabjiSheet ? parseGabjiFromSheet(gabjiSheet) : null;
 
+      const parsedItems = parseItemsFromRaw(buf);
       if (savedFillData?.gabjiData && savedFillData?.items) {
         // 사용자 편집 데이터는 저장본 복원, ref/styles는 항상 현재 파일 기준
         setDocState(prev => ({
@@ -1271,7 +1360,6 @@ export default function FillPage() {
           savedAt:         Date.now(),
         }));
       } else {
-        const parsedItems = parseItemsFromRaw(buf);
         setDocState(prev => ({
           ...prev,
           gabjiData:       gabjiParsed?.data       ?? makeEmptyGabji(),
@@ -1284,12 +1372,15 @@ export default function FillPage() {
       }
 
       // ── 사진대지 블록: items 기반 생성 (parsePhotoBlocksFromRaw 대체)
-      const resolvedItems: ItemData[] = savedFillData?.items ?? parseItemsFromRaw(buf);
+      const resolvedItems: ItemData[] = savedFillData?.items ?? parsedItems;
       let freshBlocks = resolvedItems.length > 0
         ? buildPhotoBlocksFromItems(resolvedItems, parsed.map(s => s.name))
         : parsePhotoBlocksFromRaw(buf, parsed.map(s => s.name)); // fallback
       if (savedFillData?.photoBlocks && typeof savedFillData.photoBlocks === "object") {
-        freshBlocks = mergePhotoBlocks(freshBlocks, savedFillData.photoBlocks as Record<string, PhotoBlock[]>);
+        freshBlocks = mergePhotoBlocks(
+          freshBlocks,
+          sanitizePhotoBlocksForStorage(savedFillData.photoBlocks as Record<string, PhotoBlock[]>),
+        );
       }
 
       // docId 복원 (사진 서버 연결용) — 블록 구조는 항상 freshBlocks 사용
@@ -1299,33 +1390,58 @@ export default function FillPage() {
       } else {
         docIdRef.current = crypto.randomUUID();
       }
-      // DB에서 기존 사진 불러와 freshBlocks에 병합 (재업로드 시 슬롯 중복 에러 방지)
-      try {
-        const res = await fetch(`/api/photo-blocks?docId=${docIdRef.current}`);
-        const json = await res.json() as { ok: boolean; blocks?: Array<{
-          sheet_name: string; no: number; id: string;
-          photos: Array<{ id: string; block_id: string; side: string; slot_index: number; storage_path: string; url: string }>;
-        }> };
-        if (json.ok && json.blocks?.length) {
-          for (const dbBlock of json.blocks) {
-            const localArr = freshBlocks[dbBlock.sheet_name];
-            if (!localArr) continue;
-            const localBlock = localArr.find(b => b.no === dbBlock.no);
-            if (!localBlock || !dbBlock.photos.length) continue;
-            localBlock.id     = dbBlock.id;   // 로컬 ID → DB UUID로 교체
-            localBlock.doc_id = docIdRef.current;
-            localBlock.photos = dbBlock.photos.map(p => ({
-              id: p.id, block_id: p.block_id,
-              side: p.side as "left" | "right",
-              slot_index: p.slot_index,
-              storage_path: p.storage_path,
-              url: p.url,
-            }));
-          }
-        }
-      } catch { /* 네트워크 실패 시 빈 사진으로 진행 */ }
-
       setPhotoBlocks(freshBlocks);
+
+      // DB 사진 병합은 비동기 후처리로 분리해 업로드 직후 진입 체감 속도를 개선
+      void (async () => {
+        try {
+          const res = await fetch(`/api/photo-blocks?docId=${docIdRef.current}`);
+          const json = await res.json() as { ok: boolean; blocks?: Array<{
+            sheet_name: string; no: number; id: string;
+            photos: Array<{ id: string; block_id: string; side: string; slot_index: number; storage_path: string; url: string }>;
+          }> };
+          const blocks = json.blocks ?? [];
+          if (!json.ok || blocks.length === 0) return;
+          setPhotoBlocks(prev => {
+            const next = { ...prev };
+            for (const dbBlock of blocks) {
+              const localArr = next[dbBlock.sheet_name];
+              if (!localArr) continue;
+              const localBlock = localArr.find(b => b.no === dbBlock.no);
+              if (!localBlock || !dbBlock.photos.length) continue;
+              localBlock.id = dbBlock.id;
+              localBlock.doc_id = docIdRef.current;
+              localBlock.photos = dbBlock.photos.map(p => ({
+                id: p.id, block_id: p.block_id,
+                side: p.side as "left" | "right",
+                slot_index: p.slot_index,
+                storage_path: p.storage_path,
+                url: p.url,
+              }));
+            }
+            return next;
+          });
+        } catch {
+          // 네트워크 실패 시 무시 (초기 진입은 유지)
+        }
+      })();
+
+      // 새로고침 복구용으로 마지막 업로드 파일 자체를 캐시에 보관
+      try {
+        const cache = await caches.open(WORKBOOK_CACHE_NAME);
+        await cache.put(
+          WORKBOOK_CACHE_KEY,
+          new Response(file, {
+            headers: {
+              "Content-Type": file.type || "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+              "X-File-Name": encodeURIComponent(file.name),
+            },
+          }),
+        );
+        localStorage.setItem(WORKBOOK_META_KEY, file.name);
+      } catch {
+        // 캐시 저장 실패 시에도 편집 기능은 계속 동작
+      }
     } catch (err) {
       console.error("[handleFile]", err);
       const detail = err instanceof Error ? err.message : String(err);
@@ -1334,6 +1450,51 @@ export default function FillPage() {
       setLoading(false);
     }
   }, [setFormValues, setGabjiData, setItems, setPhotoBlocks]);
+
+  // ── 파일 업로드 핸들러 ─────────────────────────────────────────
+  const handleFile = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    await parseWorkbookFile(file);
+  }, [parseWorkbookFile]);
+
+  // ── 마지막 업로드 복원 해제 (캐시 + 로컬 저장값 제거) ─────────────
+  const handleClearRestoreCache = useCallback(async () => {
+    try {
+      const cache = await caches.open(WORKBOOK_CACHE_NAME);
+      await cache.delete(WORKBOOK_CACHE_KEY);
+      localStorage.removeItem(WORKBOOK_META_KEY);
+      if (fileName) localStorage.removeItem(`fill_data_${fileName}`);
+      alert("마지막 복원 파일을 해제했습니다.");
+    } catch {
+      alert("복원 해제 중 오류가 발생했습니다.");
+    }
+  }, [fileName]);
+
+  // ── 새로고침 복원: 마지막 업로드 엑셀 자동 복구 ─────────────────
+  useEffect(() => {
+    if (restoringWorkbookRef.current || sheets.length > 0 || loading) return;
+    restoringWorkbookRef.current = true;
+    (async () => {
+      try {
+        const cache = await caches.open(WORKBOOK_CACHE_NAME);
+        const res = await cache.match(WORKBOOK_CACHE_KEY);
+        if (!res) return;
+        const blob = await res.blob();
+        const cachedName =
+          decodeURIComponent(res.headers.get("X-File-Name") ?? "") ||
+          localStorage.getItem(WORKBOOK_META_KEY) ||
+          "복원된파일.xlsx";
+        const file = new File([blob], cachedName, {
+          type: blob.type || "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        });
+        await parseWorkbookFile(file);
+      } catch {
+        // 복원 실패는 무시 (수동 업로드 가능)
+      }
+    })();
+  }, [sheets.length, loading, parseWorkbookFile]);
 
   // ── 사진대지 새 창 브라우저 인쇄 ──────────────────────────────────
   const handlePhotoSheetPrint = useCallback(async () => {
@@ -1586,6 +1747,7 @@ img{image-rendering:high-quality;display:block}
 
   const editedCount = Object.keys(formValues).length;
   const isPhotoActive = sheet ? isPhotoSheet(sheet.name) : false;
+  const isAllowanceActive = sheet ? isAllowanceSheet(sheet.name) : false;
 
   const handleGabjiSave = useCallback((data: GabjiData) => {
     setGabjiData(data);
@@ -1611,6 +1773,16 @@ img{image-rendering:high-quality;display:block}
 
   const isCoverActive = sheet ? isCoverSheet(sheet.name) : false;
   const isItemActive  = sheet ? isItemSheet(sheet.name)  : false;
+
+  useEffect(() => {
+    if (!isAllowanceActive) return;
+    void loadLaborRows();
+  }, [isAllowanceActive, loadLaborRows]);
+
+  useEffect(() => {
+    if (!isAllowanceActive) return;
+    setAllowanceMobileTab("edit");
+  }, [activeSheet, isAllowanceActive]);
 
   // ── 갑지 GabjiData → 새 GabjiEditor 타입으로 변환 ─────────────
   const itemAmountsForGabji = useMemo(
@@ -1674,7 +1846,7 @@ img{image-rendering:high-quality;display:block}
           gabjiCellRefs,
           gabjiItemRefs,
           items,
-          photoBlocks,
+          photoBlocks: sanitizePhotoBlocksForStorage(photoBlocks),
           savedAt: Date.now(),
         }),
       );
@@ -1731,6 +1903,16 @@ img{image-rendering:high-quality;display:block}
             <span>앱 설치</span>
           </button>
         )}
+        {!!fileName && (
+          <button
+            type="button"
+            className={styles.clearRestoreBtn}
+            onClick={() => { void handleClearRestoreCache(); }}
+            title="새로고침 자동복원 해제"
+          >
+            복원해제
+          </button>
+        )}
         {sheets.length > 0 && (<>
           {/* 저장: 모든 시트에서 표시. 사진대지 → 서버 저장, 그 외 → 수정본 다운로드 */}
           <button type="button"
@@ -1782,7 +1964,10 @@ img{image-rendering:high-quality;display:block}
       {/* ── CONTENT ── */}
       <div className={styles.content}>
         {loading && (
-          <div className={styles.overlay}><div className={styles.spinner} /><span>파일 분석 중…</span></div>
+          <div className={styles.overlay}>
+            <div className={styles.spinner} />
+            <span>파일 분석 중…</span>
+          </div>
         )}
         {!loading && sheets.length === 0 && (
           <div className={styles.empty}>
@@ -1821,6 +2006,93 @@ img{image-rendering:high-quality;display:block}
                 valueFontSize={gabjiValueFontSize}
               />
             </div>
+          ) : sheet && isAllowanceSheet(sheet.name) ? (
+            <div key={`allowance-${activeSheet}`} className={styles.viewportAllowance}>
+              <div className={styles.allowanceMobileTabs}>
+                <div className={styles.allowanceTabBar}>
+                  <button
+                    type="button"
+                    className={`${styles.allowanceTabBtn} ${allowanceMobileTab === "edit" ? styles.allowanceTabActive : ""}`}
+                    onClick={() => setAllowanceMobileTab("edit")}
+                  >
+                    인건비 관리
+                  </button>
+                  <button
+                    type="button"
+                    className={`${styles.allowanceTabBtn} ${allowanceMobileTab === "preview" ? styles.allowanceTabActive : ""}`}
+                    onClick={() => setAllowanceMobileTab("preview")}
+                  >
+                    미리보기
+                  </button>
+                </div>
+              </div>
+
+              <div className={styles.allowanceBody}>
+                <div className={`${styles.allowanceEditorPane} ${allowanceMobileTab === "preview" ? styles.allowanceMobileHidden : ""}`}>
+                  <div className={styles.sheetDocument}>
+                    <section className={styles.allowancePanel}>
+                      <div className={styles.allowancePanelHead}>
+                        <div>
+                          <h3 className={styles.allowanceTitle}>안전관리자 인건비</h3>
+                          <p className={styles.allowanceSub}>기존 인건비 누적/조회 기능을 유지한 전용 화면입니다.</p>
+                        </div>
+                        <Link className={styles.allowanceLinkBtn} href="/expense/labor">전용 화면</Link>
+                      </div>
+
+                      <div className={styles.allowanceRow}>
+                        <input className={styles.allowanceInput} placeholder="이름" value={laborNewName} onChange={(e) => setLaborNewName(e.target.value)} />
+                        <input className={styles.allowanceInput} type="date" value={laborNewDate} onChange={(e) => setLaborNewDate(e.target.value)} />
+                        <input className={styles.allowanceInput} type="number" min={0} value={laborNewAmount} onChange={(e) => setLaborNewAmount(Number(e.target.value || 0))} />
+                        <button type="button" className={styles.allowancePrimaryBtn} onClick={() => { void createLaborDoc(); }}>문서 생성</button>
+                      </div>
+
+                      <div className={styles.allowanceRow}>
+                        <input className={styles.allowanceInput} placeholder="검색(이름/상태)" value={laborSearch} onChange={(e) => setLaborSearch(e.target.value)} />
+                        <input className={styles.allowanceInput} type="month" value={laborMonth} onChange={(e) => setLaborMonth(e.target.value)} />
+                        <input className={styles.allowanceInput} placeholder="사람 필터" value={laborPerson} onChange={(e) => setLaborPerson(e.target.value)} />
+                        <button type="button" className={styles.allowanceGhostBtn} onClick={() => { void loadLaborRows(); }}>조회</button>
+                      </div>
+
+                      <div className={styles.allowanceMeta}>총 {laborRows.length}건 {laborLoading ? "· 조회 중" : ""}</div>
+                      <div className={styles.allowanceTableWrap}>
+                        <table className={styles.allowanceTable}>
+                          <thead>
+                            <tr>
+                              <th>NO</th>
+                              <th>이름</th>
+                              <th>지급일</th>
+                              <th>금액</th>
+                              <th>첨부수</th>
+                              <th>상태</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {laborRows.map((row, idx) => (
+                              <tr key={row.id}>
+                                <td className={styles.allowanceColNo}><Link className={styles.allowanceCellLink} href={`/expense/labor/${row.id}`}>NO.{idx + 1}</Link></td>
+                                <td className={styles.allowanceColName}><Link className={styles.allowanceCellLink} href={`/expense/labor/${row.id}`}>{row.person_name}</Link></td>
+                                <td className={styles.allowanceColDate}><Link className={styles.allowanceCellLink} href={`/expense/labor/${row.id}`}>{row.payment_date}</Link></td>
+                                <td className={styles.allowanceColAmount}><Link className={styles.allowanceCellLink} href={`/expense/labor/${row.id}`}>{Number(row.amount ?? 0).toLocaleString()}</Link></td>
+                                <td className={styles.allowanceColAttach}><Link className={styles.allowanceCellLink} href={`/expense/labor/${row.id}`}>{row.attachment_count ?? 0}건</Link></td>
+                                <td><Link href={`/expense/labor/${row.id}`} className={row.status === "완료" ? styles.allowanceDone : styles.allowanceTodo}>{row.status}</Link></td>
+                              </tr>
+                            ))}
+                            {laborRows.length === 0 && (
+                              <tr>
+                                <td colSpan={6}>조회 데이터가 없습니다.</td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </section>
+                  </div>
+                </div>
+                <div className={`${styles.allowancePreviewPane} ${allowanceMobileTab === "edit" ? styles.allowanceMobileHidden : ""}`}>
+                  <PreviewSheet sheet={sheet} sheetIdx={activeSheet} formValues={previewData.formValues} />
+                </div>
+              </div>
+            </div>
           ) : sheet && isItemSheet(sheet.name) ? (
             <div key={`items-${activeSheet}`} className={styles.viewportItems}>
               <ItemListView
@@ -1829,6 +2101,7 @@ img{image-rendering:high-quality;display:block}
                 onSave={handleInAppSave}
                 onPrint={handleItemPdfPrint}
                 saved={inAppSaved}
+                title="항목별세부내역"
               />
             </div>
           ) : sheet && isPhotoSheet(sheet.name) ? (
@@ -1862,7 +2135,7 @@ img{image-rendering:high-quality;display:block}
             </div>
           ) : sheet && (
             <div key={`table-${activeSheet}`} className={styles.viewport}>
-              <div className={isAllowanceSheet(sheet.name) ? styles.sheetDocument : styles.sheetTableWrap}>
+              <div className={styles.sheetTableWrap}>
               <FitToWidth
                 contentWidth={displayColWidths.reduce((a, b) => a + b, 0) || 1}
                 contentHeight={displayRows.reduce((sum, r) => sum + (r.height ?? 20), 0) || 1}
