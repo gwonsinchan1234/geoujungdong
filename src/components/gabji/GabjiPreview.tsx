@@ -1,20 +1,16 @@
 "use client";
 
-// 미리보기 분기:
-//   모바일(≤768px) → GabjiHtmlPreview (HTML/CSS, 입력값 즉시 반영)
-//   데스크탑       → GabjiPdfViewer  (@react-pdf iframe, SSR:false)
-//
-// 이유: 모바일 브라우저(iOS Safari / Android Chrome)는 <iframe> PDF 렌더링을
-// 지원하지 않아 "파일 열기" fallback 카드만 표시됨. HTML 방식으로 대체.
+// 미리보기는 모바일/데스크탑 모두 동일하게 GabjiPdfViewer를 사용한다.
+// 인쇄(PDF) 결과와 화면 미리보기 결과를 일치시키기 위함.
 
-import React, { useEffect, useState } from "react";
+import React from "react";
 import dynamic from "next/dynamic";
-import GabjiHtmlPreview from "./GabjiHtmlPreview";
 import type { GabjiDoc, GabjiItem } from "./types";
 
 interface Props {
   doc: GabjiDoc;
   items: GabjiItem[];
+  valueFontSize?: string;
 }
 
 const GabjiPdfViewer = dynamic(() => import("./GabjiPdfViewer"), {
@@ -39,28 +35,10 @@ const GabjiPdfViewer = dynamic(() => import("./GabjiPdfViewer"), {
   ),
 });
 
-// 초기값을 클라이언트에서 즉시 계산해 flash 방지
-function initIsMobile() {
-  if (typeof window === "undefined") return false;
-  return window.innerWidth <= 768;
-}
-
-export default function GabjiPreview({ doc, items }: Props) {
-  const [isMobile, setIsMobile] = useState(initIsMobile);
-
-  useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth <= 768);
-    window.addEventListener("resize", check);
-    return () => window.removeEventListener("resize", check);
-  }, []);
-
-  if (isMobile) {
-    return <GabjiHtmlPreview doc={doc} items={items} />;
-  }
-
+export default function GabjiPreview({ doc, items, valueFontSize }: Props) {
   return (
     <div style={{ width: "100%", height: "100%", overflow: "hidden" }}>
-      <GabjiPdfViewer doc={doc} items={items} />
+      <GabjiPdfViewer doc={doc} items={items} valueFontSize={valueFontSize} />
     </div>
   );
 }

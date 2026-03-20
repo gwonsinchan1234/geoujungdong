@@ -82,10 +82,16 @@ export default function GabjiItemsForm({ items, onChange, budgeted }: Props) {
         <thead>
           <tr>
             <th className={styles.colNo}>No</th>
-            <th className={styles.colName}>항목명</th>
+            <th className={styles.colName}>항목</th>
             <th className={styles.colAmt}>전월 사용누계</th>
-            <th className={styles.colAmt}>금월 사용금액</th>
-            <th className={styles.colAmt}>누계 사용금액</th>
+            <th className={styles.colAmt}>
+              <span className={styles.thMain}>금월</span>
+              <span className={styles.thSub}>사용금액</span>
+            </th>
+            <th className={styles.colAmt}>
+              <span className={styles.thMain}>누계</span>
+              <span className={styles.thSub}>사용금액</span>
+            </th>
           </tr>
         </thead>
         <tbody>

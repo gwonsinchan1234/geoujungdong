@@ -38,18 +38,32 @@
   min-width: 44px;
   box-sizing: border-box;
   border-radius: 10px;
-  background: #2563eb;
-  color: #fff;
+  background: transparent;
+  color: #6b7280;
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
   flex-shrink: 0;
-  transition: background 0.15s;
+  border: 1px solid transparent;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease,
+    box-shadow 180ms ease,
+    transform 120ms ease;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
 }
-.uploadBtn:hover { background: #1d4ed8; }
+.uploadBtn:active {
+  background: #f1f5f9;
+  transform: translateY(0);
+  box-shadow: none;
+}
+.uploadBtn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
 
 .hiddenInput { display: none; }
 
@@ -100,20 +114,44 @@
   min-height: 44px;
   box-sizing: border-box;
   border-radius: 10px;
-  border: none;
-  color: #fff;
+  border: 1px solid #e5e7eb;
+  color: #111827;
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
   flex-shrink: 0;
-  transition: background 0.15s;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease,
+    box-shadow 180ms ease,
+    transform 120ms ease;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
 }
-.printBtn { background: #6b7280; }
-.printBtn:hover { background: #4b5563; }
-.downloadBtn { background: #16a34a; }
-.downloadBtn:hover { background: #15803d; }
+.printBtn,
+.downloadBtn {
+  background: #fff;
+}
+.printBtn:active,
+.downloadBtn:active {
+  background: #f1f5f9;
+  transform: translateY(0);
+  box-shadow: none;
+}
+.printBtn:focus-visible,
+.downloadBtn:focus-visible {
+  outline: none;
+  border-color: #93c5fd;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+}
+.printBtn:disabled,
+.downloadBtn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
 
 /* 저장 버튼 (사진대지 탭 활성 시) */
 .saveBtn {
@@ -127,16 +165,36 @@
   padding: 9px 14px;
   border-radius: 10px;
   border: none;
-  background: #7c3aed;
+  background: #3b82f6;
   color: #fff;
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
   flex-shrink: 0;
-  transition: background 0.15s, opacity 0.15s;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease,
+    box-shadow 180ms ease,
+    transform 120ms ease,
+    opacity 160ms ease;
 }
-.saveBtn:hover:not(:disabled) { background: #6d28d9; }
-.saveBtn:disabled { opacity: 0.6; cursor: not-allowed; }
+.saveBtn:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.14);
+}
+.saveBtn:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 3px rgba(59, 130, 246, 0.18),
+    0 6px 18px rgba(59, 130, 246, 0.18);
+}
+.saveBtn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
 .saveBtnDone { background: #059669 !important; }
 
 .saveBtnSpinner {
@@ -250,9 +308,20 @@
   color: #6b7280;
   cursor: pointer;
   white-space: nowrap;
-  transition: color 0.15s;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease,
+    box-shadow 180ms ease,
+    transform 120ms ease;
 }
-.tab:hover { color: #374151; }
+.tab:active {
+  background: #f1f5f9;
+}
+.tab:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
 
 .tabActive {
   color: #2563eb;
@@ -1004,19 +1073,54 @@
   align-items: center;
   gap: 5px;
   padding: 7px 10px;
-  background: #fff7ed;
-  border: 1px solid #fed7aa;
+  background: transparent;
+  border: 1px solid transparent;
   border-radius: 8px;
   font-size: 11px;
   font-weight: 600;
-  color: #c2410c;
+  color: #6b7280;
   cursor: pointer;
   white-space: nowrap;
-  transition: background 0.15s;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease,
+    box-shadow 180ms ease,
+    transform 120ms ease;
   flex-shrink: 0;
 }
-.pwaBtn:hover { background: #ffedd5; }
-.pwaBtn:active { transform: scale(0.97); }
+.pwaBtn:active {
+  background: #f1f5f9;
+  transform: translateY(0);
+  box-shadow: none;
+}
+.pwaBtn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .saveBtn:hover:not(:disabled) {
+    background: #2563eb;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 18px rgba(59, 130, 246, 0.18);
+  }
+
+  .printBtn:hover:not(:disabled),
+  .downloadBtn:hover:not(:disabled) {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
+  }
+
+  .uploadBtn:hover,
+  .pwaBtn:hover,
+  .tab:hover {
+    background: #f8fafc;
+    color: #111827;
+  }
+}
 
 /* ── PWA 설치 안내 모달 ────────────────────────────────────────── */
 .pwaBackdrop {

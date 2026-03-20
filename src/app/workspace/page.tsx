@@ -5,10 +5,8 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import * as XLSX from "xlsx";
 import ExcelJS from "exceljs";
-import { AppShell } from "@/components/layout/AppShell";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { LoadingState } from "@/components/ui/LoadingState";
-import { ErrorState } from "@/components/ui/ErrorState";
 import { PhotoSheetPage, type PhotoSheetItem } from "@/components/PhotoSheet";
 import styles from "./WorkspacePage.module.css";
 
@@ -52,10 +50,6 @@ type PhotoSlot = {
   file?: File;
   previewUrl?: string;
 };
-
-function clamp(n: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, n));
-}
 
 function makeSlots(spec: TemplateSpec): PhotoSlot[] {
   const incoming = Array.from({ length: spec.incomingSlots }, (_, i) => ({

@@ -106,8 +106,11 @@ const S = StyleSheet.create({
     ...B_IN,
     height: ROW,
     fontSize: 7.5,
+    fontWeight: "bold",
     paddingLeft: 5, paddingRight: 5,
+    textAlign: "center",
     justifyContent: "center",
+    alignItems: "center",
   },
   // 계산된 안전관리비 값 셀 (colspan=3)
   iTdSafety: {
@@ -244,10 +247,12 @@ function fmtDate(s: string) {
 }
 function fmtShort(s: string) { return s ? s.replace(/-/g, ".") : ""; }
 
-interface Props { doc: GabjiDoc; items: GabjiItem[] }
+interface Props { doc: GabjiDoc; items: GabjiItem[]; valueFontSize?: string }
 
 // ── PDF 문서 ─────────────────────────────────────────────────────
-export default function GabjiPdf({ doc, items }: Props) {
+export default function GabjiPdf({ doc, items, valueFontSize }: Props) {
+  // Excel에서 파싱된 폰트 크기 (pt 단위 숫자). 없으면 S.iTd 기본값 사용
+  const iTdFontSize = valueFontSize ? (parseFloat(valueFontSize) || undefined) : undefined;
   const { prevTotal, currTotal, total } = calcTotals(items);
   const month = doc.year_month ? parseInt(doc.year_month.split("-")[1], 10) : "";
 
@@ -291,13 +296,13 @@ export default function GabjiPdf({ doc, items }: Props) {
               <View style={cx(S.iTh, { width: IW.lb1 })}>
                 <Text>{lb1}</Text>
               </View>
-              <View style={cx(S.iTd, { width: IW.v1 })}>
+              <View style={cx(S.iTd, { width: IW.v1, ...(iTdFontSize && { fontSize: iTdFontSize }) })}>
                 <Text>{v1}</Text>
               </View>
               <View style={cx(S.iTh, { width: IW.lb2 })}>
                 <Text>{lb2}</Text>
               </View>
-              <View style={cx(S.iTd, { width: IW.v2 }, true)}>
+              <View style={cx(S.iTd, { width: IW.v2, ...(iTdFontSize && { fontSize: iTdFontSize }) }, true)}>
                 <Text>{v2}</Text>
               </View>
             </View>

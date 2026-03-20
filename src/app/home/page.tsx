@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { motion } from "framer-motion";
 import styles from "./page.module.css";
@@ -316,21 +316,7 @@ const FAQS_EN = [
 export default function HomePage() {
   const [lang, setLang] = useState<Lang>("KOR");
   const videoRef = useRef<HTMLVideoElement | null>(null);
-  const [videoReady, setVideoReady] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
-
-  useEffect(() => {
-    const v = videoRef.current;
-    if (!v) return;
-    const onLoaded = () => setVideoReady(true);
-    const onError = () => setVideoReady(false);
-    v.addEventListener("loadeddata", onLoaded);
-    v.addEventListener("error", onError);
-    return () => {
-      v.removeEventListener("loadeddata", onLoaded);
-      v.removeEventListener("error", onError);
-    };
-  }, []);
 
   const kor = lang === "KOR";
 

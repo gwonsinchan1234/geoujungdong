@@ -28,12 +28,12 @@ export const DEFAULT_ITEMS: GabjiItem[] = [
   { id: "item-1", no: 1, label: "안전관리자 등 인건비 및 각종 업무수당 등", planAmount: "", useAmount: "" },
   { id: "item-2", no: 2, label: "안전시설비 등", planAmount: "", useAmount: "" },
   { id: "item-3", no: 3, label: "개인보호구 및 안전장구 구입비 등", planAmount: "", useAmount: "" },
-  { id: "item-4", no: 4, label: "사망사고 만인율 등 안전성과급 지급 재원", planAmount: "", useAmount: "" },
-  { id: "item-5", no: 5, label: "안전진단비 등", planAmount: "", useAmount: "" },
-  { id: "item-6", no: 6, label: "안전보건교육비 및 행사비 등", planAmount: "", useAmount: "" },
-  { id: "item-7", no: 7, label: "근로자 건강관리비 등", planAmount: "", useAmount: "" },
-  { id: "item-8", no: 8, label: "건설재해예방 기술지도비", planAmount: "", useAmount: "" },
-  { id: "item-9", no: 9, label: "기타 안전관리비", planAmount: "", useAmount: "" },
+  { id: "item-4", no: 4, label: "안전진단비 등", planAmount: "", useAmount: "" },
+  { id: "item-5", no: 5, label: "안전보건교육비 및 행사비 등", planAmount: "", useAmount: "" },
+  { id: "item-6", no: 6, label: "근로자 건강진단비 등", planAmount: "", useAmount: "" },
+  { id: "item-7", no: 7, label: "건설재해예방 기술지도비", planAmount: "", useAmount: "" },
+  { id: "item-8", no: 8, label: "본사 사용비", planAmount: "", useAmount: "" },
+  { id: "item-9", no: 9, label: "위험성평가 등에 따른 소요비용 등", planAmount: "", useAmount: "" },
 ];
 
 export function makeEmptyGabji(): GabjiData {

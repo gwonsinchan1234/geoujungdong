@@ -218,8 +218,12 @@ function parsePhotoBlocksFromRaw(rawBuf: ArrayBuffer, sheetNames: string[]): Rec
 }
 
 function PreviewSheet({
-  sheet, sheetIdx, formValues,
-}: { sheet: ParsedSheet; sheetIdx: number; formValues: Record<string, string> }) {
+  sheet, sheetIdx, formValues, formStyles,
+}: {
+  sheet: ParsedSheet; sheetIdx: number;
+  formValues: Record<string, string>;
+  formStyles?: Record<string, React.CSSProperties>;
+}) {
   const { trimmedRows, usedCols, colWidths, rowOffset, colOffset } = trimSheet(sheet);
   const totalW = colWidths.reduce((a, b) => a + b, 0) || A4_W;
   const totalH = trimmedRows.reduce((sum, r) => sum + (r.height ?? 20), 0);
@@ -239,12 +243,13 @@ function PreviewSheet({
               if (cell.skip) return null;
               const ref = `${colLetter(ci + 1 + colOffset)}${ri + 1 + rowOffset}`;
               const ov  = formValues[`${sheetIdx}__${ref}`];
+              const ovStyle = ov !== undefined ? formStyles?.[`${sheetIdx}__${ref}`] : undefined;
               return (
                 <td
                   key={ci}
                   rowSpan={cell.rowSpan > 1 ? cell.rowSpan : undefined}
                   colSpan={cell.colSpan > 1 ? cell.colSpan : undefined}
-                  style={cell.style as React.CSSProperties}
+                  style={{ ...(cell.style as React.CSSProperties), ...ovStyle }}
                   className={ov !== undefined ? styles.cellHighlight : undefined}
                 >
                   {toCellDisplayString(ov ?? cell.value)}
@@ -315,21 +320,38 @@ function FitToWidth(props: {
 
 // ── 갑지 폼 ──────────────────────────────────────────────────────
 
-/** 엑셀 시트에서 갑지 데이터 파싱 (최대한 읽고 없으면 기본값) */
-function parseGabjiFromSheet(sheet: ParsedSheet): GabjiData {
+/** 갑지 파싱 결과 타입 */
+type ParsedGabji = {
+  data: GabjiData;
+  /** 필드명 → 셀 ref (예: "gongsamyeong" → "B5") */
+  cellRefs: Record<string, string>;
+  /** 항목 9개 각각의 계획금액·사용금액 셀 ref */
+  itemRefs: Array<{ planRef: string; useRef: string }>;
+  /** ref → Excel 원본 셀 스타일 (fontSize 등 참조용) */
+  cellStyles: Record<string, React.CSSProperties>;
+};
+
+/** 엑셀 갑지 시트에서 데이터 + 셀 ref 동시 파싱
+ *  파싱 시 발견한 값 셀 위치를 cellRefs/itemRefs에 기록,
+ *  gabjiPrintOverrides가 재스캔 없이 정확한 셀에 값 반영 */
+function parseGabjiFromSheet(sheet: ParsedSheet): ParsedGabji {
   const d = makeEmptyGabji();
+  const cellRefs: Record<string, string> = {};
+  const cellStyles: Record<string, React.CSSProperties> = {};
+  const rowOffset = sheet.renderRange.r1 - 1;
+  const colOffset = sheet.renderRange.c1 - 1;
 
   // ① 기본정보 라벨 → 오른쪽 값 셀 스캔
   const BASIC: Array<{ field: keyof GabjiData; keywords: string[] }> = [
     { field: "gongsamyeong",    keywords: ["공사명"] },
-    { field: "hyeonjangmyeong", keywords: ["현장명"] },
+    { field: "hyeonjangmyeong", keywords: ["건설업체명", "업체명", "현장명"] },
     { field: "gongsageumaek",   keywords: ["공사금액", "계약금액"] },
     { field: "gongsagigan",     keywords: ["공사기간", "공기"] },
     { field: "baljuja",         keywords: ["발주자"] },
-    { field: "gongjungnyul",    keywords: ["공정율", "공정률"] },
+    { field: "gongjungnyul",    keywords: ["누계공정율", "공정율", "공정률"] },
     { field: "signDate",        keywords: ["작성일", "작 성 일"] },
-    { field: "signRep",         keywords: ["현장대리인"] },
-    { field: "signSafety",      keywords: ["안전관리담당자", "안전관리자"] },
+    { field: "signRep",         keywords: ["현장대리인", "현장소장"] },
+    { field: "signSafety",      keywords: ["안전관리담당자", "안전담당", "안전관리자"] },
   ];
 
   for (let ri = 0; ri < sheet.rows.length; ri++) {
@@ -339,11 +361,15 @@ function parseGabjiFromSheet(sheet: ParsedSheet): GabjiData {
       if (!cell || cell.skip) continue;
       const text = toCellDisplayString(cell.value).replace(/[\s\u200b\u3000]/g, "");
       for (const { field, keywords } of BASIC) {
-        if (d[field]) continue;
+        if (cellRefs[field]) continue; // 이미 ref 확보됨
         if (!keywords.some(k => text.includes(k.replace(/\s/g, "")))) continue;
         for (let nc = ci + 1; nc < row.cells.length; nc++) {
           const vc = row.cells[nc];
           if (!vc || vc.skip) continue;
+          // ref는 항상 기록 (빈 셀이어도 사용자 편집 대상 셀 위치로 사용)
+          const ref = `${colLetter(nc + 1 + colOffset)}${ri + 1 + rowOffset}`;
+          cellRefs[field] = ref;
+          cellStyles[ref] = vc.style as React.CSSProperties;
           const val = toCellDisplayString(vc.value).trim();
           if (val) (d as unknown as Record<string, string>)[field] = val;
           break;
@@ -352,20 +378,21 @@ function parseGabjiFromSheet(sheet: ParsedSheet): GabjiData {
     }
   }
 
-  // ② 사용금액 항목 스캔 (표준 9개 항목 키워드)
+  // ② 항목 스캔 — 계획금액·사용금액 셀 ref도 동시 기록
+  // 실제 서식 기준 (2024 산업안전보건관리비 계상 및 사용기준)
   const ITEM_KW = [
-    "안전관리자",  // 1
-    "안전시설비",  // 2
-    "개인보호구",  // 3
-    "사망사고",    // 4
-    "안전진단",    // 5
-    "안전보건교육", // 6
-    "건강관리",    // 7
-    "건설재해예방", // 8
-    "기타안전",    // 9
+    "안전관리자",   // 1 안전관리자 등 인건비 및 각종 업무수당 등
+    "안전시설비",   // 2 안전시설비 등
+    "개인보호구",   // 3 개인보호구 및 안전장구 구입비 등
+    "안전진단",     // 4 안전진단비 등
+    "안전보건교육", // 5 안전보건교육비 및 행사비 등
+    "건강진단",     // 6 근로자 건강진단비 등
+    "건설재해예방", // 7 건설재해예방 기술지도비
+    "본사",         // 8 본사 사용비
+    "위험성평가",   // 9 위험성평가 등에 따른 소요비용 등
   ];
 
-  const found = new Map<number, { plan: string; use: string }>();
+  const found = new Map<number, { plan: string; use: string; planRef: string; useRef: string }>();
 
   for (let ri = 0; ri < sheet.rows.length; ri++) {
     const row = sheet.rows[ri];
@@ -375,17 +402,28 @@ function parseGabjiFromSheet(sheet: ParsedSheet): GabjiData {
       const text = toCellDisplayString(cell.value).replace(/[\s\u200b\u3000]/g, "");
       const idx = ITEM_KW.findIndex(k => text.includes(k.replace(/\s/g, "")));
       if (idx === -1 || found.has(idx)) continue;
-      // 오른쪽에서 숫자 셀 2개 탐색 (계획금액, 사용금액)
-      const nums: string[] = [];
-      for (let nc = ci + 1; nc < Math.min(ci + 12, row.cells.length) && nums.length < 2; nc++) {
+      const numHits: Array<{ v: string; ref: string; style: React.CSSProperties }> = [];
+      for (let nc = ci + 1; nc < Math.min(ci + 12, row.cells.length) && numHits.length < 2; nc++) {
         const vc = row.cells[nc];
         if (!vc || vc.skip) continue;
         const v = toCellDisplayString(vc.value).trim();
-        if (v && !isNaN(parseFloat(v.replace(/,/g, "")))) nums.push(v);
+        if (v && !isNaN(parseFloat(v.replace(/,/g, "")))) {
+          numHits.push({ v, ref: `${colLetter(nc + 1 + colOffset)}${ri + 1 + rowOffset}`, style: vc.style as React.CSSProperties });
+        }
       }
-      found.set(idx, { plan: nums[0] ?? "", use: nums[1] ?? "" });
+      if (numHits[0]) cellStyles[numHits[0].ref] = numHits[0].style;
+      if (numHits[1]) cellStyles[numHits[1].ref] = numHits[1].style;
+      found.set(idx, {
+        plan: numHits[0]?.v ?? "", use: numHits[1]?.v ?? "",
+        planRef: numHits[0]?.ref ?? "", useRef: numHits[1]?.ref ?? "",
+      });
     }
   }
+
+  const itemRefs: Array<{ planRef: string; useRef: string }> = DEFAULT_ITEMS.map((_, idx) => {
+    const hit = found.get(idx);
+    return hit ? { planRef: hit.planRef, useRef: hit.useRef } : { planRef: "", useRef: "" };
+  });
 
   if (found.size > 0) {
     d.items = DEFAULT_ITEMS.map((def, idx) => {
@@ -394,58 +432,87 @@ function parseGabjiFromSheet(sheet: ParsedSheet): GabjiData {
     });
   }
 
-  return d;
-}
-
-// ── 갑지 인쇄용 셀 오버라이드 계산 ──────────────────────────────
-// 기본 헤더 정보(공사명·금액·기간·발주자·공정율)만 안전하게 덮어씀
-// 항목별 금액은 항목 레이블이 키워드와 충돌할 수 있어 제외
-function gabjiPrintOverrides(
-  sheet: ParsedSheet,
-  sheetIdx: number,
-  data: GabjiData,
-  _itemAmounts: Record<number, number>,
-): Record<string, string> {
-  const overrides: Record<string, string> = {};
-  const rowOffset = sheet.renderRange.r1 - 1;
-  const colOffset = sheet.renderRange.c1 - 1;
-
-  // 항목 레이블("안전관리자등" 등)과 겹치지 않는 고유 키워드만 사용
-  const BASIC_FIELDS: Array<{ field: keyof GabjiData; keywords: string[] }> = [
-    { field: "gongsamyeong",    keywords: ["공사명"] },
-    { field: "gongsageumaek",   keywords: ["공사금액", "계약금액"] },
-    { field: "gongsagigan",     keywords: ["공사기간"] },
-    { field: "baljuja",         keywords: ["발주자"] },
-    { field: "gongjungnyul",    keywords: ["누계공정율", "공정율", "공정률"] },
-    { field: "signDate",        keywords: ["작성일"] },
-    { field: "signRep",         keywords: ["현장대리인"] },
-    { field: "signSafety",      keywords: ["안전관리담당자"] },
-  ];
-  const matched = new Set<string>();
-
-  for (let ri = 0; ri < sheet.rows.length; ri++) {
-    const row = sheet.rows[ri];
-    for (let ci = 0; ci < row.cells.length; ci++) {
-      const cell = row.cells[ci];
+  // ③ 특수 처리: 서명 날짜 / 확인자 성명 (라벨+값이 하나의 셀에 합쳐진 구조)
+  for (let ri2 = 0; ri2 < sheet.rows.length; ri2++) {
+    for (const cell of sheet.rows[ri2].cells) {
       if (!cell || cell.skip) continue;
-      const text = toCellDisplayString(cell.value).replace(/[\s\u200b\u3000]/g, "");
+      const raw  = toCellDisplayString(cell.value);
+      const flat = raw.replace(/[\s\u200b\u3000]/g, "");
 
-      for (const { field, keywords } of BASIC_FIELDS) {
-        if (matched.has(field)) continue;
-        if (!keywords.some(k => text.includes(k.replace(/\s/g, "")))) continue;
-        // 라벨 오른쪽의 첫 번째 non-skip 셀에 값 기입
-        for (let nc = ci + 1; nc < row.cells.length; nc++) {
-          const vc = row.cells[nc];
-          if (!vc || vc.skip) continue;
-          matched.add(field);
-          const val = String((data as unknown as Record<string, string>)[field] ?? "");
-          if (val) overrides[`${sheetIdx}__${colLetter(nc + 1 + colOffset)}${ri + 1 + rowOffset}`] = val;
-          break;
-        }
+      // 날짜: "YYYY년 M월 D일" 패턴 (라벨 없이 독립된 셀)
+      if (!d.signDate && /\d{4}년/.test(flat) && /월/.test(flat) && /일/.test(flat)
+          && !flat.includes("공사기간") && !flat.includes("공사기")) {
+        d.signDate = raw.trim();
+      }
+
+      // 현장소장 성명 추출 ("직책...현장소장...성명..." 한 셀)
+      if (!d.signRep && flat.includes("현장소장") && flat.includes("성명")) {
+        const name = flat.split("성명").pop()?.replace(/\(서.*/, "").replace(/\(\s*$/, "").trim();
+        if (name) d.signRep = name;
+      }
+
+      // 안전담당 성명 추출
+      if (!d.signSafety && (flat.includes("안전담당") || flat.includes("안전관리담당자")) && flat.includes("성명")) {
+        const name = flat.split("성명").pop()?.replace(/\(서.*/, "").replace(/\(\s*$/, "").trim();
+        if (name) d.signSafety = name;
       }
     }
   }
-  return overrides;
+
+  return { data: d, cellRefs, itemRefs, cellStyles };
+}
+
+// ── 갑지 인쇄용 셀 오버라이드 계산 ──────────────────────────────
+// parseGabjiFromSheet에서 기록한 cellRefs/itemRefs를 직접 사용
+// → 키워드 불일치·재스캔 없이 정확한 셀에 값+스타일 반영
+function gabjiPrintOverrides(
+  cellRefs: Record<string, string>,
+  itemRefs: Array<{ planRef: string; useRef: string }>,
+  excelCellStyles: Record<string, React.CSSProperties>,
+  sheetIdx: number,
+  data: GabjiData,
+): { overrides: Record<string, string>; formStyles: Record<string, React.CSSProperties> } {
+  const overrides: Record<string, string> = {};
+  const formStyles: Record<string, React.CSSProperties> = {};
+
+  // 기본 필드 (공사명, 현장명, 공사금액, …)
+  // Excel 원본 셀 스타일(fontSize 등) 참조 + center/bold 강제
+  for (const [field, ref] of Object.entries(cellRefs)) {
+    if (!ref) continue;
+    const val = String((data as unknown as Record<string, string>)[field] ?? "");
+    if (val) {
+      overrides[`${sheetIdx}__${ref}`]  = val;
+      formStyles[`${sheetIdx}__${ref}`] = {
+        ...excelCellStyles[ref],
+        textAlign: "center",
+        fontWeight: "bold",
+      };
+    }
+  }
+
+  // 항목 9개 계획금액·사용금액
+  data.items.forEach((item, idx) => {
+    const ref = itemRefs[idx];
+    if (!ref) return;
+    if (ref.planRef && item.planAmount) {
+      overrides[`${sheetIdx}__${ref.planRef}`]  = item.planAmount;
+      formStyles[`${sheetIdx}__${ref.planRef}`] = {
+        ...excelCellStyles[ref.planRef],
+        textAlign: "center",
+        fontWeight: "bold",
+      };
+    }
+    if (ref.useRef && item.useAmount) {
+      overrides[`${sheetIdx}__${ref.useRef}`]  = item.useAmount;
+      formStyles[`${sheetIdx}__${ref.useRef}`] = {
+        ...excelCellStyles[ref.useRef],
+        textAlign: "center",
+        fontWeight: "bold",
+      };
+    }
+  });
+
+  return { overrides, formStyles };
 }
 
 // ── 항목별세부내역 → ItemData[] 파싱 ────────────────────────────
@@ -583,6 +650,9 @@ export default function FillPage() {
   type DocState = {
     formValues: Record<string, string>;
     gabjiData: GabjiData;
+    gabjiCellRefs: Record<string, string>;
+    gabjiItemRefs: Array<{ planRef: string; useRef: string }>;
+    gabjiCellStyles: Record<string, React.CSSProperties>;
     items: ItemData[];
     photoBlocks: Record<string, PhotoBlock[]>;
     savedAt: number;
@@ -597,6 +667,9 @@ export default function FillPage() {
   const [docState,     setDocState]     = useState<DocState>({
     formValues: {},
     gabjiData: makeEmptyGabji(),
+    gabjiCellRefs: {},
+    gabjiItemRefs: [],
+    gabjiCellStyles: {},
     items: [],
     photoBlocks: {},
     savedAt: Date.now(),
@@ -629,10 +702,13 @@ export default function FillPage() {
   const [showPwaGuide,   setShowPwaGuide]   = useState(false);
   const [isStandalone,   setIsStandalone]   = useState(true); // 기본 true → 설치 안내 숨김
 
-  const formValues = docState.formValues;
-  const gabjiData = docState.gabjiData;
-  const items = docState.items;
-  const photoBlocks = docState.photoBlocks;
+  const formValues      = docState.formValues;
+  const gabjiData       = docState.gabjiData;
+  const gabjiCellRefs   = docState.gabjiCellRefs;
+  const gabjiItemRefs   = docState.gabjiItemRefs;
+  const gabjiCellStyles = docState.gabjiCellStyles;
+  const items           = docState.items;
+  const photoBlocks     = docState.photoBlocks;
 
   const setFormValues = useCallback((action: React.SetStateAction<Record<string, string>>) => {
     setDocState(prev => ({ ...prev, formValues: applyStateAction(prev.formValues, action), savedAt: Date.now() }));
@@ -653,10 +729,13 @@ export default function FillPage() {
   const previewData = useMemo(() => ({
     formValues,
     gabjiData,
+    gabjiCellRefs,
+    gabjiItemRefs,
+    gabjiCellStyles,
     items,
     photoBlocks,
     savedAt: docState.savedAt,
-  }), [formValues, gabjiData, items, photoBlocks, docState.savedAt]);
+  }), [formValues, gabjiData, gabjiCellRefs, gabjiItemRefs, gabjiCellStyles, items, photoBlocks, docState.savedAt]);
 
   // ── 사진대지 항목 드롭다운: 전체 블록에서 유니크 라벨 수집 ──────
   const availableLabels = useMemo(() => {
@@ -671,26 +750,24 @@ export default function FillPage() {
   }, [photoBlocks]);
 
   const mkKey = (sheetIdx: number, cell: string) => `${sheetIdx}__${cell.toUpperCase()}`;
+  const isEditingCellOpen = editingCell !== null;
+  const isPhotoSlotOpen = photoSlot !== null;
 
   // ── PWA 설치 여부 감지 ────────────────────────────────────────────
   useEffect(() => {
     setIsStandalone(window.matchMedia("(display-mode: standalone)").matches);
   }, []);
 
-  // ── 사진 업로드 중 body 스크롤 잠금 ──────────────────────────────
+  // ── 오버레이/바텀시트 상태의 body 스크롤 잠금 (단일 소스) ─────────
   useEffect(() => {
-    if (photoUploading) {
-      document.body.style.overflow = "hidden";
-      document.body.style.touchAction = "none";
-    } else {
-      document.body.style.overflow = "";
-      document.body.style.touchAction = "";
-    }
+    const shouldLockBodyScroll = photoUploading || isEditingCellOpen || showPreview || isPhotoSlotOpen;
+    document.body.style.overflow = shouldLockBodyScroll ? "hidden" : "";
+    document.body.style.touchAction = photoUploading ? "none" : "";
     return () => {
       document.body.style.overflow = "";
       document.body.style.touchAction = "";
     };
-  }, [photoUploading]);
+  }, [photoUploading, isEditingCellOpen, showPreview, isPhotoSlotOpen]);
 
   // ── PWA Share Target: SW 캐시에서 공유된 엑셀 파일 수신 ──────────
   useEffect(() => {
@@ -1025,21 +1102,17 @@ export default function FillPage() {
   // ── 바텀시트 포커스 + 배경 스크롤 잠금 ──────────────────────────
   useEffect(() => {
     if (editingCell) {
-      document.body.style.overflow = "hidden";
       setTimeout(() => inputRef.current?.focus(), 80);
-    } else {
-      document.body.style.overflow = "";
     }
-    return () => { document.body.style.overflow = ""; };
+    return;
   }, [editingCell]);
 
   useEffect(() => {
-    document.body.style.overflow = showPreview ? "hidden" : "";
     if (showPreview) {
       // 뒤로가기가 미리보기 닫기로 동작하도록 히스토리 엔트리 추가
       history.pushState({ preview: true }, "");
     }
-    return () => { document.body.style.overflow = ""; };
+    return;
   }, [showPreview]);
 
   // 뒤로가기(popstate) → 미리보기 닫기
@@ -1168,15 +1241,6 @@ export default function FillPage() {
         const gabji = parsed[gabjiIdx];
         parsed = [gabji, ...parsed.slice(0, gabjiIdx), ...parsed.slice(gabjiIdx + 1)];
       }
-      // v5 debug
-      console.log("[v5] sheets:", parsed.map((s, i) => `${i}:${s.name} printArea=${JSON.stringify(s.printArea)}`));
-      const s0 = parsed[0];
-      if (s0) console.log("[v5] sheet0 row0 cell0 style:", JSON.stringify(s0.rows[0]?.cells[0]?.style));
-      const itemSheet = parsed.find(s => s.name.includes("항목"));
-      if (itemSheet) {
-        const colored = itemSheet.rows.flatMap(r => r.cells).filter(c => c.style.backgroundColor && c.style.backgroundColor !== "#ffffff").length;
-        console.log("[v5] 항목별세부내역 colored cells:", colored);
-      }
       setSheets(parsed);
       setActiveSheet(0);
       setFormValues({});
@@ -1191,14 +1255,32 @@ export default function FillPage() {
         setFormValues(savedFillData.formValues as Record<string, string>);
       }
 
+      // cellRefs/itemRefs는 엑셀 파일 구조(라벨 위치)에서 결정 → 항상 현재 파일에서 새로 파싱
+      const gabjiSheet  = parsed.find(s => isCoverSheet(s.name));
+      const gabjiParsed = gabjiSheet ? parseGabjiFromSheet(gabjiSheet) : null;
+
       if (savedFillData?.gabjiData && savedFillData?.items) {
-        setGabjiData(savedFillData.gabjiData);
-        setItems(savedFillData.items);
+        // 사용자 편집 데이터는 저장본 복원, ref/styles는 항상 현재 파일 기준
+        setDocState(prev => ({
+          ...prev,
+          gabjiData:       savedFillData.gabjiData,
+          gabjiCellRefs:   gabjiParsed?.cellRefs   ?? {},
+          gabjiItemRefs:   gabjiParsed?.itemRefs   ?? [],
+          gabjiCellStyles: gabjiParsed?.cellStyles ?? {},
+          items:           savedFillData.items,
+          savedAt:         Date.now(),
+        }));
       } else {
-        const gabjiSheet = parsed.find(s => isCoverSheet(s.name));
-        if (gabjiSheet) setGabjiData(parseGabjiFromSheet(gabjiSheet));
         const parsedItems = parseItemsFromRaw(buf);
-        setItems(parsedItems);
+        setDocState(prev => ({
+          ...prev,
+          gabjiData:       gabjiParsed?.data       ?? makeEmptyGabji(),
+          gabjiCellRefs:   gabjiParsed?.cellRefs   ?? {},
+          gabjiItemRefs:   gabjiParsed?.itemRefs   ?? [],
+          gabjiCellStyles: gabjiParsed?.cellStyles ?? {},
+          items:           parsedItems,
+          savedAt:         Date.now(),
+        }));
       }
 
       // ── 사진대지 블록: items 기반 생성 (parsePhotoBlocksFromRaw 대체)
@@ -1370,23 +1452,48 @@ img{image-rendering:high-quality;display:block}
     w.onload = () => { w.focus(); w.print(); };
   }, [sheets, activeSheet, previewData]);
 
+  // ── 항목별세부내역: react-pdf로 PDF 생성 후 새 탭 열기 (갑지와 동일 방식) ──
+  const handleItemPdfPrint = useCallback(async () => {
+    try {
+      const [{ pdf }, { default: ItemListPdf }] = await Promise.all([
+        import("@react-pdf/renderer"),
+        import("@/components/item-list/ItemListPdf"),
+      ]);
+      const blob = await pdf(React.createElement(ItemListPdf, { items }) as any).toBlob();
+      const url = URL.createObjectURL(blob);
+      const w = window.open(url, "_blank");
+      if (!w) {
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `항목별세부내역_${fileName || "문서"}.pdf`;
+        a.click();
+      }
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "PDF 생성 실패");
+    }
+  }, [items, fileName]);
+
   const sheet = sheets[activeSheet];
+
+  // ── 갑지 미리보기 오버라이드 (렌더 단계 계산) ─────────────────────
+  const { overrides: previewGabjiOv, formStyles: previewGabjiFs } =
+    sheet && isCoverSheet(sheet.name)
+      ? gabjiPrintOverrides(previewData.gabjiCellRefs, previewData.gabjiItemRefs, previewData.gabjiCellStyles, activeSheet, previewData.gabjiData)
+      : { overrides: {} as Record<string, string>, formStyles: {} as Record<string, React.CSSProperties> };
 
   // ── 현재 활성 시트 새 창 브라우저 인쇄 ───────────────────────────
   const handlePrintActive = useCallback(() => {
     if (!sheet) return;
+    if (isItemSheet(sheet.name)) {
+      void handleItemPdfPrint();
+      return;
+    }
     const { trimmedRows, usedCols, colWidths, rowOffset, colOffset } = trimSheet(sheet);
-    const effectiveFormValues = isCoverSheet(sheet.name)
-      ? {
-          ...previewData.formValues,
-          ...gabjiPrintOverrides(
-            sheet,
-            activeSheet,
-            previewData.gabjiData,
-            Object.fromEntries(Array.from({ length: 9 }, (_, i) => [i + 1, sumByCategory(previewData.items, i + 1)])),
-          ),
-        }
-      : previewData.formValues;
+    const { overrides: gabjiOv, formStyles: gabjiFs } = isCoverSheet(sheet.name)
+      ? gabjiPrintOverrides(previewData.gabjiCellRefs, previewData.gabjiItemRefs, previewData.gabjiCellStyles, activeSheet, previewData.gabjiData)
+      : { overrides: {} as Record<string, string>, formStyles: {} as Record<string, React.CSSProperties> };
+    const effectiveFormValues = { ...previewData.formValues, ...gabjiOv };
     const colgroup = colWidths
       .map((w) => `<col style="width:${w}px">`)
       .join("");
@@ -1403,7 +1510,8 @@ img{image-rendering:high-quality;display:block}
           const ref = `${colLetter(ci + 1 + colOffset)}${ri + 1 + rowOffset}`;
           const val = toCellDisplayString(effectiveFormValues[`${activeSheet}__${ref}`] ?? cell.value)
             .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-          const css = Object.entries(cell.style)
+          const ovStyle = gabjiFs[`${activeSheet}__${ref}`] ?? {};
+          const css = Object.entries({ ...cell.style, ...ovStyle })
             .map(([k, v]) => `${k.replace(/([A-Z])/g, c => `-${c.toLowerCase()}`)}:${v}`).join(";");
           const rs = cell.rowSpan > 1 ? ` rowspan="${cell.rowSpan}"` : "";
           const cs = cell.colSpan > 1 ? ` colspan="${cell.colSpan}"` : "";
@@ -1454,7 +1562,7 @@ img{image-rendering:high-quality;display:block}
     w.document.write(fullHtml);
     w.document.close();
     w.onload = () => { w.focus(); w.print(); };
-  }, [sheet, activeSheet, previewData]);
+  }, [sheet, activeSheet, previewData, handleItemPdfPrint]);
 
   const handleDownload = useCallback(() => {
     if (!rawBuf) return;
@@ -1504,11 +1612,6 @@ img{image-rendering:high-quality;display:block}
   const isCoverActive = sheet ? isCoverSheet(sheet.name) : false;
   const isItemActive  = sheet ? isItemSheet(sheet.name)  : false;
 
-  // DEBUG TEST-B: 시트 감지 결과 콘솔 출력
-  if (typeof window !== "undefined" && sheet) {
-    console.log("[TEST-B] sheet:", sheet.name, "| isCover:", isCoverActive, "| isItem:", isItemActive, "| isPhoto:", isPhotoSheet(sheet.name));
-  }
-
   // ── 갑지 GabjiData → 새 GabjiEditor 타입으로 변환 ─────────────
   const itemAmountsForGabji = useMemo(
     () => Object.fromEntries(Array.from({ length: 9 }, (_, i) => [i + 1, sumByCategory(items, i + 1)])),
@@ -1551,6 +1654,14 @@ img{image-rendering:high-quality;display:block}
     [gabjiData.items, itemAmountsForGabji],
   );
 
+  // Excel 갑지 셀에서 추출한 대표 폰트 크기 (GabjiPdf 렌더링에 전달)
+  const gabjiValueFontSize = useMemo(() => {
+    const sizes = Object.values(gabjiCellStyles)
+      .map(s => (s as Record<string, string>).fontSize)
+      .filter((v): v is string => Boolean(v));
+    return sizes[0] ?? "10pt";
+  }, [gabjiCellStyles]);
+
   /** 갑지·항목별세부내역: localStorage에 데이터 저장 */
   const handleInAppSave = useCallback(() => {
     if (!fileName) return;
@@ -1560,6 +1671,8 @@ img{image-rendering:high-quality;display:block}
         JSON.stringify({
           formValues,
           gabjiData,
+          gabjiCellRefs,
+          gabjiItemRefs,
           items,
           photoBlocks,
           savedAt: Date.now(),
@@ -1638,7 +1751,17 @@ img{image-rendering:high-quality;display:block}
             </span>
           </button>
           {/* 인쇄: 항상 미리보기 먼저 표시 (항목별 세부내역·사진대지 공통) */}
-          <button type="button" className={styles.printBtn} onClick={() => setShowPreview(true)}>
+          <button
+            type="button"
+            className={styles.printBtn}
+            onClick={() => {
+              if (isItemActive) {
+                void handleItemPdfPrint();
+              } else {
+                setShowPreview(true);
+              }
+            }}
+          >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
               <polyline points="6 9 6 2 18 2 18 9" />
               <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
@@ -1695,6 +1818,7 @@ img{image-rendering:high-quality;display:block}
                 key={`gabji-editor-${fileName ?? "new"}`}
                 initialDoc={gabjiEditorDoc}
                 initialItems={gabjiEditorItems}
+                valueFontSize={gabjiValueFontSize}
               />
             </div>
           ) : sheet && isItemSheet(sheet.name) ? (
@@ -1703,7 +1827,7 @@ img{image-rendering:high-quality;display:block}
                 items={items}
                 onChange={handleItemsChange}
                 onSave={handleInAppSave}
-                onPrint={() => setShowPreview(true)}
+                onPrint={handleItemPdfPrint}
                 saved={inAppSaved}
               />
             </div>
@@ -1843,13 +1967,8 @@ img{image-rendering:high-quality;display:block}
               <PreviewSheet
                 sheet={sheet}
                 sheetIdx={activeSheet}
-                formValues={{
-                  ...previewData.formValues,
-                  ...gabjiPrintOverrides(
-                    sheet, activeSheet, previewData.gabjiData,
-                    Object.fromEntries(Array.from({ length: 9 }, (_, i) => [i + 1, sumByCategory(previewData.items, i + 1)])),
-                  ),
-                }}
+                formValues={{ ...previewData.formValues, ...previewGabjiOv }}
+                formStyles={previewGabjiFs}
               />
             ) : (
               <PreviewSheet sheet={sheet} sheetIdx={activeSheet} formValues={previewData.formValues} />

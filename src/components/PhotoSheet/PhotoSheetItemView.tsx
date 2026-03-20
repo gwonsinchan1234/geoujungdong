@@ -34,8 +34,6 @@ function PhotoGrid({
       ? styles.cols2
       : styles.cols1;
 
-  console.log("GRID_CHECK", kind, n, gridClass);
-
   return (
     <div className={styles.photoArea}>
       <div className={`${styles.photoGrid} ${gridClass}`}>

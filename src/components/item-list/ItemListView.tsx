@@ -5,12 +5,12 @@
 //   다크 툴바(toolbarLeft/Right) → 모바일탭(tabBar/tabBtn/active)
 //   → 에디터바디(좌: 카테고리표 | 우: A4 미리보기)
 
-import React, { useState, useCallback, useMemo, useRef, useEffect } from "react";
+import React, { useState, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import dynamic from "next/dynamic";
 
-// 데스크탑 전용 PDF 뷰어 (SSR 불가)
+// PDF 뷰어 (SSR 불가)
 const ItemListPdfViewer = dynamic(() => import("./ItemListPdfViewer"), {
   ssr: false,
   loading: () => (
@@ -29,10 +29,6 @@ const ItemListPdfViewer = dynamic(() => import("./ItemListPdfViewer"), {
   ),
 });
 
-function initIsMobile() {
-  if (typeof window === "undefined") return false;
-  return window.innerWidth <= 768;
-}
 import type { ItemData } from "./types";
 import {
   CATEGORY_LABELS, UNIT_SUGGESTIONS,
@@ -45,107 +41,11 @@ function useInlineNum(value: number, onChange: (v: string) => void) {
   const [editing, setEditing] = React.useState(false);
   const [raw, setRaw]         = React.useState("");
   return {
-    value:    editing ? raw : (value || ""),
+    value:    editing ? raw : (value ? fmtNum(value) : ""),
     onFocus:  () => { setEditing(true); setRaw(value ? String(value) : ""); },
     onBlur:   (e: React.FocusEvent<HTMLInputElement>) => { setEditing(false); onChange(e.target.value); },
     onChange: (e: React.ChangeEvent<HTMLInputElement>) => setRaw(e.target.value),
   };
-}
-
-// ══════════════════════════════════════════════════════════════════════
-// A4 미리보기 (우측 패널) — GabjiHtmlPreview 동일 구조
-// ══════════════════════════════════════════════════════════════════════
-const A4_PX = 794;
-
-function ItemListPreview({ items }: { items: ItemData[] }) {
-  const outerRef = useRef<HTMLDivElement>(null);
-  const [zoomVal, setZoomVal] = useState(1);
-
-  useEffect(() => {
-    const update = () => {
-      if (!outerRef.current) return;
-      const cw = outerRef.current.clientWidth;
-      setZoomVal(cw > 16 ? Math.min(1, (cw - 32) / A4_PX) : 1);
-    };
-    update();
-    const ro = new ResizeObserver(update);
-    if (outerRef.current) ro.observe(outerRef.current);
-    return () => ro.disconnect();
-  }, []);
-
-  const total = items.reduce((s, i) => s + i.amount, 0);
-
-  const grouped = useMemo(() => {
-    const map = new Map<number, ItemData[]>();
-    for (let i = 1; i <= 9; i++) map.set(i, []);
-    for (const item of items) map.get(item.categoryNo)?.push(item);
-    return map;
-  }, [items]);
-
-  const catSums = useMemo(
-    () => Object.fromEntries(
-      Array.from(grouped.entries()).map(([no, its]) => [no, its.reduce((s, i) => s + i.amount, 0)])
-    ),
-    [grouped],
-  );
-
-  return (
-    <div ref={outerRef} className={styles.htmlPreviewOuter}>
-      <div style={{ zoom: zoomVal, width: A4_PX }}>
-        <div className={styles.a4Wrap}>
-          <div className={styles.a4Title}>항목별 세부내역서</div>
-          <table className={styles.previewTable}>
-            <colgroup>
-              <col style={{ width: "7%" }} />
-              <col style={{ width: "9%" }} />
-              <col />
-              <col style={{ width: "6%" }} />
-              <col style={{ width: "5%" }} />
-              <col style={{ width: "14%" }} />
-              <col style={{ width: "14%" }} />
-            </colgroup>
-            <thead>
-              <tr>
-                <th>번호</th>
-                <th>사용일자</th>
-                <th>품명 / 규격</th>
-                <th>수량</th>
-                <th>단위</th>
-                <th>단가</th>
-                <th>금액</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr className={styles.previewSumRow}>
-                <td colSpan={6} className={styles.previewSumLabel}>합&nbsp;&nbsp;&nbsp;계</td>
-                <td className={styles.previewRight}>{fmtNum(total)}</td>
-              </tr>
-              {Array.from(grouped.entries()).flatMap(([catNo, catItems]) => {
-                if (catItems.length === 0) return [];
-                return [
-                  <tr key={`ch-${catNo}`} className={styles.previewCatRow}>
-                    <td colSpan={6}>{catNo}. {CATEGORY_LABELS[catNo]}</td>
-                    <td className={styles.previewRight}>{fmtNum(catSums[catNo])}</td>
-                  </tr>,
-                  ...catItems.map((item, idx) => (
-                    <tr key={item.id}>
-                      <td>{item.evidenceNo || `NO.${idx + 1}`}</td>
-                      <td>{item.usageDate}</td>
-                      <td className={styles.previewLeft}>{item.name}</td>
-                      <td>{item.quantity || ""}</td>
-                      <td>{item.unit}</td>
-                      <td className={styles.previewRight}>{item.unitPrice ? fmtNum(item.unitPrice) : ""}</td>
-                      <td className={styles.previewRight}>{fmtNum(item.amount)}</td>
-                    </tr>
-                  )),
-                ];
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  );
 }
 
 // ══════════════════════════════════════════════════════════════════════
@@ -235,6 +135,12 @@ function ItemEditForm({
 }) {
   const isNew = !item.evidenceNo && item.name === "";
   const [local, setLocal] = useState<ItemData>({ ...item });
+  const [focusedNumField, setFocusedNumField] = useState<"quantity" | "unitPrice" | "amount" | null>(null);
+  const [rawNumInput, setRawNumInput] = useState<Record<"quantity" | "unitPrice" | "amount", string>>({
+    quantity: "",
+    unitPrice: "",
+    amount: "",
+  });
 
   const setF = <K extends keyof ItemData>(key: K, val: ItemData[K]) => {
     setLocal(prev => {
@@ -244,6 +150,18 @@ function ItemEditForm({
       }
       return next;
     });
+  };
+
+  const beginNumEdit = (field: "quantity" | "unitPrice" | "amount") => {
+    setFocusedNumField(field);
+    setRawNumInput(prev => ({
+      ...prev,
+      [field]: local[field] ? String(local[field]) : "",
+    }));
+  };
+
+  const commitNumEdit = () => {
+    setFocusedNumField(null);
   };
 
   return (
@@ -288,9 +206,20 @@ function ItemEditForm({
         <div className={`${styles.editField} ${styles.editFieldRow}`}>
           <div className={styles.editHalf}>
             <label>수량</label>
-            <input className={styles.editInput} type="number" min="0"
-              value={local.quantity || ""} placeholder="0"
-              onChange={e => setF("quantity", parseNum(e.target.value))} />
+            <input
+              className={styles.editInput}
+              type="text"
+              inputMode="numeric"
+              value={focusedNumField === "quantity" ? rawNumInput.quantity : (local.quantity ? fmtNum(local.quantity) : "")}
+              placeholder="0"
+              onFocus={() => beginNumEdit("quantity")}
+              onBlur={commitNumEdit}
+              onChange={e => {
+                const raw = e.target.value;
+                setRawNumInput(prev => ({ ...prev, quantity: raw }));
+                setF("quantity", parseNum(raw));
+              }}
+            />
           </div>
           <div className={styles.editHalf}>
             <label>단위 / 규격</label>
@@ -308,8 +237,16 @@ function ItemEditForm({
           <label>단가</label>
           <div className={styles.editInputRow}>
             <input className={styles.editInput} type="text" inputMode="numeric"
-              value={local.unitPrice ? fmtNum(local.unitPrice) : ""} placeholder="0"
-              onChange={e => setF("unitPrice", parseNum(e.target.value))} />
+              value={focusedNumField === "unitPrice" ? rawNumInput.unitPrice : (local.unitPrice ? fmtNum(local.unitPrice) : "")}
+              placeholder="0"
+              onFocus={() => beginNumEdit("unitPrice")}
+              onBlur={commitNumEdit}
+              onChange={e => {
+                const raw = e.target.value;
+                setRawNumInput(prev => ({ ...prev, unitPrice: raw }));
+                setF("unitPrice", parseNum(raw));
+              }}
+            />
             <span className={styles.editUnit}>원</span>
           </div>
         </div>
@@ -321,9 +258,15 @@ function ItemEditForm({
             <input
               className={`${styles.editInput} ${styles.editInputAuto}`}
               type="text" inputMode="numeric"
-              value={local.amount ? fmtNum(local.amount) : ""}
+              value={focusedNumField === "amount" ? rawNumInput.amount : (local.amount ? fmtNum(local.amount) : "")}
               placeholder="수량 × 단가"
-              onChange={e => setLocal(prev => ({ ...prev, amount: parseNum(e.target.value) }))}
+              onFocus={() => beginNumEdit("amount")}
+              onBlur={commitNumEdit}
+              onChange={e => {
+                const raw = e.target.value;
+                setRawNumInput(prev => ({ ...prev, amount: raw }));
+                setLocal(prev => ({ ...prev, amount: parseNum(raw) }));
+              }}
             />
             <span className={styles.editUnit}>원</span>
           </div>
@@ -379,13 +322,6 @@ export default function ItemListView({ items, onChange, onSave, onPrint, saved }
   const [editingItem, setEditingItem] = useState<ItemData | null>(null);
   const [deletingId,  setDeletingId]  = useState<string | null>(null);
   const [mobileTab,   setMobileTab]   = useState<"list" | "preview">("list");
-  const [isMobile,    setIsMobile]    = useState(initIsMobile);
-
-  useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth <= 768);
-    window.addEventListener("resize", check);
-    return () => window.removeEventListener("resize", check);
-  }, []);
 
   const grouped = useMemo(() => {
     const map = new Map<number, ItemData[]>();
@@ -436,40 +372,6 @@ export default function ItemListView({ items, onChange, onSave, onPrint, saved }
 
   return (
     <div className={styles.editor}>
-
-      {/* ── 툴바 — gabji .toolbar 완전 동일 ────────────────────── */}
-      <div className={styles.toolbar}>
-        <div className={styles.toolbarLeft}>
-          <span className={styles.toolbarTitle}>항목별세부내역</span>
-          <span className={styles.toolbarSep} />
-          <span className={styles.toolbarCount}>총 {items.length}건</span>
-          <span className={styles.toolbarTotal}>{fmtNum(total)}원</span>
-        </div>
-        <div className={styles.toolbarRight}>
-          {saved && <span className={styles.savedBadge}>✓ 저장됨</span>}
-          {onSave && (
-            <button type="button" className={styles.btnPrimary} onClick={onSave}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
-                <polyline points="17 21 17 13 7 13 7 21"/>
-                <polyline points="7 3 7 8 15 8"/>
-              </svg>
-              저장
-            </button>
-          )}
-          {onPrint && (
-            <button type="button" className={styles.btnPrint} onClick={onPrint}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                <polyline points="6 9 6 2 18 2 18 9"/>
-                <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
-                <rect x="6" y="14" width="12" height="8"/>
-              </svg>
-              인쇄
-            </button>
-          )}
-        </div>
-      </div>
-
       {/* ── 모바일 탭 — gabji .mobileTabs/.tabBar/.tabBtn/.active 동일 */}
       <div className={styles.mobileTabs}>
         <div className={styles.tabBar}>
@@ -489,6 +391,12 @@ export default function ItemListView({ items, onChange, onSave, onPrint, saved }
 
         {/* 좌측 패널 */}
         <div className={`${styles.leftPanel} ${mobileTab === "preview" ? styles.mobileHidden : ""}`}>
+          <div className={styles.leftSummary}>
+            <span className={styles.leftSummaryTitle}>항목별세부내역</span>
+            <span className={styles.leftSummarySep} />
+            <span className={styles.leftSummaryCount}>총 {items.length}건</span>
+            <span className={styles.leftSummaryTotal}>{fmtNum(total)}원</span>
+          </div>
           <div className={styles.formWrap}>
             {Array.from(grouped.entries()).map(([catNo, catItems], sectionIdx) => {
               const catSum = catItems.reduce((s, i) => s + i.amount, 0);
@@ -559,12 +467,9 @@ export default function ItemListView({ items, onChange, onSave, onPrint, saved }
           </div>
         </div>
 
-        {/* 우측 패널: 데스크탑 → PDF 뷰어, 모바일 → HTML 미리보기 */}
+        {/* 우측 패널: 모바일/데스크탑 공통 PDF 미리보기 */}
         <div className={`${styles.rightPanel} ${mobileTab === "list" ? styles.mobileHidden : ""}`}>
-          {isMobile
-            ? <ItemListPreview items={items} />
-            : <ItemListPdfViewer items={items} />
-          }
+          <ItemListPdfViewer items={items} />
         </div>
 
       </div>

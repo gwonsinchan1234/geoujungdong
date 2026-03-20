@@ -63,8 +63,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, error: "file 필요" }, { status: 400 });
     }
 
-    console.log("[photos] start — docId:", docId, "sheetName:", sheetName, "blockNo:", blockNo, "side:", side, "slotIndex:", slotIndex, "fileSize:", file.size);
-
     // ── 1. 블록 SELECT → INSERT or UPDATE (UNIQUE 제약 없이 안전하게) ──
     const { data: existingBlock } = await supabase
       .from("photo_blocks")
@@ -74,7 +72,6 @@ export async function POST(req: NextRequest) {
       .eq("no",         blockNo)
       .maybeSingle();
 
-    console.log("[photos] existingBlock:", existingBlock);
     let blockId: string;
     if (existingBlock) {
       // 이미 있으면 메타 업데이트
@@ -122,7 +119,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    console.log("[photos] blockId:", blockId, "uploading to storage...");
     // ── 3. private 버킷 업로드 (upsert: false → 중복 시 에러) ───────
     const storagePath = `${userId}/${blockId}/${side}/${slotIndex}.jpg`;
     const { error: upErr } = await supabase.storage
@@ -132,7 +128,6 @@ export async function POST(req: NextRequest) {
         upsert: false,
       });
 
-    console.log("[photos] storage upload result:", upErr ? `error: ${upErr.message}` : "ok");
     if (upErr) {
       return NextResponse.json({ ok: false, error: upErr.message }, { status: 500 });
     }

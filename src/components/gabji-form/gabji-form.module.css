@@ -19,6 +19,7 @@
   margin: 0 auto;
   width: 100%;
   box-sizing: border-box;
+  font-family: "Pretendard", "Noto Sans KR", "Apple SD Gothic Neo", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
 /* ── 섹션 카드 ──────────────────────────────────────────────────── */
@@ -133,7 +134,7 @@
   height: 40px;
   padding: 0 11px;
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
   color: #111827;
   background: #f9fafb;
   border: 1.5px solid #e5e7eb;
@@ -144,6 +145,7 @@
   font-family: inherit;
   min-width: 0;
   box-sizing: border-box;
+  text-align: center; /* 인쇄 셀 정렬과 통일 */
 }
 
 .input:focus {
@@ -236,10 +238,11 @@
 
 .itemLabelInput {
   flex: 1;
+  text-align: left; /* 항목명은 좌측 정렬 유지 */
 }
 
 .itemAmountInput {
-  text-align: right;
+  text-align: center; /* 인쇄 셀 정렬(center)과 통일 */
   width: 100%;
 }
 
@@ -280,7 +283,7 @@
   }
 
   .itemAmountInput {
-    text-align: left;
+    text-align: center;
   }
 }
 
@@ -363,7 +366,7 @@
 .saveBtn {
   width: 100%;
   height: 52px;
-  background: #2563eb;
+  background: #111827;
   color: #fff;
   border: none;
   border-radius: 14px;
@@ -373,12 +376,12 @@
   transition: background 0.15s, transform 0.15s, box-shadow 0.15s;
   font-family: inherit;
   letter-spacing: -0.3px;
-  box-shadow: 0 2px 12px rgba(37,99,235,0.25);
+  box-shadow: 0 2px 12px rgba(17, 24, 39, 0.24);
 }
 
 .saveBtn:hover {
-  background: #1d4ed8;
-  box-shadow: 0 4px 16px rgba(37,99,235,0.32);
+  background: #0f172a;
+  box-shadow: 0 4px 16px rgba(17, 24, 39, 0.32);
 }
 
 .saveBtn:active { transform: scale(0.97); }

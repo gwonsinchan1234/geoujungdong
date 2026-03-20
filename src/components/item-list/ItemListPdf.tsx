@@ -168,14 +168,14 @@ export default function ItemListPdf({ items }: Props) {
   for (let n = 1; n <= 9; n++) grouped.set(n, []);
   for (const item of items) grouped.get(item.categoryNo)?.push(item);
 
-  const activeCategories = Array.from(grouped.entries())
-    .filter(([, its]) => its.length > 0);
+  const allCategories = Array.from(grouped.entries()); // 빈 카테고리도 모두 표시
 
   // 마지막 행 판별 (하단 이중 테두리 방지)
-  const lastCatItems = activeCategories.length > 0
-    ? activeCategories[activeCategories.length - 1][1] : [];
-  const lastItemId = lastCatItems.length > 0
-    ? lastCatItems[lastCatItems.length - 1].id : null;
+  // 카테고리 9가 항상 마지막 — 항목이 있으면 마지막 항목, 없으면 4번째 빈 행이 마지막
+  const EMPTY_ROWS = 4; // 데이터 없는 카테고리의 기본 빈 행 수
+  const cat9Items = grouped.get(9) ?? [];
+  const lastItemId = cat9Items.length > 0
+    ? cat9Items[cat9Items.length - 1].id : null;
 
   return (
     <Document>
@@ -224,9 +224,11 @@ export default function ItemListPdf({ items }: Props) {
             </View>
           </View>
 
-          {/* 카테고리별 항목 */}
-          {activeCategories.map(([catNo, catItems]) => {
+          {/* 카테고리별 항목 (9개 모두 표시) */}
+          {allCategories.map(([catNo, catItems]) => {
             const catTotal = catItems.reduce((s, i) => s + i.amount, 0);
+            const isEmpty = catItems.length === 0;
+            const isLastCat = catNo === 9;
             return (
               <View key={catNo}>
                 {/* 카테고리 헤더 */}
@@ -235,39 +237,57 @@ export default function ItemListPdf({ items }: Props) {
                     <Text>{catNo}. {CATEGORY_LABELS[catNo]}</Text>
                   </View>
                   <View style={cx(S.catAmtCell, { width: CW.amt }, true)}>
-                    <Text>{fmtNum(catTotal)}</Text>
+                    <Text>{catTotal > 0 ? fmtNum(catTotal) : ""}</Text>
                   </View>
                 </View>
 
                 {/* 항목 행 */}
-                {catItems.map((item, idx) => {
-                  const isLast = item.id === lastItemId;
-                  return (
-                    <View key={item.id} style={S.row}>
-                      <View style={cx(S.dataCell,  { width: CW.no    }, false, isLast)}>
-                        <Text>{item.evidenceNo || `NO.${idx + 1}`}</Text>
-                      </View>
-                      <View style={cx(S.dataCell,  { width: CW.date  }, false, isLast)}>
-                        <Text>{item.usageDate}</Text>
-                      </View>
-                      <View style={cx(S.dataCellL, { width: CW.name  }, false, isLast)}>
-                        <Text>{item.name}</Text>
-                      </View>
-                      <View style={cx(S.dataCell,  { width: CW.qty   }, false, isLast)}>
-                        <Text>{item.quantity ? String(item.quantity) : ""}</Text>
-                      </View>
-                      <View style={cx(S.dataCell,  { width: CW.unit  }, false, isLast)}>
-                        <Text>{item.unit}</Text>
-                      </View>
-                      <View style={cx(S.dataCellR, { width: CW.price }, false, isLast)}>
-                        <Text>{item.unitPrice ? fmtNum(item.unitPrice) : ""}</Text>
-                      </View>
-                      <View style={cx(S.dataCellR, { width: CW.amt   }, true,  isLast)}>
-                        <Text>{fmtNum(item.amount)}</Text>
-                      </View>
-                    </View>
-                  );
-                })}
+                {isEmpty
+                  ? /* 빈 카테고리: 기본 4행 */
+                    Array.from({ length: EMPTY_ROWS }, (_, i) => {
+                      const isLast = isLastCat && i === EMPTY_ROWS - 1;
+                      return (
+                        <View key={`empty-${i}`} style={S.row}>
+                          <View style={cx(S.dataCell,  { width: CW.no    }, false, isLast)}><Text> </Text></View>
+                          <View style={cx(S.dataCell,  { width: CW.date  }, false, isLast)}><Text> </Text></View>
+                          <View style={cx(S.dataCellL, { width: CW.name  }, false, isLast)}><Text> </Text></View>
+                          <View style={cx(S.dataCell,  { width: CW.qty   }, false, isLast)}><Text> </Text></View>
+                          <View style={cx(S.dataCell,  { width: CW.unit  }, false, isLast)}><Text> </Text></View>
+                          <View style={cx(S.dataCellR, { width: CW.price }, false, isLast)}><Text> </Text></View>
+                          <View style={cx(S.dataCellR, { width: CW.amt   }, true,  isLast)}><Text> </Text></View>
+                        </View>
+                      );
+                    })
+                  : /* 실제 항목 */
+                    catItems.map((item, idx) => {
+                      const isLast = item.id === lastItemId;
+                      return (
+                        <View key={item.id} style={S.row}>
+                          <View style={cx(S.dataCell,  { width: CW.no    }, false, isLast)}>
+                            <Text>{item.evidenceNo || `NO.${idx + 1}`}</Text>
+                          </View>
+                          <View style={cx(S.dataCell,  { width: CW.date  }, false, isLast)}>
+                            <Text>{item.usageDate}</Text>
+                          </View>
+                          <View style={cx(S.dataCellL, { width: CW.name  }, false, isLast)}>
+                            <Text>{item.name}</Text>
+                          </View>
+                          <View style={cx(S.dataCell,  { width: CW.qty   }, false, isLast)}>
+                            <Text>{item.quantity ? fmtNum(item.quantity) : ""}</Text>
+                          </View>
+                          <View style={cx(S.dataCell,  { width: CW.unit  }, false, isLast)}>
+                            <Text>{item.unit}</Text>
+                          </View>
+                          <View style={cx(S.dataCellR, { width: CW.price }, false, isLast)}>
+                            <Text>{item.unitPrice ? fmtNum(item.unitPrice) : ""}</Text>
+                          </View>
+                          <View style={cx(S.dataCellR, { width: CW.amt   }, true,  isLast)}>
+                            <Text>{fmtNum(item.amount)}</Text>
+                          </View>
+                        </View>
+                      );
+                    })
+                }
               </View>
             );
           })}

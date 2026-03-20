@@ -194,9 +194,6 @@ export async function POST(req: NextRequest) {
     // 2) rows 생성(2차원 배열)
     const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" }) as any[];
 
-    // 디버그: 상단 확인
-    console.log("TOP 10 ROWS:", rows.slice(0, 10));
-
     // 3) 헤더 행 찾기
     const headerRowIndex = findHeaderRowIndex(rows);
     if (headerRowIndex === -1) {
@@ -277,9 +274,6 @@ export async function POST(req: NextRequest) {
       const unit_price = toNumber(row[idxUnitPrice]);
       const amount = toNumber(row[idxAmount]);
       const proof_no = String(row[idxProofNo] ?? "").trim();
-
-      // 디버그(문제 해결 후 제거 가능)
-      // console.log("DATE CHECK:", rawDate, "=>", used_date);
 
       // ⭐ 날짜 파싱 실패는 무조건 저장 금지(재발 방지 핵심)
       if (!used_date) {

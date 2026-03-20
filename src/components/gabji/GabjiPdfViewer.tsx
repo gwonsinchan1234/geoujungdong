@@ -11,9 +11,10 @@ import type { GabjiDoc, GabjiItem } from "./types";
 interface Props {
   doc: GabjiDoc;
   items: GabjiItem[];
+  valueFontSize?: string;
 }
 
-export default function GabjiPdfViewer({ doc, items }: Props) {
+export default function GabjiPdfViewer({ doc, items, valueFontSize }: Props) {
   const [stableDoc,   setStableDoc]   = useState(doc);
   const [stableItems, setStableItems] = useState(items);
 
@@ -32,7 +33,7 @@ export default function GabjiPdfViewer({ doc, items }: Props) {
       height="100%"
       showToolbar={true}
     >
-      <GabjiPdf doc={stableDoc} items={stableItems} />
+      <GabjiPdf doc={stableDoc} items={stableItems} valueFontSize={valueFontSize} />
     </PDFViewer>
   );
 }

@@ -12,18 +12,18 @@ import { makeDefaultItems, makeEmptyDoc } from "./types";
 import GabjiForm from "./GabjiForm";
 import GabjiItemsForm from "./GabjiItemsForm";
 import GabjiPreview from "./GabjiPreview";
-import GabjiToolbar from "./GabjiToolbar";
 import styles from "./gabji.module.css";
 
 interface Props {
   initialDoc: GabjiDoc | null;
   initialItems: GabjiItem[] | null;
+  valueFontSize?: string;
 }
 
 type MobileTab = "form" | "items" | "preview";
 type Toast = { msg: string; type: "success" | "error" } | null;
 
-export default function GabjiEditor({ initialDoc, initialItems }: Props) {
+export default function GabjiEditor({ initialDoc, initialItems, valueFontSize }: Props) {
   // ── 상태 ──────────────────────────────────────────────────────
   const [doc, setDoc]     = useState<GabjiDoc>(() => initialDoc ?? makeEmptyDoc());
   const [items, setItems] = useState<GabjiItem[]>(() =>
@@ -132,17 +132,6 @@ export default function GabjiEditor({ initialDoc, initialItems }: Props) {
   // ── 렌더 ────────────────────────────────────────────────────
   return (
     <div className={styles.editor}>
-      {/* 툴바 */}
-      <GabjiToolbar
-        saving={saving}
-        saved={saved}
-        onSave={handleSave}
-        onCopy={handleCopy}
-        onPrint={handlePrint}
-        yearMonth={doc.year_month}
-        siteName={doc.site_name}
-      />
-
       {/* 모바일 탭바 */}
       <div className={styles.mobileTabs}>
         <div className={styles.tabBar}>
@@ -163,6 +152,12 @@ export default function GabjiEditor({ initialDoc, initialItems }: Props) {
       <div className={styles.editorBody}>
         {/* 좌측: 폼 */}
         <div className={`${styles.leftPanel} ${mobileTab === "preview" ? styles.mobileHidden : ""}`}>
+          <div className={styles.leftSummary}>
+            <span className={styles.leftSummaryTitle}>갑지</span>
+            <span className={styles.leftSummarySep} />
+            <span className={styles.leftSummaryCount}>기준 {doc.year_month || "-"}</span>
+            <span className={styles.leftSummaryTotal}>{doc.site_name || "현장 미지정"}</span>
+          </div>
           <div className={mobileTab === "items" ? styles.mobileHidden : ""}>
             <GabjiForm doc={doc} onChange={d => { setDoc(d); setSaved(false); }} />
           </div>
@@ -180,7 +175,7 @@ export default function GabjiEditor({ initialDoc, initialItems }: Props) {
 
         {/* 우측: PDF 미리보기 */}
         <div className={`${styles.rightPanel} ${mobileTab !== "preview" ? styles.mobileHidden : ""}`}>
-          <GabjiPreview doc={doc} items={items} />
+          <GabjiPreview doc={doc} items={items} valueFontSize={valueFontSize} />
         </div>
       </div>
 

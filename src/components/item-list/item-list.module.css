@@ -19,65 +19,225 @@
   display: flex; flex-direction: column;
   height: 100%; min-height: 0; overflow: hidden;
   background: #f9fafb;
-  font-family: 'Malgun Gothic', '맑은 고딕', -apple-system, sans-serif;
+  font-family: "Pretendard", "Noto Sans KR", "Apple SD Gothic Neo", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 .editorBody {
   display: grid; grid-template-columns: 420px 1fr;
   flex: 1; overflow: hidden; min-height: 0;
 }
 
-/* ════════════════════════════════════════════════════════════════
-   툴바 (다크 테마)
-   ════════════════════════════════════════════════════════════════ */
-.toolbar {
-  display: flex; align-items: center; gap: 8px;
-  padding: 10px 16px;
-  background: #1e293b; border-bottom: 1px solid #334155;
-  flex-shrink: 0; flex-wrap: wrap;
+/* 좌측 폼 상단 요약 (상단 흰 바 대체) */
+.leftSummary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 10px 2px;
+  color: #111827;
+  flex-shrink: 0;
+  background: #fff;
 }
-.toolbarLeft  { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
-.toolbarTitle {
-  font-size: 13px; font-weight: 700; color: #f1f5f9; letter-spacing: -0.02em;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;
+.leftSummaryTitle {
+  font-size: 12px;
+  font-weight: 700;
+  color: #111827;
+  letter-spacing: -0.01em;
 }
-.toolbarRight { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.leftSummarySep {
+  width: 1px;
+  height: 10px;
+  background: #e5e7eb;
+}
+.leftSummaryCount {
+  font-size: 11px;
+  font-weight: 500;
+  color: #6b7280;
+}
+.leftSummaryTotal {
+  font-size: 12px;
+  font-weight: 700;
+  color: #111827;
+  letter-spacing: -0.2px;
+}
 
-.toolbarSep { width: 1px; height: 14px; background: #334155; flex-shrink: 0; }
-.toolbarCount { font-size: 11px; font-weight: 500; color: #64748b; white-space: nowrap; flex-shrink: 0; }
-.toolbarTotal { font-size: 14px; font-weight: 800; color: #f1f5f9; letter-spacing: -0.5px; white-space: nowrap; flex-shrink: 0; }
+/* 버튼 공통 상태 전환 */
+.btnPrimary,
+.btnSecondary,
+.btnPrint,
+.tabBtn {
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease,
+    box-shadow 180ms ease,
+    transform 120ms ease;
+}
 
-/* 버튼 — Primary (다크 툴바 위의 화이트 버튼) */
+/* 버튼 — Primary (저장) */
 .btnPrimary {
-  height: 32px; padding: 0 14px; background: #ffffff; color: #111111;
-  border: none; border-radius: 7px; font-size: 12px; font-weight: 600;
+  height: 30px; padding: 0 12px; background: #3B82F6; color: #fff;
+  border: none; border-radius: 7px; font-size: 12px; font-weight: 700;
   cursor: pointer; white-space: nowrap;
-  transition: background 0.15s, transform 0.1s;
-  display: flex; align-items: center; gap: 5px; font-family: inherit;
+  display: flex; align-items: center; gap: 5px;
+  line-height: 1;
+  letter-spacing: -0.15px;
+  font-family: "Pretendard", "Noto Sans KR", "Apple SD Gothic Neo", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
-.btnPrimary:hover  { background: #f1f5f9; }
-.btnPrimary:active { transform: scale(0.97); }
+.btnPrimary:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.14);
+}
+.btnPrimary:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 3px rgba(59, 130, 246, 0.18),
+    0 6px 18px rgba(59, 130, 246, 0.18);
+}
 
 /* 버튼 — Secondary */
 .btnSecondary {
-  height: 32px; padding: 0 12px; background: transparent;
-  color: #94a3b8; border: 1px solid #475569; border-radius: 7px;
+  height: 32px; padding: 0 12px; background: #fff;
+  color: #111827; border: 1px solid #E5E7EB; border-radius: 7px;
   font-size: 12px; cursor: pointer; white-space: nowrap;
-  transition: background 0.15s, color 0.15s, transform 0.1s;
   display: flex; align-items: center; gap: 5px; font-family: inherit;
 }
-.btnSecondary:hover  { background: #1e293b; color: #f1f5f9; border-color: #64748b; }
-.btnSecondary:active { transform: scale(0.97); }
+.btnSecondary:active {
+  background: #F1F5F9;
+  transform: translateY(0);
+  box-shadow: none;
+}
+.btnSecondary:focus-visible {
+  outline: none;
+  border-color: #93C5FD;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+}
 
 /* 버튼 — Print */
 .btnPrint {
-  height: 32px; padding: 0 12px; background: #0f172a;
-  color: #94a3b8; border: 1px solid #334155; border-radius: 7px;
-  font-size: 12px; cursor: pointer; white-space: nowrap;
-  transition: background 0.15s, color 0.15s, transform 0.1s;
-  display: flex; align-items: center; gap: 5px; font-family: inherit;
+  height: 30px; padding: 0 10px; background: #fff;
+  color: #111827; border: 1px solid #E5E7EB; border-radius: 7px;
+  font-size: 12px; font-weight: 700; cursor: pointer; white-space: nowrap; list-style: none;
+  display: flex; align-items: center; gap: 5px;
+  line-height: 1;
+  letter-spacing: -0.15px;
+  font-family: "Pretendard", "Noto Sans KR", "Apple SD Gothic Neo", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
-.btnPrint:hover  { background: #1e293b; color: #f1f5f9; }
-.btnPrint:active { transform: scale(0.97); }
+.btnPrint::-webkit-details-marker { display: none; }
+
+.outputMenu {
+  position: relative;
+}
+.outputMenu summary {
+  list-style: none;
+}
+.outputCaret {
+  font-size: 10px;
+  color: #6b7280;
+  margin-left: 2px;
+  transition: transform 180ms ease, color 160ms ease;
+}
+.outputMenuList {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 96px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.12);
+  padding: 4px;
+  z-index: 20;
+  opacity: 0;
+  transform: translateY(-4px) scale(0.98);
+  transform-origin: top right;
+  pointer-events: none;
+  transition:
+    opacity 180ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: opacity, transform;
+}
+.outputMenuItem {
+  width: 100%;
+  height: 30px;
+  border: 0;
+  background: transparent;
+  border-radius: 6px;
+  color: #111827;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+  padding: 0 10px;
+  cursor: pointer;
+  font-family: "Pretendard", "Noto Sans KR", "Apple SD Gothic Neo", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+.outputMenuItem:hover {
+  background: #f8fafc;
+}
+
+.outputMenu[open] .outputMenuList {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  pointer-events: auto;
+}
+
+.outputMenu[open] .outputCaret {
+  transform: rotate(180deg);
+  color: #111827;
+}
+.btnPrint:active {
+  background: #F1F5F9;
+  transform: translateY(0);
+  box-shadow: none;
+}
+.btnPrint:focus-visible {
+  outline: none;
+  border-color: #93C5FD;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+}
+
+/* Ghost / 메뉴 버튼 (모바일 탭) */
+.tabBtn {
+  flex: 1; height: 42px; background: transparent; border: 1px solid transparent;
+  font-size: 13px; font-weight: 500; color: #6B7280; cursor: pointer;
+  border-bottom: 2px solid transparent; margin-bottom: -2px;
+  font-family: inherit;
+}
+.tabBtn:active { background: #F1F5F9; }
+.tabBtn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.10);
+}
+
+/* 모바일 hover 비의존: hover 가능한 환경에서만 적용 */
+@media (hover: hover) and (pointer: fine) {
+  .btnPrimary:hover {
+    background: #2563EB;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 18px rgba(59, 130, 246, 0.18);
+  }
+  .btnSecondary:hover,
+  .btnPrint:hover {
+    background: #F8FAFC;
+    border-color: #CBD5E1;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
+  }
+  .tabBtn:hover {
+    background: #F8FAFC;
+    color: #111827;
+  }
+}
+
+/* disabled 공통 */
+.btnPrimary:disabled,
+.btnSecondary:disabled,
+.btnPrint:disabled,
+.tabBtn:disabled {
+  opacity: 0.56;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
 
 .saveSpinner {
   width: 12px; height: 12px;
@@ -91,12 +251,6 @@
    ════════════════════════════════════════════════════════════════ */
 .mobileTabs { display: none; flex-shrink: 0; background: #fff; }
 .tabBar { display: flex; background: #fff; border-bottom: 2px solid #e5e7eb; }
-.tabBtn {
-  flex: 1; height: 42px; background: none; border: none;
-  font-size: 13px; font-weight: 500; color: #9ca3af; cursor: pointer;
-  border-bottom: 2px solid transparent; margin-bottom: -2px;
-  transition: color 0.15s, border-color 0.15s; font-family: inherit;
-}
 .tabBtn.active { color: #111111; border-bottom-color: #111111; font-weight: 600; }
 .active { color: #111111; border-bottom-color: #111111; font-weight: 600; }
 
@@ -109,7 +263,7 @@
   background: #f9fafb;
   display: flex; flex-direction: column;
 }
-.formWrap { padding: 12px 12px 60px; display: flex; flex-direction: column; gap: 10px; }
+.formWrap { padding: 4px 10px 24px; display: flex; flex-direction: column; gap: 8px; }
 
 /* ── 섹션 카드 ────────────────────────────────────────────────── */
 .sectionCard {
@@ -124,7 +278,7 @@
 /* 섹션 헤더 (카드 상단) */
 .sectionHeader {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 11px 14px; background: #f9fafb;
+  padding: 11px 14px; background: #fff;
   border-bottom: 1px solid #e5e7eb;
 }
 .sectionLeft  { display: flex; align-items: center; gap: 10px; min-width: 0; }
@@ -145,12 +299,15 @@
   letter-spacing: -0.01em;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   min-width: 0;
+  font-family: "Pretendard", "Noto Sans KR", "Apple SD Gothic Neo", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
 /* 합계 금액 — bold로만 강조 */
 .catSum {
   font-size: 13px; font-weight: 700; color: #111111;
   letter-spacing: -0.3px; white-space: nowrap;
+  font-family: "Pretendard", "Noto Sans KR", "Apple SD Gothic Neo", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-feature-settings: "tnum" 1;
 }
 
 /* 건수 pill */
@@ -158,6 +315,7 @@
   font-size: 11px; font-weight: 600; color: #6b7280;
   background: #f1f5f9; padding: 2px 8px; border-radius: 20px;
   white-space: nowrap; flex-shrink: 0;
+  font-family: "Pretendard", "Noto Sans KR", "Apple SD Gothic Neo", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
 /* ── 항목 테이블 ──────────────────────────────────────────────── */
@@ -276,7 +434,7 @@
    우측 패널 — A4 미리보기
    ════════════════════════════════════════════════════════════════ */
 .rightPanel {
-  overflow: hidden; background: #555;
+  overflow: hidden; background: #f9fafb;
   display: flex; flex-direction: column;
 }
 .htmlPreviewOuter {
@@ -427,17 +585,13 @@
   .rightPanel { padding: 0; background: #555; }
   .mobileHidden { display: none !important; }
 
-  .toolbar { padding: 7px 10px; gap: 5px; flex-wrap: nowrap; align-items: center; }
-  .toolbarTitle { display: none; }
-  .toolbarSep   { display: none; }
-  .toolbarLeft  { flex: 1; gap: 6px; min-width: 0; }
-  .toolbarRight { gap: 5px; flex-shrink: 0; }
-  .btnPrimary   { height: 32px; padding: 0 10px; font-size: 11px; }
+  .leftSummary { display: none; }
+  .btnPrimary   { height: 30px; padding: 0 10px; font-size: 11px; }
   .btnSecondary { height: 32px; padding: 0 9px;  font-size: 11px; }
-  .btnPrint     { height: 32px; padding: 0 10px; font-size: 11px; }
+  .btnPrint     { height: 30px; padding: 0 10px; font-size: 11px; }
   .btnPrimary svg, .btnSecondary svg, .btnPrint svg { width: 12px; height: 12px; }
 
-  .formWrap { padding: 10px 10px 60px; gap: 8px; }
+  .formWrap { padding: 2px 8px 18px; gap: 8px; }
   .sectionCard { border-radius: 10px; }
   .sectionHeader { padding: 10px 12px; }
   .catName { font-size: 12px; }

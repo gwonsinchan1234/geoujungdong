@@ -232,8 +232,6 @@ export async function POST(request: NextRequest) {
           }
           const cell = wsRow.getCell(c);
           const span = spanMap.get(key);
-          // 1행 1열(제목행) 스타일 진단 로그
-          if (r === 1 && c === 1) console.log("[style-debug] r1c1 font:", JSON.stringify(cell.font), "align:", JSON.stringify(cell.alignment));
           cells.push({
             value:   extractValue(cell),
             style:   extractStyle(cell),
@@ -262,8 +260,6 @@ export async function POST(request: NextRequest) {
     });
 
     // 동일 레이아웃 그룹 — 열 너비 + 셀 개수 동시 통일
-    // 디버그: 파싱된 시트 이름/열 개수 출력
-    console.log("[parse-excel] sheets:", sheets.map((s, i) => `${i}:${s.name}(${s.colWidths.length}cols)`));
 
     for (const group of SAME_LAYOUT_GROUPS) {
       const ref = sheets[group[0]];
