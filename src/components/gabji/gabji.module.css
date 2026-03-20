@@ -31,7 +31,7 @@
   flex-shrink: 0;
   flex-wrap: wrap;
 }
-.toolbarLeft  { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
+.toolbarLeft  { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; overflow: hidden; }
 .toolbarTitle { font-size: 13px; font-weight: 700; color: #f1f5f9; white-space: nowrap; letter-spacing: -0.02em; }
 .toolbarRight { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 
@@ -178,7 +178,7 @@
 }
 .itemAmtCell {
   border: 1px solid #e2e8f0; padding: 2px 3px;
-  text-align: right; vertical-align: middle; min-width: 80px;
+  text-align: right; vertical-align: middle;
 }
 .itemAmtInput {
   width: 100%; height: 26px; padding: 0 5px; border: none;
@@ -190,7 +190,7 @@
 .itemTotal {
   text-align: right; padding: 3px 7px; border: 1px solid #e2e8f0;
   color: #0f172a; font-size: 11.5px; font-weight: 600;
-  background: #f8fafc; min-width: 80px; vertical-align: middle;
+  background: #f8fafc; vertical-align: middle;
 }
 .totalRow td {
   background: #f1f5f9; font-weight: 700; font-size: 11.5px;
@@ -205,7 +205,7 @@
 }
 
 /* ════════════════════════════════════════════════════════════════
-   우측 패널 – A4 미리보기
+   우측 패널 – 미리보기 (데스크탑: PDFViewer / 모바일: HtmlPreview)
    ════════════════════════════════════════════════════════════════ */
 .rightPanel {
   overflow: hidden;
@@ -214,8 +214,20 @@
   flex-direction: column;
 }
 
+/* ── HTML 미리보기 컨테이너 (모바일 전용) ─────────────────────── */
+.htmlPreviewOuter {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: #555;
+  padding: 8px;
+  box-sizing: border-box;
+}
+
 /* ────────────────────────────────────────────────────────────────
    A4 용지 — 엑셀 인쇄물 구조 복제
+   (HTML 미리보기 + 인쇄 공용)
    ──────────────────────────────────────────────────────────────── */
 .a4Wrap {
   width: 210mm;
@@ -230,6 +242,14 @@
   display: flex;
   flex-direction: column;
   gap: 0;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.25);
+}
+
+/* 별지 표기 */
+.formNo {
+  font-size: 7pt;
+  color: #555;
+  margin-bottom: 2pt;
 }
 
 /* 대제목 */
@@ -287,7 +307,7 @@
   margin-top: 5pt;
 }
 
-/* "사 용 금 액" 행 — 배경 없음, 큰 자간 */
+/* "사 용 금 액" 행 */
 .usageSectionTitle {
   text-align: center;
   font-size: 11pt;
@@ -336,7 +356,7 @@
   color: #000;
 }
 
-/* 금액 셀 공통 — 우측 정렬 */
+/* 금액 셀 공통 */
 .amtCell {
   text-align: right;
   padding: 2.5pt 5pt;
@@ -363,7 +383,7 @@
   color: #000;
 }
 
-/* ── 서명 테이블 — 한 줄 가로형 ───────────────────────────────── */
+/* ── 서명 테이블 ───────────────────────────────────────────────── */
 .signTable {
   width: 100%;
   border-collapse: collapse;
@@ -398,10 +418,14 @@
 }
 
 /* ════════════════════════════════════════════════════════════════
-   모바일 탭
+   모바일 탭 (기본정보 / 사용내역 / 미리보기)
    ════════════════════════════════════════════════════════════════ */
-.mobileTabs { display: none; flex-shrink: 0; }
-.tabBar { display: flex; background: #fff; border-bottom: 2px solid #e2e8f0; }
+.mobileTabs { display: none; flex-shrink: 0; background: #fff; }
+.tabBar {
+  display: flex;
+  background: #fff;
+  border-bottom: 2px solid #e2e8f0;
+}
 .tabBtn {
   flex: 1; height: 40px; background: none; border: none;
   font-size: 13px; font-weight: 500; color: #94a3b8; cursor: pointer;
@@ -465,25 +489,74 @@
 }
 
 /* ════════════════════════════════════════════════════════════════
-   반응형 모바일
+   반응형 모바일 (≤768px)
    ════════════════════════════════════════════════════════════════ */
 @media (max-width: 768px) {
-  .editorBody { grid-template-columns: 1fr; grid-template-rows: 1fr; }
+  /* 레이아웃: 단일 컬럼 */
+  .editorBody {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr;
+  }
   .mobileTabs { display: block; }
   .leftPanel  { border-right: none; }
-  .rightPanel { padding: 10px; background: #999; }
-  .a4Wrap { width: 100%; min-height: auto; padding: 8mm 6mm; font-size: 7.5pt; }
+
+  /* 우측 패널: padding 제거 — htmlPreviewOuter 가 자체 padding 가짐 */
+  .rightPanel { padding: 0; background: #555; }
+
+  /* 입력폼: 단일 컬럼 */
   .fieldGrid { grid-template-columns: 1fr; }
   .mobileHidden { display: none !important; }
+
+  /* ── 툴바 compact ─────────────────────────────────────────── */
+  /* 제목 숨기고, 버튼 행과 copyPicker 행으로 2행 구조 */
+  .toolbar {
+    padding: 7px 10px;
+    gap: 5px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .toolbarTitle { display: none; }
+  /* 현장명/기준월 텍스트 축소 */
+  .toolbarLeft {
+    flex: 1;
+    gap: 4px;
+    min-width: 0;
+  }
+  .toolbarLeft span {
+    font-size: 10px !important;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .toolbarRight { gap: 5px; }
+  /* copyPicker: 두 번째 행 전체 폭 */
+  .copyPicker {
+    order: 10;
+    flex-basis: 100%;
+    flex-wrap: wrap;
+    padding: 5px 8px;
+    gap: 5px;
+  }
+  /* 버튼 높이/폰트 축소 */
+  .btnPrimary   { height: 32px; padding: 0 10px; font-size: 11px; }
+  .btnSecondary { height: 32px; padding: 0 9px;  font-size: 11px; }
+  .btnPrint     { height: 32px; padding: 0 10px; font-size: 11px; }
+  /* SVG 아이콘 크기 */
+  .btnPrimary svg, .btnSecondary svg, .btnPrint svg { width: 12px; height: 12px; }
 }
 
 /* ════════════════════════════════════════════════════════════════
-   인쇄
+   인쇄 (@media print)
    ════════════════════════════════════════════════════════════════ */
 @media print {
   .editor { height: auto; overflow: visible; }
   .toolbar, .leftPanel, .mobileTabs { display: none !important; }
   .editorBody { grid-template-columns: 1fr; overflow: visible; }
   .rightPanel { background: #fff; padding: 0; overflow: visible; }
-  .a4Wrap { box-shadow: none; width: 210mm; min-height: 297mm; padding: 14mm 12mm 12mm; }
+  .a4Wrap {
+    box-shadow: none;
+    width: 210mm;
+    min-height: 297mm;
+    padding: 14mm 12mm 12mm;
+  }
 }

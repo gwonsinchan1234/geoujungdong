@@ -1,5 +1,10 @@
 "use client";
 
+// 항목별세부내역 카드 리스트
+// 갑지와 동일한 UX 흐름:
+//   • 요약바(상단 고정) → 카테고리 섹션 → 카드 → 바텀시트 편집
+// 카드 구성: NO / 사용일자(인라인) / 품명·단위 / 수량·단가·금액 / 수정·삭제
+
 import React, { useState, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
 import type { ItemData } from "./types";
@@ -7,21 +12,23 @@ import {
   CATEGORY_LABELS, CATEGORY_SHORT, UNIT_SUGGESTIONS,
   makeNewItem, fmtNum, parseNum, calcAmount,
 } from "./types";
+import styles from "./item-list.module.css";
 
-// 인라인 숫자 입력 — 포커스 중에는 raw 값, blur 시 포맷 표시
+// ── 숫자 인라인 입력 (포커스 시 raw, blur 시 포맷) ─────────────────
 function useInlineNum(value: number, onChange: (v: string) => void) {
   const [editing, setEditing] = React.useState(false);
-  const [raw, setRaw] = React.useState("");
+  const [raw, setRaw]         = React.useState("");
   return {
-    value: editing ? raw : (value || ""),
-    onFocus: () => { setEditing(true); setRaw(value ? String(value) : ""); },
-    onBlur:  (e: React.FocusEvent<HTMLInputElement>) => { setEditing(false); onChange(e.target.value); },
+    value:    editing ? raw : (value || ""),
+    onFocus:  () => { setEditing(true); setRaw(value ? String(value) : ""); },
+    onBlur:   (e: React.FocusEvent<HTMLInputElement>) => { setEditing(false); onChange(e.target.value); },
     onChange: (e: React.ChangeEvent<HTMLInputElement>) => setRaw(e.target.value),
   };
 }
-import styles from "./item-list.module.css";
 
-// ── 항목 편집 폼 ──────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════
+// 항목 편집 폼 (바텀시트 내부)
+// ══════════════════════════════════════════════════════════════════════
 function ItemEditForm({
   item, onSave, onCancel,
 }: {
@@ -35,7 +42,6 @@ function ItemEditForm({
   const setF = <K extends keyof ItemData>(key: K, val: ItemData[K]) => {
     setLocal(prev => {
       const next = { ...prev, [key]: val };
-      // 수량 또는 단가 변경 시 금액 자동계산
       if (key === "quantity" || key === "unitPrice") {
         next.amount = calcAmount(next.quantity, next.unitPrice);
       }
@@ -51,6 +57,7 @@ function ItemEditForm({
       </div>
 
       <div className={styles.editFormBody}>
+
         {/* 카테고리 */}
         <div className={styles.editField}>
           <label>카테고리</label>
@@ -97,7 +104,7 @@ function ItemEditForm({
             />
           </div>
           <div className={styles.editFieldHalf}>
-            <label>단위</label>
+            <label>단위 / 규격</label>
             <input
               className={styles.editInput} type="text"
               value={local.unit} placeholder="식"
@@ -160,6 +167,7 @@ function ItemEditForm({
             {local.hasPhoto ? "📷 포함" : "제외"}
           </button>
         </div>
+
       </div>
 
       <div className={styles.editFormActions}>
@@ -176,7 +184,9 @@ function ItemEditForm({
   );
 }
 
-// ── 항목 카드 (인라인 편집) ───────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════
+// 항목 카드
+// ══════════════════════════════════════════════════════════════════════
 function ItemCard({
   item, idx, deletingId,
   onEdit, onDelete, onCancelDelete, onStartDelete, onInlineChange,
@@ -190,59 +200,57 @@ function ItemCard({
   onStartDelete: (id: string) => void;
   onInlineChange: (id: string, field: keyof ItemData, raw: string) => void;
 }) {
-  const qtyProps      = useInlineNum(item.quantity,  v => onInlineChange(item.id, "quantity",  v));
+  const qtyProps       = useInlineNum(item.quantity,  v => onInlineChange(item.id, "quantity",  v));
   const unitPriceProps = useInlineNum(item.unitPrice, v => onInlineChange(item.id, "unitPrice", v));
-  const amountProps   = useInlineNum(item.amount,    v => onInlineChange(item.id, "amount",    v));
+  const amountProps    = useInlineNum(item.amount,    v => onInlineChange(item.id, "amount",    v));
 
   return (
     <div
       className={styles.itemCard}
-      style={{ animationDelay: `${idx * 0.02}s` } as React.CSSProperties}
+      style={{ animationDelay: `${idx * 0.03}s` } as React.CSSProperties}
     >
-      <div className={styles.itemCardTop}>
+      {/* ── 상단: NO / 날짜 / 배지 ─────────────────────────── */}
+      <div className={styles.cardTop}>
         <span className={styles.itemEvNo}>
           {item.evidenceNo || `NO.${idx + 1}`}
         </span>
-        <div className={styles.itemBadges}>
+        <input
+          className={styles.cardDateInput}
+          value={item.usageDate}
+          placeholder="YY.MM.DD"
+          onChange={e => onInlineChange(item.id, "usageDate", e.target.value)}
+        />
+        <div className={styles.cardBadges}>
           {item.hasPhoto && <span className={styles.photoBadge}>📷</span>}
-          {item.note && <span className={styles.noteBadge}>📝</span>}
+          {item.note     && <span className={styles.noteBadge}>📝</span>}
         </div>
-        <button className={styles.itemEditBtn} onClick={() => onEdit(item)} style={{ marginLeft: "auto" }}>
-          품명·기타 수정
-        </button>
       </div>
 
-      <div className={styles.itemNameRow}>
-        <span className={styles.itemName}>{item.name}</span>
-        {item.quantity > 1 && (
-          <span className={styles.itemQty}>[{item.quantity}{item.unit}]</span>
+      {/* ── 품명 + 단위/규격 ────────────────────────────────── */}
+      <div className={styles.nameRow}>
+        <span className={styles.itemName}>
+          {item.name || <em className={styles.namePlaceholder}>품명 없음</em>}
+        </span>
+        {item.unit && (
+          <span className={styles.itemUnit}>{item.unit}</span>
         )}
       </div>
 
-      {/* 인라인 편집 필드 */}
+      {/* ── 수량 / 단가 / 금액 인라인 ───────────────────────── */}
       <div className={styles.inlineFields}>
-        <div className={styles.inlineField}>
-          <span className={styles.inlineLabel}>사용일자</span>
-          <input
-            className={styles.inlineInput}
-            value={item.usageDate}
-            placeholder="26.01.15"
-            onChange={e => onInlineChange(item.id, "usageDate", e.target.value)}
-          />
-        </div>
         <div className={styles.inlineField}>
           <span className={styles.inlineLabel}>수량</span>
           <input
             className={styles.inlineInput}
             inputMode="numeric"
-            placeholder="1"
+            placeholder="0"
             {...qtyProps}
           />
         </div>
         <div className={styles.inlineField}>
           <span className={styles.inlineLabel}>단가</span>
           <input
-            className={`${styles.inlineInput} ${styles.inlineInputWide}`}
+            className={`${styles.inlineInput} ${styles.inlineInputAmt}`}
             inputMode="numeric"
             placeholder="0"
             {...unitPriceProps}
@@ -251,7 +259,7 @@ function ItemCard({
         <div className={styles.inlineField}>
           <span className={styles.inlineLabel}>금액</span>
           <input
-            className={`${styles.inlineInput} ${styles.inlineInputWide}`}
+            className={`${styles.inlineInput} ${styles.inlineInputAmt}`}
             inputMode="numeric"
             placeholder="0"
             {...amountProps}
@@ -259,21 +267,35 @@ function ItemCard({
         </div>
       </div>
 
+      {/* ── 액션: 수정(좌) / 삭제(우) ───────────────────────── */}
       <div className={styles.itemActions}>
+        <button className={styles.itemEditBtn} onClick={() => onEdit(item)}>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+          </svg>
+          수정
+        </button>
+
         {deletingId === item.id ? (
           <div className={styles.deleteConfirm}>
-            <button className={styles.deleteConfirmYes} onClick={() => onDelete(item.id)}>삭제</button>
             <button className={styles.deleteConfirmNo}  onClick={onCancelDelete}>취소</button>
+            <button className={styles.deleteConfirmYes} onClick={() => onDelete(item.id)}>삭제 확인</button>
           </div>
         ) : (
-          <button className={styles.itemDeleteBtn} onClick={() => onStartDelete(item.id)}>삭제</button>
+          <button className={styles.itemDeleteBtn} onClick={() => onStartDelete(item.id)}>
+            삭제
+          </button>
         )}
       </div>
     </div>
   );
 }
 
-// ── 메인 컴포넌트 ─────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════
+// 메인 컴포넌트
+// ══════════════════════════════════════════════════════════════════════
 interface Props {
   items: ItemData[];
   onChange: (items: ItemData[]) => void;
@@ -283,33 +305,25 @@ export default function ItemListView({ items, onChange }: Props) {
   const [editingItem, setEditingItem] = useState<ItemData | null>(null);
   const [deletingId,  setDeletingId]  = useState<string | null>(null);
 
-  // 카테고리별 그룹핑
+  // 카테고리별 그룹핑 (1~9)
   const grouped = useMemo(() => {
     const map = new Map<number, ItemData[]>();
     for (let i = 1; i <= 9; i++) map.set(i, []);
-    for (const item of items) {
-      map.get(item.categoryNo)?.push(item);
-    }
+    for (const item of items) map.get(item.categoryNo)?.push(item);
     return map;
   }, [items]);
 
   const total = useMemo(() => items.reduce((s, i) => s + i.amount, 0), [items]);
 
-  const handleAdd = useCallback((categoryNo: number) => {
-    setEditingItem(makeNewItem(categoryNo));
-  }, []);
-
-  const handleEdit = useCallback((item: ItemData) => {
-    setEditingItem({ ...item });
-  }, []);
+  const handleAdd  = useCallback((catNo: number) => setEditingItem(makeNewItem(catNo)), []);
+  const handleEdit = useCallback((item: ItemData)  => setEditingItem({ ...item }), []);
 
   const handleSave = useCallback((saved: ItemData) => {
     const exists = items.some(i => i.id === saved.id);
-    if (exists) {
-      onChange(items.map(i => i.id === saved.id ? saved : i));
-    } else {
-      onChange([...items, saved]);
-    }
+    onChange(exists
+      ? items.map(i => i.id === saved.id ? saved : i)
+      : [...items, saved]
+    );
     setEditingItem(null);
   }, [items, onChange]);
 
@@ -340,13 +354,14 @@ export default function ItemListView({ items, onChange }: Props) {
 
   return (
     <div className={styles.listView}>
-      {/* 전체 합계 바 */}
+
+      {/* ── 전체 요약바 (sticky) ──────────────────────────── */}
       <div className={styles.summaryBar}>
         <span className={styles.summaryLabel}>총 {items.length}건</span>
         <span className={styles.summaryTotal}>{fmtNum(total)}원</span>
       </div>
 
-      {/* 카테고리별 그룹 */}
+      {/* ── 카테고리별 섹션 ──────────────────────────────── */}
       {Array.from(grouped.entries()).map(([catNo, catItems]) => {
         const catSum = catItems.reduce((s, i) => s + i.amount, 0);
         return (
@@ -354,6 +369,7 @@ export default function ItemListView({ items, onChange }: Props) {
             key={catNo}
             className={`${styles.catGroup} ${catItems.length === 0 ? styles.catGroupEmpty : ""}`}
           >
+            {/* 카테고리 헤더 (sticky) */}
             <div className={styles.catHeader}>
               <span className={styles.catNo}>{catNo}</span>
               <span className={styles.catLabel}>{CATEGORY_SHORT[catNo]}</span>
@@ -363,6 +379,7 @@ export default function ItemListView({ items, onChange }: Props) {
               <span className={styles.catCount}>{catItems.length}건</span>
             </div>
 
+            {/* 항목 카드들 */}
             {catItems.map((item, idx) => (
               <ItemCard
                 key={item.id}
@@ -377,20 +394,19 @@ export default function ItemListView({ items, onChange }: Props) {
               />
             ))}
 
+            {/* 항목 추가 */}
             <button className={styles.addItemBtn} onClick={() => handleAdd(catNo)}>
-              <span>+</span> 항목 추가
+              <span className={styles.addItemIcon}>+</span>
+              항목 추가
             </button>
           </section>
         );
       })}
 
-      {/* 편집 바텀시트 — portal로 body에 렌더링 (transform 조상 영향 방지) */}
+      {/* ── 편집 바텀시트 (portal → body) ────────────────── */}
       {editingItem && typeof document !== "undefined" && createPortal(
         <>
-          <div
-            className={styles.editBackdrop}
-            onClick={() => setEditingItem(null)}
-          />
+          <div className={styles.editBackdrop} onClick={() => setEditingItem(null)} />
           <div className={styles.editSheet}>
             <div className={styles.sheetHandle} />
             <ItemEditForm

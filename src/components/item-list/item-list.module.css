@@ -1,50 +1,72 @@
-/* ── 품목 리스트 전체 ──────────────────────────────────────────── */
+/* ════════════════════════════════════════════════════════════════
+   항목별세부내역 리스트 뷰
+   — 갑지와 동일한 색상·버튼·애니메이션 시스템 적용
+   ════════════════════════════════════════════════════════════════ */
 
-@keyframes itemSlideIn {
+/* ── 키프레임 ─────────────────────────────────────────────────── */
+
+@keyframes listUp {
+  from { opacity: 0; transform: translateY(16px) scale(0.99); }
+  to   { opacity: 1; transform: translateY(0)    scale(1); }
+}
+
+@keyframes cardIn {
   from { opacity: 0; transform: translateY(10px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 
-@keyframes listUp {
-  from { opacity: 0; transform: translateY(16px) scale(0.99); }
-  to   { opacity: 1; transform: translateY(0) scale(1); }
+@keyframes fadeIn  { from { opacity: 0; } to { opacity: 1; } }
+
+@keyframes sheetUp {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
 }
 
+/* ── 리스트 래퍼 ─────────────────────────────────────────────── */
+
 .listView {
-  padding: 0 0 calc(32px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(32px + env(safe-area-inset-bottom, 0px));
   display: flex;
   flex-direction: column;
   gap: 0;
   animation: listUp 0.4s cubic-bezier(0.16,1,0.3,1) both;
 }
 
-/* ── 합계 바 ────────────────────────────────────────────────────── */
+/* ════════════════════════════════════════════════════════════════
+   요약바 — 갑지 툴바와 동일한 다크 슬레이트 배경
+   ════════════════════════════════════════════════════════════════ */
 
 .summaryBar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 16px;
-  background: #1e3a8a;
-  color: #fff;
+  padding: 0 16px;
+  height: 40px;
+  background: #1e293b;
+  border-bottom: 1px solid #334155;
   position: sticky;
   top: 0;
   z-index: 10;
+  flex-shrink: 0;
+  box-sizing: border-box;
 }
 
 .summaryLabel {
   font-size: 12px;
   font-weight: 500;
-  opacity: 0.8;
+  color: #94a3b8;
 }
 
 .summaryTotal {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 800;
   letter-spacing: -0.5px;
+  color: #f1f5f9;
 }
 
-/* ── 카테고리 그룹 ──────────────────────────────────────────────── */
+/* ════════════════════════════════════════════════════════════════
+   카테고리 그룹
+   ════════════════════════════════════════════════════════════════ */
 
 .catGroup {
   border-bottom: 6px solid #f0f2f5;
@@ -54,23 +76,25 @@
   opacity: 0.5;
 }
 
+/* 카테고리 헤더 — 갑지 섹션 타이틀과 동일한 배경·폰트 시스템 */
 .catHeader {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 16px;
+  padding: 9px 16px;
   background: #f8fafc;
-  border-top: 1px solid #e5e7eb;
-  border-bottom: 1px solid #e5e7eb;
+  border-top: 1px solid #e2e8f0;
+  border-bottom: 1px solid #e2e8f0;
   position: sticky;
-  top: 38px;
+  top: 40px; /* summaryBar 높이 */
   z-index: 5;
 }
 
+/* 번호 뱃지 — 갑지 primary blue (#3b82f6) */
 .catNo {
   width: 22px;
   height: 22px;
-  background: #2563eb;
+  background: #3b82f6;
   color: #fff;
   border-radius: 50%;
   font-size: 10px;
@@ -92,28 +116,30 @@
 }
 
 .catTotal {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
-  color: #2563eb;
+  color: #3b82f6;
   white-space: nowrap;
 }
 
 .catCount {
   font-size: 11px;
-  color: #9ca3af;
-  background: #f3f4f6;
+  color: #94a3b8;
+  background: #f1f5f9;
   padding: 2px 7px;
   border-radius: 10px;
   white-space: nowrap;
 }
 
-/* ── 항목 카드 ──────────────────────────────────────────────────── */
+/* ════════════════════════════════════════════════════════════════
+   항목 카드
+   ════════════════════════════════════════════════════════════════ */
 
 .itemCard {
-  padding: 12px 16px;
+  padding: 12px 16px 10px;
   border-bottom: 1px solid #f3f4f6;
   background: #fff;
-  animation: itemSlideIn 0.3s cubic-bezier(0.16,1,0.3,1) both;
+  animation: cardIn 0.3s cubic-bezier(0.16,1,0.3,1) both;
   transition: background 0.1s;
 }
 
@@ -121,157 +147,104 @@
   background: #f9fafb;
 }
 
-.itemCardTop {
+/* ── 카드 상단: NO / 날짜 / 배지 ─────────────────────────────── */
+
+.cardTop {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 5px;
+  gap: 7px;
+  margin-bottom: 6px;
 }
 
 .itemEvNo {
   font-size: 10px;
   font-weight: 700;
-  color: #6b7280;
-  background: #f3f4f6;
+  color: #64748b;
+  background: #f1f5f9;
   padding: 2px 7px;
   border-radius: 5px;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
-.itemDate {
-  font-size: 11px;
-  color: #9ca3af;
+/* 날짜 인라인 입력 — 갑지 input 스타일과 통일 */
+.cardDateInput {
   flex: 1;
+  height: 26px;
+  padding: 0 8px;
+  font-size: 12px;
+  color: #64748b;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  outline: none;
+  background: #f8fafc;
+  font-family: inherit;
+  transition: border-color 0.15s, background 0.15s;
+  box-sizing: border-box;
 }
 
-.itemBadges {
+.cardDateInput:focus {
+  border-color: #3b82f6;
+  background: #fff;
+  box-shadow: 0 0 0 2px rgba(59,130,246,0.1);
+}
+
+.cardDateInput::placeholder {
+  color: #cbd5e1;
+}
+
+.cardBadges {
   display: flex;
   gap: 4px;
+  flex-shrink: 0;
 }
 
-.photoBadge {
-  font-size: 12px;
-  opacity: 0.8;
-}
-
+.photoBadge,
 .noteBadge {
-  font-size: 12px;
-  opacity: 0.6;
+  font-size: 13px;
+  opacity: 0.75;
 }
 
-.itemNameRow {
+/* ── 품명 + 단위/규격 ────────────────────────────────────────── */
+
+.nameRow {
   display: flex;
-  align-items: baseline;
-  gap: 5px;
-  margin-bottom: 4px;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 9px;
+  flex-wrap: wrap;
 }
 
 .itemName {
   font-size: 15px;
   font-weight: 600;
-  color: #111827;
+  color: #1e293b;
   line-height: 1.3;
 }
 
-.itemQty {
-  font-size: 12px;
-  font-weight: 500;
-  color: #6b7280;
-  white-space: nowrap;
+.namePlaceholder {
+  font-style: normal;
+  color: #94a3b8;
+  font-weight: 400;
 }
 
-.itemAmountRow {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 10px;
-}
-
-.itemUnitPrice {
+/* 단위/규격 태그 */
+.itemUnit {
   font-size: 11px;
-  color: #9ca3af;
+  font-weight: 500;
+  color: #64748b;
+  background: #f1f5f9;
+  padding: 1px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
-.itemAmount {
-  font-size: 14px;
-  font-weight: 700;
-  color: #111827;
-  letter-spacing: -0.3px;
-}
-
-.itemActions {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
-.itemEditBtn {
-  height: 32px;
-  padding: 0 14px;
-  border: 1.5px solid #e5e7eb;
-  border-radius: 8px;
-  background: #fff;
-  font-size: 12px;
-  font-weight: 600;
-  color: #374151;
-  cursor: pointer;
-  transition: all 0.12s;
-  font-family: inherit;
-}
-.itemEditBtn:hover  { background: #f9fafb; border-color: #d1d5db; }
-.itemEditBtn:active { transform: scale(0.97); }
-
-.itemDeleteBtn {
-  height: 32px;
-  padding: 0 14px;
-  border: 1.5px solid #fee2e2;
-  border-radius: 8px;
-  background: #fff;
-  font-size: 12px;
-  font-weight: 600;
-  color: #ef4444;
-  cursor: pointer;
-  transition: all 0.12s;
-  font-family: inherit;
-}
-.itemDeleteBtn:hover  { background: #fef2f2; }
-.itemDeleteBtn:active { transform: scale(0.97); }
-
-.deleteConfirm {
-  display: flex;
-  gap: 6px;
-}
-
-.deleteConfirmYes {
-  height: 32px;
-  padding: 0 14px;
-  background: #ef4444;
-  color: #fff;
-  border: none;
-  border-radius: 8px;
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-  font-family: inherit;
-}
-
-.deleteConfirmNo {
-  height: 32px;
-  padding: 0 12px;
-  background: #f3f4f6;
-  color: #374151;
-  border: none;
-  border-radius: 8px;
-  font-size: 12px;
-  cursor: pointer;
-  font-family: inherit;
-}
-
-/* ── 인라인 편집 필드 ───────────────────────────────────────────── */
+/* ── 수량 / 단가 / 금액 인라인 3열 ──────────────────────────── */
 
 .inlineFields {
   display: grid;
-  grid-template-columns: 1fr 0.6fr 1fr 1fr;
+  grid-template-columns: 0.55fr 1fr 1fr;
   gap: 6px;
   margin-bottom: 10px;
 }
@@ -285,46 +258,131 @@
 .inlineLabel {
   font-size: 10px;
   font-weight: 700;
-  color: #9ca3af;
+  color: #94a3b8;
   letter-spacing: 0.3px;
 }
 
+/* 갑지 input 스타일과 동일 */
 .inlineInput {
   height: 34px;
   padding: 0 8px;
   font-size: 13px;
   font-weight: 500;
-  color: #111827;
-  background: #f9fafb;
-  border: 1.5px solid #e5e7eb;
-  border-radius: 8px;
+  color: #1e293b;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
   outline: none;
   width: 100%;
   box-sizing: border-box;
   font-family: inherit;
-  transition: border-color 0.15s, background 0.15s;
+  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
 }
 
 .inlineInput:focus {
-  border-color: #2563eb;
+  border-color: #3b82f6;
   background: #fff;
-  box-shadow: 0 0 0 2px rgba(37,99,235,0.08);
+  box-shadow: 0 0 0 2px rgba(59,130,246,0.08);
 }
 
-.inlineInput::placeholder { color: #d1d5db; }
+.inlineInput::placeholder {
+  color: #cbd5e1;
+}
 
-.inlineInputWide {
+/* 금액·단가: 숫자 강조 */
+.inlineInputAmt {
   font-weight: 600;
+  text-align: right;
 }
 
-@media (max-width: 400px) {
-  .inlineFields {
-    grid-template-columns: 1fr 0.6fr;
-    gap: 6px 8px;
-  }
+/* ── 액션 버튼 (하단) ───────────────────────────────────────── */
+
+.itemActions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
 }
 
-/* ── 항목 추가 버튼 ─────────────────────────────────────────────── */
+/* 수정 버튼 — 갑지 btnSecondary 스타일 */
+.itemEditBtn {
+  height: 32px;
+  padding: 0 13px;
+  background: transparent;
+  color: #64748b;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, transform 0.1s;
+  font-family: inherit;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.itemEditBtn:hover  { background: #f8fafc; color: #1e293b; border-color: #94a3b8; }
+.itemEditBtn:active { transform: scale(0.97); }
+
+/* 삭제 버튼 */
+.itemDeleteBtn {
+  height: 32px;
+  padding: 0 13px;
+  background: transparent;
+  color: #ef4444;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s, transform 0.1s;
+  font-family: inherit;
+}
+
+.itemDeleteBtn:hover  { background: #fef2f2; }
+.itemDeleteBtn:active { transform: scale(0.97); }
+
+/* 삭제 2단계 확인 */
+.deleteConfirm {
+  display: flex;
+  gap: 6px;
+}
+
+.deleteConfirmNo {
+  height: 32px;
+  padding: 0 12px;
+  background: #f1f5f9;
+  color: #64748b;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.12s;
+}
+
+.deleteConfirmNo:hover { background: #e2e8f0; }
+
+.deleteConfirmYes {
+  height: 32px;
+  padding: 0 13px;
+  background: #ef4444;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.12s, transform 0.1s;
+}
+
+.deleteConfirmYes:hover  { background: #dc2626; }
+.deleteConfirmYes:active { transform: scale(0.97); }
+
+/* ── 항목 추가 버튼 ─────────────────────────────────────────── */
 
 .addItemBtn {
   display: flex;
@@ -334,37 +392,38 @@
   padding: 12px 16px;
   background: #fff;
   border: none;
-  border-top: 1px dashed #e5e7eb;
+  border-top: 1px dashed #e2e8f0;
   font-size: 13px;
   font-weight: 600;
-  color: #2563eb;
+  color: #3b82f6;
   cursor: pointer;
   text-align: left;
   transition: background 0.12s;
   font-family: inherit;
 }
 
-.addItemBtn span {
+.addItemIcon {
   font-size: 16px;
   line-height: 1;
+  font-weight: 700;
 }
 
 .addItemBtn:hover  { background: #eff6ff; }
-.addItemBtn:active { background: #dbeafe; }
+.addItemBtn:active { background: #dbeafe; transform: scale(0.995); }
 
-/* ── 편집 시트 (바텀시트) ───────────────────────────────────────── */
+/* ════════════════════════════════════════════════════════════════
+   편집 바텀시트
+   ════════════════════════════════════════════════════════════════ */
 
 .editBackdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.45);
+  background: rgba(15,23,42,0.55);
   z-index: 200;
   backdrop-filter: blur(2px);
   -webkit-backdrop-filter: blur(2px);
   animation: fadeIn 0.18s ease;
 }
-
-@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
 .editSheet {
   position: fixed;
@@ -382,31 +441,25 @@
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
-@keyframes sheetUp {
-  from { transform: translateY(100%); }
-  to   { transform: translateY(0); }
-}
-
-/* 데스크탑: 가운데 고정 */
+/* 데스크탑: 중앙 고정 */
 @media (min-width: 640px) {
   .editSheet {
     left: 50%;
     right: auto;
     width: 540px;
     transform: translateX(-50%);
-    border-radius: 20px 20px 0 0;
   }
 }
 
 .sheetHandle {
   width: 40px;
   height: 4px;
-  background: #e5e7eb;
+  background: #e2e8f0;
   border-radius: 2px;
   margin: 12px auto 0;
 }
 
-/* ── 편집 폼 내부 ────────────────────────────────────────────────── */
+/* ── 편집 폼 내부 ────────────────────────────────────────────── */
 
 .editForm {
   padding: 4px 0 0;
@@ -417,35 +470,38 @@
   align-items: center;
   justify-content: space-between;
   padding: 14px 20px 12px;
-  border-bottom: 1px solid #f3f4f6;
+  border-bottom: 1px solid #f1f5f9;
 }
 
 .editFormHeader h3 {
   margin: 0;
   font-size: 16px;
   font-weight: 700;
-  color: #111827;
+  color: #1e293b;
 }
 
 .editFormClose {
   width: 32px;
   height: 32px;
   border: none;
-  background: #f3f4f6;
+  background: #f1f5f9;
   border-radius: 50%;
   font-size: 13px;
-  color: #6b7280;
+  color: #64748b;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: background 0.12s;
 }
 
+.editFormClose:hover { background: #e2e8f0; }
+
 .editFormBody {
-  padding: 8px 20px;
+  padding: 12px 20px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
 }
 
 .editField {
@@ -454,12 +510,12 @@
   gap: 5px;
 }
 
+/* 갑지 label 스타일 통일 */
 .editField label {
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 700;
-  color: #9ca3af;
-  letter-spacing: 0.4px;
-  text-transform: uppercase;
+  color: #64748b;
+  letter-spacing: 0.04em;
 }
 
 .editFieldRow {
@@ -475,22 +531,21 @@
 }
 
 .editFieldRow .editFieldHalf label {
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 700;
-  color: #9ca3af;
-  letter-spacing: 0.4px;
-  text-transform: uppercase;
+  color: #64748b;
 }
 
+/* 갑지 input 스타일과 동일 */
 .editInput {
   height: 44px;
   padding: 0 12px;
-  font-size: 16px; /* iOS 줌 방지 */
+  font-size: 16px; /* iOS 자동 확대 방지 */
   font-weight: 500;
-  color: #111827;
-  background: #f9fafb;
-  border: 1.5px solid #e5e7eb;
-  border-radius: 10px;
+  color: #1e293b;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
   outline: none;
   transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
   -webkit-appearance: none;
@@ -500,13 +555,17 @@
 }
 
 .editInput:focus {
-  border-color: #2563eb;
+  border-color: #3b82f6;
   background: #fff;
-  box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+  box-shadow: 0 0 0 3px rgba(59,130,246,0.1);
 }
 
-.editInput::placeholder { color: #d1d5db; font-weight: 400; }
+.editInput::placeholder {
+  color: #cbd5e1;
+  font-weight: 400;
+}
 
+/* 금액 자동계산 필드 */
 .editInputAuto {
   background: #f0fdf4;
   border-color: #bbf7d0;
@@ -527,7 +586,7 @@
 .editUnit {
   font-size: 13px;
   font-weight: 600;
-  color: #6b7280;
+  color: #64748b;
   white-space: nowrap;
   flex-shrink: 0;
 }
@@ -537,18 +596,22 @@
   padding: 0 12px;
   font-size: 15px;
   font-weight: 500;
-  color: #111827;
-  background: #f9fafb;
-  border: 1.5px solid #e5e7eb;
-  border-radius: 10px;
+  color: #1e293b;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
   outline: none;
   font-family: inherit;
   width: 100%;
   cursor: pointer;
   -webkit-appearance: none;
+  transition: border-color 0.15s;
 }
 
-.editSelect:focus { border-color: #2563eb; background: #fff; }
+.editSelect:focus {
+  border-color: #3b82f6;
+  background: #fff;
+}
 
 .autoLabel {
   font-size: 10px;
@@ -557,7 +620,6 @@
   background: #f0fdf4;
   padding: 1px 5px;
   border-radius: 4px;
-  text-transform: none;
   letter-spacing: 0;
   margin-left: 4px;
 }
@@ -573,17 +635,16 @@
   font-size: 13px;
   font-weight: 600;
   color: #374151;
-  text-transform: none;
   letter-spacing: 0;
 }
 
 .toggle {
-  height: 32px;
+  height: 34px;
   padding: 0 16px;
   border-radius: 20px;
-  border: 1.5px solid #e5e7eb;
-  background: #f3f4f6;
-  color: #6b7280;
+  border: 1px solid #e2e8f0;
+  background: #f1f5f9;
+  color: #64748b;
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
@@ -594,52 +655,58 @@
 .toggleOn {
   background: #eff6ff;
   border-color: #93c5fd;
-  color: #2563eb;
+  color: #3b82f6;
 }
 
-/* ── 편집 폼 액션 버튼 ──────────────────────────────────────────── */
+/* ── 편집 폼 저장/취소 버튼 — 갑지 버튼 시스템 통일 ─────────── */
 
 .editFormActions {
   display: flex;
   gap: 10px;
   padding: 14px 20px 20px;
-  border-top: 1px solid #f3f4f6;
+  border-top: 1px solid #f1f5f9;
 }
 
+/* 갑지 btnSecondary 스타일 */
 .editCancel {
   flex: 1;
   height: 48px;
-  border: 1.5px solid #e5e7eb;
-  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
   background: #fff;
   font-size: 15px;
   font-weight: 600;
-  color: #374151;
+  color: #64748b;
   cursor: pointer;
   font-family: inherit;
-  transition: background 0.12s;
+  transition: background 0.12s, transform 0.1s;
 }
-.editCancel:hover { background: #f9fafb; }
 
+.editCancel:hover  { background: #f8fafc; }
+.editCancel:active { transform: scale(0.98); }
+
+/* 갑지 btnPrimary 스타일 */
 .editSave {
   flex: 2;
   height: 48px;
   border: none;
-  border-radius: 12px;
-  background: #2563eb;
+  border-radius: 10px;
+  background: #3b82f6;
   color: #fff;
   font-size: 15px;
   font-weight: 700;
   cursor: pointer;
   font-family: inherit;
-  transition: background 0.12s, transform 0.12s;
-  box-shadow: 0 2px 10px rgba(37,99,235,0.22);
+  transition: background 0.15s, transform 0.1s;
+  box-shadow: 0 2px 8px rgba(59,130,246,0.25);
 }
-.editSave:hover   { background: #1d4ed8; }
+
+.editSave:hover   { background: #2563eb; }
 .editSave:active  { transform: scale(0.98); }
+
 .editSave:disabled {
-  background: #e5e7eb;
-  color: #9ca3af;
+  background: #e2e8f0;
+  color: #94a3b8;
   box-shadow: none;
   cursor: default;
 }
