@@ -1,18 +1,23 @@
 /* ════════════════════════════════════════════════════════════════
-   항목별세부내역 리스트 뷰
-   — 갑지와 동일한 색상·버튼·애니메이션 시스템 적용
+   항목별세부내역 에디터
+   GabjiEditor와 동일한 레이아웃·스타일 시스템
    ════════════════════════════════════════════════════════════════ */
 
 /* ── 키프레임 ─────────────────────────────────────────────────── */
 
-@keyframes listUp {
-  from { opacity: 0; transform: translateY(16px) scale(0.99); }
+@keyframes gabjiUp {
+  from { opacity: 0; transform: translateY(14px) scale(0.98); }
   to   { opacity: 1; transform: translateY(0)    scale(1); }
 }
 
-@keyframes cardIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to   { opacity: 1; transform: translateY(0); }
+@keyframes itemIn {
+  from { opacity: 0; transform: translateX(-8px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes nameExpand {
+  from { opacity: 0.6; transform: scaleX(0.96); }
+  to   { opacity: 1;   transform: scaleX(1); }
 }
 
 @keyframes fadeIn  { from { opacity: 0; } to { opacity: 1; } }
@@ -22,78 +27,165 @@
   to   { transform: translateY(0); }
 }
 
-/* ── 리스트 래퍼 ─────────────────────────────────────────────── */
+/* ════════════════════════════════════════════════════════════════
+   에디터 외곽 — GabjiEditor .editor 동일
+   ════════════════════════════════════════════════════════════════ */
 
-.listView {
-  padding-bottom: calc(32px + env(safe-area-inset-bottom, 0px));
+.editor {
   display: flex;
   flex-direction: column;
-  gap: 0;
-  animation: listUp 0.4s cubic-bezier(0.16,1,0.3,1) both;
+  height: 100%;
+  overflow: hidden;
+  background: #f0f2f5;
 }
 
 /* ════════════════════════════════════════════════════════════════
-   요약바 — 갑지 툴바와 동일한 다크 슬레이트 배경
+   툴바 — GabjiEditor .toolbar 동일 (다크 슬레이트)
    ════════════════════════════════════════════════════════════════ */
 
-.summaryBar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 16px;
-  height: 40px;
-  background: #1e293b;
-  border-bottom: 1px solid #334155;
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  flex-shrink: 0;
-  box-sizing: border-box;
-}
-
-.summaryLabel {
-  font-size: 12px;
-  font-weight: 500;
-  color: #94a3b8;
-}
-
-.summaryTotal {
-  font-size: 15px;
-  font-weight: 800;
-  letter-spacing: -0.5px;
-  color: #f1f5f9;
-}
-
-/* ════════════════════════════════════════════════════════════════
-   카테고리 그룹
-   ════════════════════════════════════════════════════════════════ */
-
-.catGroup {
-  border-bottom: 6px solid #f0f2f5;
-}
-
-.catGroupEmpty .catHeader {
-  opacity: 0.5;
-}
-
-/* 카테고리 헤더 — 갑지 섹션 타이틀과 동일한 배경·폰트 시스템 */
-.catHeader {
+.toolbar {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 9px 16px;
-  background: #f8fafc;
-  border-top: 1px solid #e2e8f0;
-  border-bottom: 1px solid #e2e8f0;
-  position: sticky;
-  top: 40px; /* summaryBar 높이 */
-  z-index: 5;
+  padding: 0 12px;
+  height: 40px;
+  background: #1e293b;
+  border-bottom: 1px solid #0f172a;
+  flex-shrink: 0;
 }
 
-/* 번호 뱃지 — 갑지 primary blue (#3b82f6) */
-.catNo {
-  width: 22px;
-  height: 22px;
+.toolbarTitle {
+  font-size: 11px;
+  font-weight: 700;
+  color: #94a3b8;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+}
+
+.toolbarSep { flex: 1; }
+
+.toolbarCount {
+  font-size: 11px;
+  font-weight: 500;
+  color: #64748b;
+  white-space: nowrap;
+}
+
+.toolbarTotal {
+  font-size: 15px;
+  font-weight: 800;
+  color: #f1f5f9;
+  letter-spacing: -0.5px;
+  white-space: nowrap;
+}
+
+/* ════════════════════════════════════════════════════════════════
+   모바일 탭 — 데스크탑 숨김, 모바일만 표시
+   ════════════════════════════════════════════════════════════════ */
+
+.mobileTabs {
+  display: none;
+  flex-shrink: 0;
+  background: #fff;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.mobileTab {
+  flex: 1;
+  padding: 11px 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #94a3b8;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  transition: color 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mobileTabActive {
+  color: #3b82f6;
+  box-shadow: inset 0 -2px 0 #3b82f6;
+}
+
+.mobileHidden { display: none !important; }
+
+/* ════════════════════════════════════════════════════════════════
+   에디터 바디: 좌측 400px + 우측 flex
+   GabjiEditor .editorBody 동일
+   ════════════════════════════════════════════════════════════════ */
+
+.editorBody {
+  display: grid;
+  grid-template-columns: 400px 1fr;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* ── 좌측 패널 ─────────────────────────────────────────────── */
+
+.leftPanel {
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: #fff;
+  border-right: 1px solid #e2e8f0;
+  -webkit-overflow-scrolling: touch;
+  min-height: 0;
+}
+
+.leftPanel::-webkit-scrollbar { width: 5px; }
+.leftPanel::-webkit-scrollbar-track { background: #f1f5f9; }
+.leftPanel::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+
+.formWrap {
+  padding: 0 0 48px;
+}
+
+/* ── 우측 패널: A4 미리보기 ────────────────────────────────── */
+
+.rightPanel {
+  background: #4b5563;
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 16px;
+  -webkit-overflow-scrolling: touch;
+  min-height: 0;
+}
+
+.rightPanel::-webkit-scrollbar { width: 5px; }
+.rightPanel::-webkit-scrollbar-track { background: #374151; }
+.rightPanel::-webkit-scrollbar-thumb { background: #6b7280; border-radius: 3px; }
+
+/* ════════════════════════════════════════════════════════════════
+   카테고리 섹션 — GabjiEditor .section 동일
+   ════════════════════════════════════════════════════════════════ */
+
+.section {
+  border-bottom: 6px solid #f0f2f5;
+  animation: gabjiUp 0.45s cubic-bezier(0.16,1,0.3,1) both;
+}
+
+.sectionTitle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px 7px;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  position: sticky;
+  top: 0;
+  z-index: 3;
+}
+
+.catBadge {
+  width: 20px;
+  height: 20px;
   background: #3b82f6;
   color: #fff;
   border-radius: 50%;
@@ -106,8 +198,8 @@
 }
 
 .catLabel {
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 11px;
+  font-weight: 700;
   color: #374151;
   flex: 1;
   overflow: hidden;
@@ -115,301 +207,331 @@
   white-space: nowrap;
 }
 
-.catTotal {
-  font-size: 12px;
+.catSum {
+  font-size: 11px;
   font-weight: 700;
   color: #3b82f6;
   white-space: nowrap;
 }
 
 .catCount {
-  font-size: 11px;
+  font-size: 10px;
   color: #94a3b8;
   background: #f1f5f9;
-  padding: 2px 7px;
-  border-radius: 10px;
+  padding: 1px 6px;
+  border-radius: 8px;
   white-space: nowrap;
 }
 
 /* ════════════════════════════════════════════════════════════════
-   항목 카드
+   항목 테이블 — GabjiItemsForm .itemsTable 동일
    ════════════════════════════════════════════════════════════════ */
 
-.itemCard {
-  padding: 12px 16px 10px;
+.itemsTable {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: 11.5px;
+  color: #1e293b;
+}
+
+.colNo      { width: 28px; }
+.colAmt     { width: 72px; }
+.colActions { width: 52px; }
+
+/* ── 항목 행 ────────────────────────────────────────────────── */
+
+.itemRow {
   border-bottom: 1px solid #f3f4f6;
-  background: #fff;
-  animation: cardIn 0.3s cubic-bezier(0.16,1,0.3,1) both;
+  animation: itemIn 0.35s cubic-bezier(0.16,1,0.3,1) both;
   transition: background 0.1s;
 }
 
-.itemCard:active {
-  background: #f9fafb;
+.itemRow:hover { background: #f9fafb; }
+
+.tdNo {
+  padding: 0 0 0 6px;
+  text-align: center;
+  vertical-align: middle;
 }
 
-/* ── 카드 상단: NO / 날짜 / 배지 ─────────────────────────────── */
+.evNo {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 700;
+  color: #94a3b8;
+  background: #f1f5f9;
+  border-radius: 3px;
+  padding: 1px 4px;
+}
 
-.cardTop {
+.tdName {
+  padding: 3px 2px;
+  position: relative;
+  overflow: visible;
+  vertical-align: middle;
+}
+
+.nameWrap {
   display: flex;
   align-items: center;
-  gap: 7px;
-  margin-bottom: 6px;
+  gap: 2px;
 }
 
-.itemEvNo {
-  font-size: 10px;
-  font-weight: 700;
-  color: #64748b;
-  background: #f1f5f9;
-  padding: 2px 7px;
-  border-radius: 5px;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-
-/* 날짜 인라인 입력 — 갑지 input 스타일과 통일 */
-.cardDateInput {
-  flex: 1;
-  height: 26px;
-  padding: 0 8px;
-  font-size: 12px;
-  color: #64748b;
-  border: 1px solid #e2e8f0;
-  border-radius: 6px;
+/* 품명 입력 — GabjiItemsForm .itemNameInput 동일 */
+.itemNameInput {
+  width: 100%;
+  height: 28px;
+  padding: 0 6px;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: #1e293b;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 3px;
   outline: none;
+  font-family: inherit;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: border-color 0.15s, background 0.15s;
+  box-sizing: border-box;
+  cursor: pointer;
+}
+
+.itemNameInput:hover {
+  border-color: #e2e8f0;
   background: #f8fafc;
+}
+
+.itemNameInput:focus {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: max(100%, 260px);
+  height: 32px;
+  background: #fff;
+  border: 1.5px solid #3b82f6;
+  border-radius: 4px;
+  box-shadow: 0 4px 16px rgba(59,130,246,0.15);
+  z-index: 30;
+  animation: nameExpand 0.18s cubic-bezier(0.16,1,0.3,1);
+  text-overflow: clip;
+  white-space: normal;
+}
+
+.itemBadges {
+  display: flex;
+  gap: 1px;
+  flex-shrink: 0;
+  font-size: 10px;
+  opacity: 0.7;
+}
+
+.tdAmt {
+  padding: 3px 2px;
+  vertical-align: middle;
+}
+
+/* 금액 입력 — GabjiItemsForm .itemAmtInput 동일 */
+.itemAmtInput {
+  width: 100%;
+  height: 26px;
+  padding: 0 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #1e293b;
+  text-align: right;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  outline: none;
   font-family: inherit;
   transition: border-color 0.15s, background 0.15s;
   box-sizing: border-box;
 }
 
-.cardDateInput:focus {
-  border-color: #3b82f6;
-  background: #fff;
-  box-shadow: 0 0 0 2px rgba(59,130,246,0.1);
-}
-
-.cardDateInput::placeholder {
-  color: #cbd5e1;
-}
-
-.cardBadges {
-  display: flex;
-  gap: 4px;
-  flex-shrink: 0;
-}
-
-.photoBadge,
-.noteBadge {
-  font-size: 13px;
-  opacity: 0.75;
-}
-
-/* ── 품명 + 단위/규격 ────────────────────────────────────────── */
-
-.nameRow {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 9px;
-  flex-wrap: wrap;
-}
-
-.itemName {
-  font-size: 15px;
-  font-weight: 600;
-  color: #1e293b;
-  line-height: 1.3;
-}
-
-.namePlaceholder {
-  font-style: normal;
-  color: #94a3b8;
-  font-weight: 400;
-}
-
-/* 단위/규격 태그 */
-.itemUnit {
-  font-size: 11px;
-  font-weight: 500;
-  color: #64748b;
-  background: #f1f5f9;
-  padding: 1px 6px;
-  border-radius: 4px;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-
-/* ── 수량 / 단가 / 금액 인라인 3열 ──────────────────────────── */
-
-.inlineFields {
-  display: grid;
-  grid-template-columns: 0.55fr 1fr 1fr;
-  gap: 6px;
-  margin-bottom: 10px;
-}
-
-.inlineField {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.inlineLabel {
-  font-size: 10px;
-  font-weight: 700;
-  color: #94a3b8;
-  letter-spacing: 0.3px;
-}
-
-/* 갑지 input 스타일과 동일 */
-.inlineInput {
-  height: 34px;
-  padding: 0 8px;
-  font-size: 13px;
-  font-weight: 500;
-  color: #1e293b;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 6px;
-  outline: none;
-  width: 100%;
-  box-sizing: border-box;
-  font-family: inherit;
-  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
-}
-
-.inlineInput:focus {
-  border-color: #3b82f6;
-  background: #fff;
+.itemAmtInput:hover { border-color: #e2e8f0; }
+.itemAmtInput:focus {
+  background: #eff6ff;
+  border-color: #93c5fd;
   box-shadow: 0 0 0 2px rgba(59,130,246,0.08);
 }
 
-.inlineInput::placeholder {
-  color: #cbd5e1;
+.itemAmtInput::placeholder { color: #cbd5e1; }
+
+.tdActions {
+  padding: 2px 4px;
+  vertical-align: middle;
 }
 
-/* 금액·단가: 숫자 강조 */
-.inlineInputAmt {
-  font-weight: 600;
-  text-align: right;
-}
-
-/* ── 액션 버튼 (하단) ───────────────────────────────────────── */
-
-.itemActions {
+.rowBtns {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
+  gap: 2px;
+  justify-content: center;
 }
 
-/* 수정 버튼 — 갑지 btnSecondary 스타일 */
-.itemEditBtn {
-  height: 32px;
-  padding: 0 13px;
+.rowEditBtn {
+  width: 22px;
+  height: 22px;
+  border: none;
   background: transparent;
-  color: #64748b;
-  border: 1px solid #cbd5e1;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 600;
+  color: #94a3b8;
   cursor: pointer;
-  transition: background 0.12s, color 0.12s, transform 0.1s;
-  font-family: inherit;
+  border-radius: 4px;
   display: flex;
   align-items: center;
-  gap: 5px;
+  justify-content: center;
+  padding: 0;
+  transition: background 0.1s, color 0.1s;
+  flex-shrink: 0;
 }
 
-.itemEditBtn:hover  { background: #f8fafc; color: #1e293b; border-color: #94a3b8; }
-.itemEditBtn:active { transform: scale(0.97); }
+.rowEditBtn:hover { background: #f1f5f9; color: #3b82f6; }
 
-/* 삭제 버튼 */
-.itemDeleteBtn {
-  height: 32px;
-  padding: 0 13px;
+.rowDelBtn {
+  width: 22px;
+  height: 22px;
+  border: none;
   background: transparent;
-  color: #ef4444;
-  border: 1px solid #fecaca;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 600;
+  color: #94a3b8;
+  font-size: 11px;
   cursor: pointer;
-  transition: background 0.12s, transform 0.1s;
-  font-family: inherit;
-}
-
-.itemDeleteBtn:hover  { background: #fef2f2; }
-.itemDeleteBtn:active { transform: scale(0.97); }
-
-/* 삭제 2단계 확인 */
-.deleteConfirm {
+  border-radius: 4px;
   display: flex;
-  gap: 6px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: background 0.1s, color 0.1s;
+  flex-shrink: 0;
 }
 
-.deleteConfirmNo {
-  height: 32px;
-  padding: 0 12px;
+.rowDelBtn:hover { background: #fef2f2; color: #ef4444; }
+
+.delConfirm {
+  display: flex;
+  gap: 2px;
+  align-items: center;
+  justify-content: center;
+}
+
+.delNo {
+  height: 22px;
+  padding: 0 5px;
+  font-size: 10px;
+  font-weight: 600;
   background: #f1f5f9;
   color: #64748b;
   border: none;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 600;
+  border-radius: 3px;
   cursor: pointer;
   font-family: inherit;
-  transition: background 0.12s;
 }
 
-.deleteConfirmNo:hover { background: #e2e8f0; }
-
-.deleteConfirmYes {
-  height: 32px;
-  padding: 0 13px;
+.delYes {
+  height: 22px;
+  padding: 0 5px;
+  font-size: 10px;
+  font-weight: 700;
   background: #ef4444;
   color: #fff;
   border: none;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 700;
+  border-radius: 3px;
   cursor: pointer;
   font-family: inherit;
-  transition: background 0.12s, transform 0.1s;
 }
-
-.deleteConfirmYes:hover  { background: #dc2626; }
-.deleteConfirmYes:active { transform: scale(0.97); }
 
 /* ── 항목 추가 버튼 ─────────────────────────────────────────── */
 
-.addItemBtn {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+.addRowBtn {
+  display: block;
   width: 100%;
-  padding: 12px 16px;
+  padding: 9px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #3b82f6;
   background: #fff;
   border: none;
   border-top: 1px dashed #e2e8f0;
-  font-size: 13px;
-  font-weight: 600;
-  color: #3b82f6;
-  cursor: pointer;
   text-align: left;
-  transition: background 0.12s;
+  cursor: pointer;
   font-family: inherit;
+  transition: background 0.12s;
 }
 
-.addItemIcon {
-  font-size: 16px;
-  line-height: 1;
+.addRowBtn:hover  { background: #eff6ff; }
+.addRowBtn:active { background: #dbeafe; }
+
+/* ════════════════════════════════════════════════════════════════
+   A4 미리보기 — GabjiHtmlPreview 동일 구조
+   ════════════════════════════════════════════════════════════════ */
+
+.previewOuter {
+  width: 100%;
+}
+
+.previewA4 {
+  width: 794px;
+  min-height: 400px;
+  background: #fff;
+  box-shadow: 0 4px 28px rgba(0,0,0,0.4);
+  padding: 28px 28px 40px;
+  box-sizing: border-box;
+  font-family: "맑은 고딕", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+  font-size: 9pt;
+  color: #111;
+}
+
+.previewDocTitle {
+  font-size: 13pt;
   font-weight: 700;
+  text-align: center;
+  margin-bottom: 16px;
+  letter-spacing: 2px;
 }
 
-.addItemBtn:hover  { background: #eff6ff; }
-.addItemBtn:active { background: #dbeafe; transform: scale(0.995); }
+/* 미리보기 테이블 */
+.previewTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 8.5pt;
+}
+
+.previewTable td,
+.previewTable th {
+  border: 1px solid #bbb;
+  padding: 4px 5px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.previewTh th {
+  background: #ebebeb;
+  border-color: #999;
+  font-weight: 700;
+  font-size: 8pt;
+}
+
+.previewLeft   { text-align: left !important; white-space: normal !important; }
+.previewRight  { text-align: right !important; font-variant-numeric: tabular-nums; }
+.previewCenter { text-align: center !important; }
+
+.previewCatHead td {
+  background: #f1f5f9;
+  font-weight: 700;
+  font-size: 8pt;
+  text-align: left !important;
+  border-color: #aaa;
+}
+
+.previewSumRow td {
+  background: #dbeafe;
+  font-weight: 700;
+  border: 1.5px solid #888;
+  font-size: 9pt;
+}
 
 /* ════════════════════════════════════════════════════════════════
    편집 바텀시트
@@ -441,7 +563,6 @@
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
-/* 데스크탑: 중앙 고정 */
 @media (min-width: 640px) {
   .editSheet {
     left: 50%;
@@ -461,9 +582,7 @@
 
 /* ── 편집 폼 내부 ────────────────────────────────────────────── */
 
-.editForm {
-  padding: 4px 0 0;
-}
+.editForm { padding: 4px 0 0; }
 
 .editFormHeader {
   display: flex;
@@ -510,7 +629,6 @@
   gap: 5px;
 }
 
-/* 갑지 label 스타일 통일 */
 .editField label {
   font-size: 10.5px;
   font-weight: 700;
@@ -523,24 +641,23 @@
   gap: 10px;
 }
 
-.editFieldRow .editFieldHalf {
+.editHalf {
   flex: 1;
   display: flex;
   flex-direction: column;
   gap: 5px;
 }
 
-.editFieldRow .editFieldHalf label {
+.editHalf label {
   font-size: 10.5px;
   font-weight: 700;
   color: #64748b;
 }
 
-/* 갑지 input 스타일과 동일 */
 .editInput {
   height: 44px;
   padding: 0 12px;
-  font-size: 16px; /* iOS 자동 확대 방지 */
+  font-size: 16px;
   font-weight: 500;
   color: #1e293b;
   background: #f8fafc;
@@ -560,28 +677,12 @@
   box-shadow: 0 0 0 3px rgba(59,130,246,0.1);
 }
 
-.editInput::placeholder {
-  color: #cbd5e1;
-  font-weight: 400;
-}
+.editInput::placeholder { color: #cbd5e1; font-weight: 400; }
 
-/* 금액 자동계산 필드 */
-.editInputAuto {
-  background: #f0fdf4;
-  border-color: #bbf7d0;
-  color: #065f46;
-}
+.editInputAuto { background: #f0fdf4; border-color: #bbf7d0; color: #065f46; }
+.editInputAuto:focus { border-color: #059669; box-shadow: 0 0 0 3px rgba(5,150,105,0.1); }
 
-.editInputAuto:focus {
-  border-color: #059669;
-  box-shadow: 0 0 0 3px rgba(5,150,105,0.1);
-}
-
-.editInputRow {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-}
+.editInputRow { display: flex; align-items: center; gap: 7px; }
 
 .editUnit {
   font-size: 13px;
@@ -608,10 +709,7 @@
   transition: border-color 0.15s;
 }
 
-.editSelect:focus {
-  border-color: #3b82f6;
-  background: #fff;
-}
+.editSelect:focus { border-color: #3b82f6; background: #fff; }
 
 .autoLabel {
   font-size: 10px;
@@ -652,13 +750,7 @@
   font-family: inherit;
 }
 
-.toggleOn {
-  background: #eff6ff;
-  border-color: #93c5fd;
-  color: #3b82f6;
-}
-
-/* ── 편집 폼 저장/취소 버튼 — 갑지 버튼 시스템 통일 ─────────── */
+.toggleOn { background: #eff6ff; border-color: #93c5fd; color: #3b82f6; }
 
 .editFormActions {
   display: flex;
@@ -667,7 +759,6 @@
   border-top: 1px solid #f1f5f9;
 }
 
-/* 갑지 btnSecondary 스타일 */
 .editCancel {
   flex: 1;
   height: 48px;
@@ -685,7 +776,6 @@
 .editCancel:hover  { background: #f8fafc; }
 .editCancel:active { transform: scale(0.98); }
 
-/* 갑지 btnPrimary 스타일 */
 .editSave {
   flex: 2;
   height: 48px;
@@ -703,10 +793,35 @@
 
 .editSave:hover   { background: #2563eb; }
 .editSave:active  { transform: scale(0.98); }
+.editSave:disabled { background: #e2e8f0; color: #94a3b8; box-shadow: none; cursor: default; }
 
-.editSave:disabled {
-  background: #e2e8f0;
-  color: #94a3b8;
-  box-shadow: none;
-  cursor: default;
+/* ════════════════════════════════════════════════════════════════
+   반응형
+   ════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 768px) {
+  .mobileTabs { display: flex; }
+
+  .editorBody {
+    grid-template-columns: 1fr;
+    overflow: auto;
+  }
+
+  .leftPanel {
+    border-right: none;
+    min-height: 0;
+  }
+
+  .rightPanel {
+    padding: 8px;
+    align-items: flex-start;
+  }
+}
+
+@media (min-width: 900px) {
+  .colAmt { width: 88px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .section, .itemRow { animation: none; }
 }

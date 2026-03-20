@@ -312,14 +312,13 @@
   animation: sheetFadeUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-/* 항목별세부내역 탭: padding 없이 ItemListView 꽉 채움 */
+/* 항목별세부내역 탭: GabjiEditor와 동일하게 overflow hidden (내부에서 관리) */
 .viewportItems {
   flex: 1;
   min-height: 0;
-  overflow-y: auto;
-  overflow-x: hidden;
-  -webkit-overflow-scrolling: touch;
-  animation: sheetFadeUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 .viewportPhoto::-webkit-scrollbar { width: 6px; height: 6px; }
 .viewportPhoto::-webkit-scrollbar-track { background: #e5e7eb; }

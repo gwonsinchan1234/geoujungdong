@@ -1,11 +1,10 @@
 "use client";
 
-// 항목별세부내역 카드 리스트
-// 갑지와 동일한 UX 흐름:
-//   • 요약바(상단 고정) → 카테고리 섹션 → 카드 → 바텀시트 편집
-// 카드 구성: NO / 사용일자(인라인) / 품명·단위 / 수량·단가·금액 / 수정·삭제
+// 항목별세부내역 에디터
+// GabjiEditor와 동일한 레이아웃:
+//   다크 툴바 → 모바일탭 → 에디터바디(좌: 카테고리표 | 우: A4 미리보기)
 
-import React, { useState, useCallback, useMemo } from "react";
+import React, { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import type { ItemData } from "./types";
 import {
@@ -14,7 +13,7 @@ import {
 } from "./types";
 import styles from "./item-list.module.css";
 
-// ── 숫자 인라인 입력 (포커스 시 raw, blur 시 포맷) ─────────────────
+// ── 숫자 인라인 입력 (포커스: raw값, blur: 포맷) ──────────────────
 function useInlineNum(value: number, onChange: (v: string) => void) {
   const [editing, setEditing] = React.useState(false);
   const [raw, setRaw]         = React.useState("");
@@ -27,7 +26,182 @@ function useInlineNum(value: number, onChange: (v: string) => void) {
 }
 
 // ══════════════════════════════════════════════════════════════════════
-// 항목 편집 폼 (바텀시트 내부)
+// A4 미리보기 (우측 패널) — GabjiHtmlPreview 동일 구조
+// ══════════════════════════════════════════════════════════════════════
+const A4_PX = 794;
+
+function ItemListPreview({ items }: { items: ItemData[] }) {
+  const outerRef = useRef<HTMLDivElement>(null);
+  const [zoomVal, setZoomVal] = useState(1);
+
+  useEffect(() => {
+    const update = () => {
+      if (!outerRef.current) return;
+      const cw = outerRef.current.clientWidth;
+      setZoomVal(cw > 16 ? Math.min(1, (cw - 32) / A4_PX) : 1);
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    if (outerRef.current) ro.observe(outerRef.current);
+    return () => ro.disconnect();
+  }, []);
+
+  const total = items.reduce((s, i) => s + i.amount, 0);
+
+  const grouped = useMemo(() => {
+    const map = new Map<number, ItemData[]>();
+    for (let i = 1; i <= 9; i++) map.set(i, []);
+    for (const item of items) map.get(item.categoryNo)?.push(item);
+    return map;
+  }, [items]);
+
+  const catSums = useMemo(
+    () => Object.fromEntries(
+      Array.from(grouped.entries()).map(([no, its]) => [no, its.reduce((s, i) => s + i.amount, 0)])
+    ),
+    [grouped],
+  );
+
+  return (
+    <div ref={outerRef} className={styles.previewOuter}>
+      <div style={{ zoom: zoomVal, width: A4_PX }}>
+        <div className={styles.previewA4}>
+          <div className={styles.previewDocTitle}>항목별 세부내역서</div>
+          <table className={styles.previewTable}>
+            <colgroup>
+              <col style={{ width: "7%" }} />
+              <col style={{ width: "9%" }} />
+              <col />
+              <col style={{ width: "6%" }} />
+              <col style={{ width: "5%" }} />
+              <col style={{ width: "14%" }} />
+              <col style={{ width: "14%" }} />
+            </colgroup>
+            <thead>
+              <tr className={styles.previewTh}>
+                <th>번호</th>
+                <th>사용일자</th>
+                <th>품명 / 규격</th>
+                <th>수량</th>
+                <th>단위</th>
+                <th>단가</th>
+                <th>금액</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr className={styles.previewSumRow}>
+                <td colSpan={6} className={styles.previewCenter}>합&nbsp;&nbsp;&nbsp;계</td>
+                <td className={styles.previewRight}>{fmtNum(total)}</td>
+              </tr>
+              {Array.from(grouped.entries()).flatMap(([catNo, catItems]) => {
+                if (catItems.length === 0) return [];
+                return [
+                  <tr key={`ch-${catNo}`} className={styles.previewCatHead}>
+                    <td colSpan={6}>{catNo}. {CATEGORY_LABELS[catNo]}</td>
+                    <td className={styles.previewRight}>{fmtNum(catSums[catNo])}</td>
+                  </tr>,
+                  ...catItems.map((item, idx) => (
+                    <tr key={item.id}>
+                      <td className={styles.previewCenter}>{item.evidenceNo || `NO.${idx + 1}`}</td>
+                      <td className={styles.previewCenter}>{item.usageDate}</td>
+                      <td className={styles.previewLeft}>{item.name}</td>
+                      <td className={styles.previewCenter}>{item.quantity || ""}</td>
+                      <td className={styles.previewCenter}>{item.unit}</td>
+                      <td className={styles.previewRight}>{item.unitPrice ? fmtNum(item.unitPrice) : ""}</td>
+                      <td className={styles.previewRight}>{fmtNum(item.amount)}</td>
+                    </tr>
+                  )),
+                ];
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// 항목 행 (테이블 row) — GabjiItemsForm과 동일한 인라인 편집 UX
+// ══════════════════════════════════════════════════════════════════════
+function ItemRow({
+  item, idx, deletingId,
+  onEdit, onDelete, onCancelDelete, onStartDelete, onInlineChange,
+}: {
+  item: ItemData;
+  idx: number;
+  deletingId: string | null;
+  onEdit: (item: ItemData) => void;
+  onDelete: (id: string) => void;
+  onCancelDelete: () => void;
+  onStartDelete: (id: string) => void;
+  onInlineChange: (id: string, field: keyof ItemData, raw: string) => void;
+}) {
+  const amtProps = useInlineNum(item.amount, v => onInlineChange(item.id, "amount", v));
+
+  return (
+    <tr
+      className={styles.itemRow}
+      style={{ animationDelay: `${idx * 0.03}s` } as React.CSSProperties}
+    >
+      {/* NO */}
+      <td className={styles.tdNo}>
+        <span className={styles.evNo}>{item.evidenceNo || idx + 1}</span>
+      </td>
+
+      {/* 품명 (expandable input) */}
+      <td className={styles.tdName}>
+        <div className={styles.nameWrap}>
+          <input
+            type="text"
+            className={styles.itemNameInput}
+            value={item.name}
+            onChange={e => onInlineChange(item.id, "name", e.target.value)}
+            placeholder="품명"
+          />
+          <span className={styles.itemBadges}>
+            {item.hasPhoto && <span>📷</span>}
+            {item.note     && <span>📝</span>}
+          </span>
+        </div>
+      </td>
+
+      {/* 금액 */}
+      <td className={styles.tdAmt}>
+        <input
+          className={styles.itemAmtInput}
+          inputMode="numeric"
+          placeholder="0"
+          {...amtProps}
+        />
+      </td>
+
+      {/* 액션 */}
+      <td className={styles.tdActions}>
+        {deletingId === item.id ? (
+          <div className={styles.delConfirm}>
+            <button className={styles.delNo}  onClick={onCancelDelete}>취소</button>
+            <button className={styles.delYes} onClick={() => onDelete(item.id)}>삭제</button>
+          </div>
+        ) : (
+          <div className={styles.rowBtns}>
+            <button className={styles.rowEditBtn} onClick={() => onEdit(item)} title="수정">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+              </svg>
+            </button>
+            <button className={styles.rowDelBtn} onClick={() => onStartDelete(item.id)} title="삭제">✕</button>
+          </div>
+        )}
+      </td>
+    </tr>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// 항목 편집 폼 (바텀시트 내부) — 이전과 동일
 // ══════════════════════════════════════════════════════════════════════
 function ItemEditForm({
   item, onSave, onCancel,
@@ -57,7 +231,6 @@ function ItemEditForm({
       </div>
 
       <div className={styles.editFormBody}>
-
         {/* 카테고리 */}
         <div className={styles.editField}>
           <label>카테고리</label>
@@ -75,42 +248,32 @@ function ItemEditForm({
         {/* 사용일자 */}
         <div className={styles.editField}>
           <label>사용일자</label>
-          <input
-            className={styles.editInput} type="text"
+          <input className={styles.editInput} type="text"
             value={local.usageDate} placeholder="예: 26.01.15"
-            onChange={e => setF("usageDate", e.target.value)}
-          />
+            onChange={e => setF("usageDate", e.target.value)} />
         </div>
 
         {/* 품명 */}
         <div className={styles.editField}>
           <label>품명</label>
-          <input
-            className={styles.editInput} type="text"
+          <input className={styles.editInput} type="text"
             value={local.name} placeholder="품명 입력"
-            onChange={e => setF("name", e.target.value)}
-          />
+            onChange={e => setF("name", e.target.value)} />
         </div>
 
         {/* 수량 + 단위 */}
         <div className={`${styles.editField} ${styles.editFieldRow}`}>
-          <div className={styles.editFieldHalf}>
+          <div className={styles.editHalf}>
             <label>수량</label>
-            <input
-              className={styles.editInput} type="number" min="0"
-              value={local.quantity || ""}
-              placeholder="0"
-              onChange={e => setF("quantity", parseNum(e.target.value))}
-            />
+            <input className={styles.editInput} type="number" min="0"
+              value={local.quantity || ""} placeholder="0"
+              onChange={e => setF("quantity", parseNum(e.target.value))} />
           </div>
-          <div className={styles.editFieldHalf}>
+          <div className={styles.editHalf}>
             <label>단위 / 규격</label>
-            <input
-              className={styles.editInput} type="text"
-              value={local.unit} placeholder="식"
-              list="itemUnitList"
-              onChange={e => setF("unit", e.target.value)}
-            />
+            <input className={styles.editInput} type="text"
+              value={local.unit} placeholder="식" list="itemUnitList"
+              onChange={e => setF("unit", e.target.value)} />
             <datalist id="itemUnitList">
               {UNIT_SUGGESTIONS.map(u => <option key={u} value={u} />)}
             </datalist>
@@ -121,17 +284,14 @@ function ItemEditForm({
         <div className={styles.editField}>
           <label>단가</label>
           <div className={styles.editInputRow}>
-            <input
-              className={styles.editInput} type="text" inputMode="numeric"
-              value={local.unitPrice ? fmtNum(local.unitPrice) : ""}
-              placeholder="0"
-              onChange={e => setF("unitPrice", parseNum(e.target.value))}
-            />
+            <input className={styles.editInput} type="text" inputMode="numeric"
+              value={local.unitPrice ? fmtNum(local.unitPrice) : ""} placeholder="0"
+              onChange={e => setF("unitPrice", parseNum(e.target.value))} />
             <span className={styles.editUnit}>원</span>
           </div>
         </div>
 
-        {/* 금액 (자동계산, 수동 수정 가능) */}
+        {/* 금액 */}
         <div className={styles.editField}>
           <label>금액 <span className={styles.autoLabel}>수량×단가 자동</span></label>
           <div className={styles.editInputRow}>
@@ -149,14 +309,12 @@ function ItemEditForm({
         {/* 비고 */}
         <div className={styles.editField}>
           <label>비고</label>
-          <input
-            className={styles.editInput} type="text"
+          <input className={styles.editInput} type="text"
             value={local.note} placeholder="선택사항"
-            onChange={e => setF("note", e.target.value)}
-          />
+            onChange={e => setF("note", e.target.value)} />
         </div>
 
-        {/* 사진대지 포함 토글 */}
+        {/* 사진대지 포함 */}
         <div className={`${styles.editField} ${styles.editFieldToggle}`}>
           <label>사진대지 포함</label>
           <button
@@ -167,7 +325,6 @@ function ItemEditForm({
             {local.hasPhoto ? "📷 포함" : "제외"}
           </button>
         </div>
-
       </div>
 
       <div className={styles.editFormActions}>
@@ -185,115 +342,6 @@ function ItemEditForm({
 }
 
 // ══════════════════════════════════════════════════════════════════════
-// 항목 카드
-// ══════════════════════════════════════════════════════════════════════
-function ItemCard({
-  item, idx, deletingId,
-  onEdit, onDelete, onCancelDelete, onStartDelete, onInlineChange,
-}: {
-  item: ItemData;
-  idx: number;
-  deletingId: string | null;
-  onEdit: (item: ItemData) => void;
-  onDelete: (id: string) => void;
-  onCancelDelete: () => void;
-  onStartDelete: (id: string) => void;
-  onInlineChange: (id: string, field: keyof ItemData, raw: string) => void;
-}) {
-  const qtyProps       = useInlineNum(item.quantity,  v => onInlineChange(item.id, "quantity",  v));
-  const unitPriceProps = useInlineNum(item.unitPrice, v => onInlineChange(item.id, "unitPrice", v));
-  const amountProps    = useInlineNum(item.amount,    v => onInlineChange(item.id, "amount",    v));
-
-  return (
-    <div
-      className={styles.itemCard}
-      style={{ animationDelay: `${idx * 0.03}s` } as React.CSSProperties}
-    >
-      {/* ── 상단: NO / 날짜 / 배지 ─────────────────────────── */}
-      <div className={styles.cardTop}>
-        <span className={styles.itemEvNo}>
-          {item.evidenceNo || `NO.${idx + 1}`}
-        </span>
-        <input
-          className={styles.cardDateInput}
-          value={item.usageDate}
-          placeholder="YY.MM.DD"
-          onChange={e => onInlineChange(item.id, "usageDate", e.target.value)}
-        />
-        <div className={styles.cardBadges}>
-          {item.hasPhoto && <span className={styles.photoBadge}>📷</span>}
-          {item.note     && <span className={styles.noteBadge}>📝</span>}
-        </div>
-      </div>
-
-      {/* ── 품명 + 단위/규격 ────────────────────────────────── */}
-      <div className={styles.nameRow}>
-        <span className={styles.itemName}>
-          {item.name || <em className={styles.namePlaceholder}>품명 없음</em>}
-        </span>
-        {item.unit && (
-          <span className={styles.itemUnit}>{item.unit}</span>
-        )}
-      </div>
-
-      {/* ── 수량 / 단가 / 금액 인라인 ───────────────────────── */}
-      <div className={styles.inlineFields}>
-        <div className={styles.inlineField}>
-          <span className={styles.inlineLabel}>수량</span>
-          <input
-            className={styles.inlineInput}
-            inputMode="numeric"
-            placeholder="0"
-            {...qtyProps}
-          />
-        </div>
-        <div className={styles.inlineField}>
-          <span className={styles.inlineLabel}>단가</span>
-          <input
-            className={`${styles.inlineInput} ${styles.inlineInputAmt}`}
-            inputMode="numeric"
-            placeholder="0"
-            {...unitPriceProps}
-          />
-        </div>
-        <div className={styles.inlineField}>
-          <span className={styles.inlineLabel}>금액</span>
-          <input
-            className={`${styles.inlineInput} ${styles.inlineInputAmt}`}
-            inputMode="numeric"
-            placeholder="0"
-            {...amountProps}
-          />
-        </div>
-      </div>
-
-      {/* ── 액션: 수정(좌) / 삭제(우) ───────────────────────── */}
-      <div className={styles.itemActions}>
-        <button className={styles.itemEditBtn} onClick={() => onEdit(item)}>
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
-            stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
-            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-          </svg>
-          수정
-        </button>
-
-        {deletingId === item.id ? (
-          <div className={styles.deleteConfirm}>
-            <button className={styles.deleteConfirmNo}  onClick={onCancelDelete}>취소</button>
-            <button className={styles.deleteConfirmYes} onClick={() => onDelete(item.id)}>삭제 확인</button>
-          </div>
-        ) : (
-          <button className={styles.itemDeleteBtn} onClick={() => onStartDelete(item.id)}>
-            삭제
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ══════════════════════════════════════════════════════════════════════
 // 메인 컴포넌트
 // ══════════════════════════════════════════════════════════════════════
 interface Props {
@@ -304,8 +352,8 @@ interface Props {
 export default function ItemListView({ items, onChange }: Props) {
   const [editingItem, setEditingItem] = useState<ItemData | null>(null);
   const [deletingId,  setDeletingId]  = useState<string | null>(null);
+  const [mobileTab,   setMobileTab]   = useState<"list" | "preview">("list");
 
-  // 카테고리별 그룹핑 (1~9)
   const grouped = useMemo(() => {
     const map = new Map<number, ItemData[]>();
     for (let i = 1; i <= 9; i++) map.set(i, []);
@@ -316,7 +364,7 @@ export default function ItemListView({ items, onChange }: Props) {
   const total = useMemo(() => items.reduce((s, i) => s + i.amount, 0), [items]);
 
   const handleAdd  = useCallback((catNo: number) => setEditingItem(makeNewItem(catNo)), []);
-  const handleEdit = useCallback((item: ItemData)  => setEditingItem({ ...item }), []);
+  const handleEdit = useCallback((item: ItemData) => setEditingItem({ ...item }), []);
 
   const handleSave = useCallback((saved: ItemData) => {
     const exists = items.some(i => i.id === saved.id);
@@ -336,6 +384,7 @@ export default function ItemListView({ items, onChange }: Props) {
     onChange(items.map(it => {
       if (it.id !== id) return it;
       if (field === "usageDate") return { ...it, usageDate: raw };
+      if (field === "name")      return { ...it, name: raw };
       const num = parseNum(raw);
       if (field === "quantity") {
         const qty = isNaN(num) ? it.quantity : num;
@@ -353,63 +402,95 @@ export default function ItemListView({ items, onChange }: Props) {
   }, [items, onChange]);
 
   return (
-    <div className={styles.listView}>
+    <div className={styles.editor}>
 
-      {/* ── DEBUG TEST-A: 이 배너가 보이면 ItemListView v2 렌더 확인 ── */}
-      <div style={{ background: "#dc2626", color: "#fff", padding: "5px 14px", fontSize: 11, fontWeight: 700, letterSpacing: 0.3, flexShrink: 0 }}>
-        TEST-A · ItemListView v2 렌더 확인 · items: {items.length}개
-      </div>
-      {/* ─────────────────────────────────────────────────────────────── */}
-
-      {/* ── 전체 요약바 (sticky) ──────────────────────────── */}
-      <div className={styles.summaryBar}>
-        <span className={styles.summaryLabel}>총 {items.length}건</span>
-        <span className={styles.summaryTotal}>{fmtNum(total)}원</span>
+      {/* ── 툴바 (갑지 동일 다크 테마) ──────────────────────────── */}
+      <div className={styles.toolbar}>
+        <span className={styles.toolbarTitle}>항목별세부내역</span>
+        <span className={styles.toolbarSep} />
+        <span className={styles.toolbarCount}>총 {items.length}건</span>
+        <span className={styles.toolbarTotal}>{fmtNum(total)}원</span>
       </div>
 
-      {/* ── 카테고리별 섹션 ──────────────────────────────── */}
-      {Array.from(grouped.entries()).map(([catNo, catItems]) => {
-        const catSum = catItems.reduce((s, i) => s + i.amount, 0);
-        return (
-          <section
-            key={catNo}
-            className={`${styles.catGroup} ${catItems.length === 0 ? styles.catGroupEmpty : ""}`}
-          >
-            {/* 카테고리 헤더 (sticky) */}
-            <div className={styles.catHeader}>
-              <span className={styles.catNo}>{catNo}</span>
-              <span className={styles.catLabel}>{CATEGORY_SHORT[catNo]}</span>
-              {catSum > 0 && (
-                <span className={styles.catTotal}>{fmtNum(catSum)}원</span>
-              )}
-              <span className={styles.catCount}>{catItems.length}건</span>
-            </div>
+      {/* ── 모바일 탭 (데스크탑 숨김) ───────────────────────────── */}
+      <div className={styles.mobileTabs}>
+        <button
+          className={`${styles.mobileTab} ${mobileTab === "list" ? styles.mobileTabActive : ""}`}
+          onClick={() => setMobileTab("list")}
+        >항목 편집</button>
+        <button
+          className={`${styles.mobileTab} ${mobileTab === "preview" ? styles.mobileTabActive : ""}`}
+          onClick={() => setMobileTab("preview")}
+        >미리보기</button>
+      </div>
 
-            {/* 항목 카드들 */}
-            {catItems.map((item, idx) => (
-              <ItemCard
-                key={item.id}
-                item={item}
-                idx={idx}
-                deletingId={deletingId}
-                onEdit={handleEdit}
-                onDelete={handleDelete}
-                onCancelDelete={() => setDeletingId(null)}
-                onStartDelete={setDeletingId}
-                onInlineChange={handleInlineChange}
-              />
-            ))}
+      {/* ── 에디터 바디: 좌(항목 표) + 우(A4 미리보기) ──────────── */}
+      <div className={styles.editorBody}>
 
-            {/* 항목 추가 */}
-            <button className={styles.addItemBtn} onClick={() => handleAdd(catNo)}>
-              <span className={styles.addItemIcon}>+</span>
-              항목 추가
-            </button>
-          </section>
-        );
-      })}
+        {/* 좌측 패널 */}
+        <div className={`${styles.leftPanel} ${mobileTab === "preview" ? styles.mobileHidden : ""}`}>
+          <div className={styles.formWrap}>
+            {Array.from(grouped.entries()).map(([catNo, catItems], sectionIdx) => {
+              const catSum = catItems.reduce((s, i) => s + i.amount, 0);
+              return (
+                <section
+                  key={catNo}
+                  className={styles.section}
+                  style={{ animationDelay: `${sectionIdx * 0.06}s` } as React.CSSProperties}
+                >
+                  {/* 카테고리 헤더 */}
+                  <div className={styles.sectionTitle}>
+                    <span className={styles.catBadge}>{catNo}</span>
+                    <span className={styles.catLabel}>{CATEGORY_SHORT[catNo]}</span>
+                    {catSum > 0 && <span className={styles.catSum}>{fmtNum(catSum)}원</span>}
+                    <span className={styles.catCount}>{catItems.length}건</span>
+                  </div>
 
-      {/* ── 편집 바텀시트 (portal → body) ────────────────── */}
+                  {/* 항목 테이블 */}
+                  {catItems.length > 0 && (
+                    <table className={styles.itemsTable}>
+                      <colgroup>
+                        <col className={styles.colNo} />
+                        <col />
+                        <col className={styles.colAmt} />
+                        <col className={styles.colActions} />
+                      </colgroup>
+                      <tbody>
+                        {catItems.map((item, idx) => (
+                          <ItemRow
+                            key={item.id}
+                            item={item}
+                            idx={idx}
+                            deletingId={deletingId}
+                            onEdit={handleEdit}
+                            onDelete={handleDelete}
+                            onCancelDelete={() => setDeletingId(null)}
+                            onStartDelete={setDeletingId}
+                            onInlineChange={handleInlineChange}
+                          />
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+
+                  {/* 항목 추가 */}
+                  <button className={styles.addRowBtn} onClick={() => handleAdd(catNo)}>
+                    + 항목 추가
+                  </button>
+                </section>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* 우측 패널: A4 미리보기 */}
+        <div className={`${styles.rightPanel} ${mobileTab === "list" ? styles.mobileHidden : ""}`}>
+          <ItemListPreview items={items} />
+        </div>
+
+      </div>
+
+      {/* ── 편집 바텀시트 (portal → body) ───────────────────────── */}
       {editingItem && typeof document !== "undefined" && createPortal(
         <>
           <div className={styles.editBackdrop} onClick={() => setEditingItem(null)} />
@@ -422,7 +503,7 @@ export default function ItemListView({ items, onChange }: Props) {
             />
           </div>
         </>,
-        document.body
+        document.body,
       )}
     </div>
   );
