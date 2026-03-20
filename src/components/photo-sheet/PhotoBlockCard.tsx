@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import type { PhotoBlock, OnSlotClick, OnPhotoDelete, OnMetaUpdate } from "./types";
 import PhotoGrid from "./PhotoGrid";
 import styles from "./photo-sheet.module.css";
@@ -60,25 +61,33 @@ function LabelSelect({ value, options, onChange }: {
         <span className={`${styles.labelSelectArrow} ${open ? styles.labelSelectArrowOpen : ""}`}>▾</span>
       </button>
 
-      {open && (
-        <div className={styles.labelSelectMenu}>
-          {options.map(opt => {
-            const isActive = opt === value;
-            return (
-              <button
-                key={opt}
-                ref={isActive ? activeRef : undefined}
-                type="button"
-                className={`${styles.labelSelectOption} ${isActive ? styles.labelSelectOptionActive : ""}`}
-                onClick={() => { onChange(opt); setOpen(false); }}
-              >
-                <span className={styles.labelSelectCheck}>{isActive ? "✓" : ""}</span>
-                <span className={styles.labelSelectOptionText}>{opt}</span>
-              </button>
-            );
-          })}
-        </div>
-      )}
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            className={styles.labelSelectMenu}
+            initial={{ opacity: 0, y: 6, scale: 0.97 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 4, scale: 0.97 }}
+            transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
+          >
+            {options.map(opt => {
+              const isActive = opt === value;
+              return (
+                <button
+                  key={opt}
+                  ref={isActive ? activeRef : undefined}
+                  type="button"
+                  className={`${styles.labelSelectOption} ${isActive ? styles.labelSelectOptionActive : ""}`}
+                  onClick={() => { onChange(opt); setOpen(false); }}
+                >
+                  <span className={styles.labelSelectCheck}>{isActive ? "✓" : ""}</span>
+                  <span className={styles.labelSelectOptionText}>{opt}</span>
+                </button>
+              );
+            })}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -163,7 +172,12 @@ export default function PhotoBlockCard({
   }
 
   return (
-    <div className={styles.blockCard}>
+    <motion.div
+      className={styles.blockCard}
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+    >
 
       {/* ── NO.XX 헤더 ── */}
       <div className={styles.blockHeader}>
@@ -219,6 +233,6 @@ export default function PhotoBlockCard({
         </div>
       </div>
 
-    </div>
+    </motion.div>
   );
 }

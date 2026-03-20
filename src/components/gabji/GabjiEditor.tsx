@@ -6,6 +6,7 @@
 // 인쇄 → react-pdf blob → 새 탭 열기
 
 import React, { useState, useCallback, useEffect } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import type { GabjiDoc, GabjiItem } from "./types";
 import { makeDefaultItems, makeEmptyDoc } from "./types";
 import GabjiForm from "./GabjiForm";
@@ -184,21 +185,39 @@ export default function GabjiEditor({ initialDoc, initialItems }: Props) {
       </div>
 
       {/* 로딩 오버레이 */}
-      {loading && (
-        <div className={styles.loadingOverlay}>
-          <div className={styles.loadingCard}>
-            <div className={styles.loadingSpinner} />
-            <span className={styles.loadingText}>처리 중…</span>
-          </div>
-        </div>
-      )}
+      <AnimatePresence>
+        {loading && (
+          <motion.div
+            className={styles.loadingOverlay}
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            transition={{ duration: 0.18 }}
+          >
+            <motion.div
+              className={styles.loadingCard}
+              initial={{ scale: 0.92, y: 8 }} animate={{ scale: 1, y: 0 }}
+              transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+            >
+              <div className={styles.loadingSpinner} />
+              <span className={styles.loadingText}>처리 중…</span>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* 토스트 */}
-      {toast && (
-        <div className={`${styles.toast} ${toast.type === "error" ? styles.toastError : styles.toastSuccess}`}>
-          {toast.msg}
-        </div>
-      )}
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            className={`${styles.toast} ${toast.type === "error" ? styles.toastError : styles.toastSuccess}`}
+            initial={{ opacity: 0, y: 10, x: "-50%" }}
+            animate={{ opacity: 1, y: 0,  x: "-50%" }}
+            exit={{    opacity: 0, y: 6,  x: "-50%" }}
+            transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+          >
+            {toast.msg}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

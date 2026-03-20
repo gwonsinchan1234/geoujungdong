@@ -7,6 +7,7 @@
 
 import React, { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
+import { motion, AnimatePresence } from "framer-motion";
 import type { ItemData } from "./types";
 import {
   CATEGORY_LABELS, UNIT_SUGGESTIONS,
@@ -141,9 +142,11 @@ function ItemRow({
   const amtProps = useInlineNum(item.amount, v => onInlineChange(item.id, "amount", v));
 
   return (
-    <tr
+    <motion.tr
       className={styles.itemRow}
-      style={{ animationDelay: `${idx * 0.03}s` } as React.CSSProperties}
+      initial={{ opacity: 0, x: -8 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1], delay: idx * 0.03 }}
     >
       {/* NO */}
       <td className={styles.itemNo}>
@@ -191,7 +194,7 @@ function ItemRow({
           </div>
         )}
       </td>
-    </tr>
+    </motion.tr>
   );
 }
 
@@ -458,10 +461,12 @@ export default function ItemListView({ items, onChange, onSave, onPrint, saved }
             {Array.from(grouped.entries()).map(([catNo, catItems], sectionIdx) => {
               const catSum = catItems.reduce((s, i) => s + i.amount, 0);
               return (
-                <div
+                <motion.div
                   key={catNo}
                   className={styles.sectionCard}
-                  style={{ animationDelay: `${sectionIdx * 0.06}s` } as React.CSSProperties}
+                  initial={{ opacity: 0, y: 14, scale: 0.98 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1], delay: sectionIdx * 0.06 }}
                 >
                   {/* 카테고리 헤더 */}
                   <div className={styles.sectionHeader}>
@@ -516,7 +521,7 @@ export default function ItemListView({ items, onChange, onSave, onPrint, saved }
                   <button className={styles.addRowBtn} onClick={() => handleAdd(catNo)}>
                     + 항목 추가
                   </button>
-                </div>
+                </motion.div>
               );
             })}
           </div>
@@ -530,18 +535,33 @@ export default function ItemListView({ items, onChange, onSave, onPrint, saved }
       </div>
 
       {/* ── 편집 바텀시트 (portal → body) ───────────────────────── */}
-      {editingItem && typeof document !== "undefined" && createPortal(
-        <>
-          <div className={styles.editBackdrop} onClick={() => setEditingItem(null)} />
-          <div className={styles.editSheet}>
-            <div className={styles.sheetHandle} />
-            <ItemEditForm
-              item={editingItem}
-              onSave={handleSave}
-              onCancel={() => setEditingItem(null)}
-            />
-          </div>
-        </>,
+      {typeof document !== "undefined" && createPortal(
+        <AnimatePresence>
+          {editingItem && (
+            <>
+              <motion.div
+                key="backdrop"
+                className={styles.editBackdrop}
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                onClick={() => setEditingItem(null)}
+              />
+              <motion.div
+                key="sheet"
+                className={styles.editSheet}
+                initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+                transition={{ type: "spring", damping: 32, stiffness: 380 }}
+              >
+                <div className={styles.sheetHandle} />
+                <ItemEditForm
+                  item={editingItem}
+                  onSave={handleSave}
+                  onCancel={() => setEditingItem(null)}
+                />
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>,
         document.body,
       )}
     </div>

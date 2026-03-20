@@ -42,12 +42,7 @@
   overflow: hidden;
   background: #fff;
   box-shadow: 0 1px 3px rgba(0, 0, 0, .05), 0 1px 8px rgba(0, 0, 0, .03);
-  animation: fadeUp 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-
-@keyframes fadeUp {
-  from { opacity: 0; transform: translateY(12px); }
-  to   { opacity: 1; transform: translateY(0); }
+  /* fadeUp → Framer Motion */
 }
 
 /* NO.XX 헤더 */
@@ -401,12 +396,7 @@
   overflow-y: auto;
   z-index: 200;
   padding: 4px;
-  animation: menuPop 0.15s cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-
-@keyframes menuPop {
-  from { opacity: 0; transform: translateY(6px) scale(0.97); }
-  to   { opacity: 1; transform: translateY(0) scale(1); }
+  /* menuPop → Framer Motion AnimatePresence */
 }
 
 .labelSelectOption {

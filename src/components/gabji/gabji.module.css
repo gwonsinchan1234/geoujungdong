@@ -5,23 +5,13 @@
    ════════════════════════════════════════════════════════════════ */
 
 /* ── 키프레임 ─────────────────────────────────────────────────── */
-@keyframes gabjiUp {
-  from { opacity: 0; transform: translateY(14px) scale(0.98); }
-  to   { opacity: 1; transform: translateY(0) scale(1); }
-}
-@keyframes itemIn {
-  from { opacity: 0; transform: translateX(-8px); }
-  to   { opacity: 1; transform: translateX(0); }
-}
+/* gabjiUp, itemIn → Framer Motion으로 대체됨 */
 @keyframes nameExpand {
   from { opacity: 0.6; transform: translateY(-50%) scaleX(0.92); }
   to   { opacity: 1;   transform: translateY(-50%) scaleX(1); }
 }
 @keyframes fadeIn  { from { opacity: 0; } to { opacity: 1; } }
-@keyframes toastIn {
-  from { opacity: 0; transform: translateX(-50%) translateY(12px); }
-  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
-}
+/* toastIn → Framer Motion으로 대체됨 */
 @keyframes spin { to { transform: rotate(360deg); } }
 @keyframes shake {
   0%,100% { transform: translateX(0); }
@@ -142,12 +132,8 @@
   border-radius: 12px;
   padding: 16px;
   box-shadow: 0 1px 3px rgba(0,0,0,.04), 0 1px 8px rgba(0,0,0,.02);
-  animation: gabjiUp 0.45s cubic-bezier(0.16,1,0.3,1) both;
+  /* 진입 애니메이션 → Framer Motion */
 }
-.section:nth-child(1) { animation-delay: 0.00s; }
-.section:nth-child(2) { animation-delay: 0.06s; }
-.section:nth-child(3) { animation-delay: 0.12s; }
-.section:nth-child(4) { animation-delay: 0.18s; }
 
 /* 섹션 제목 — 좌측 회색 액센트 바 */
 .sectionTitle {
@@ -362,7 +348,7 @@
 .loadingOverlay {
   position: fixed; inset: 0; display: flex; align-items: center;
   justify-content: center; background: rgba(15,23,42,.6);
-  z-index: 100; animation: fadeIn 0.15s ease;
+  z-index: 100; /* fadeIn → Framer Motion */
 }
 .loadingCard {
   background: #1e293b; border-radius: 14px; padding: 24px 32px;
@@ -376,11 +362,11 @@
 .loadingText { font-size: 13px; color: #94a3b8; }
 
 .toast {
-  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+  position: fixed; bottom: 24px; left: 50%;
   background: #1e293b; color: #f1f5f9; border-radius: 10px;
   padding: 10px 20px; font-size: 13px; font-weight: 500;
   box-shadow: 0 4px 20px rgba(0,0,0,.25); z-index: 200;
-  animation: toastIn 0.3s cubic-bezier(0.16,1,0.3,1);
+  /* transform + animation → Framer Motion */
   pointer-events: none; white-space: nowrap;
 }
 .toastSuccess { border-left: 3px solid #6b7280; }

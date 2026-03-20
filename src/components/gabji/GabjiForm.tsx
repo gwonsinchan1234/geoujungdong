@@ -4,9 +4,16 @@
 // 수치 필드: blur 시 쉼표 포맷, focus 시 raw 숫자
 
 import React, { useCallback, useEffect, useState } from "react";
+import { motion } from "framer-motion";
 import type { GabjiDoc } from "./types";
 import { fmtWon, parseNum } from "./types";
 import styles from "./gabji.module.css";
+
+const sCard = (i: number) => ({
+  initial: { opacity: 0, y: 14, scale: 0.98 },
+  animate: { opacity: 1, y: 0, scale: 1 },
+  transition: { duration: 0.45, ease: [0.16, 1, 0.3, 1] as number[], delay: i * 0.08 },
+});
 
 interface Props {
   doc: GabjiDoc;
@@ -97,7 +104,7 @@ export default function GabjiForm({ doc, onChange }: Props) {
   return (
     <div className={styles.formWrap}>
       {/* ── 현장 기본정보 ── */}
-      <div className={styles.section}>
+      <motion.div className={styles.section} {...sCard(0)}>
         <div className={styles.sectionTitle}>현장 기본정보</div>
         <div className={styles.fieldGrid}>
           <div className={`${styles.field} ${styles.fieldFull}`}>
@@ -132,10 +139,10 @@ export default function GabjiForm({ doc, onChange }: Props) {
             />
           </div>
         </div>
-      </div>
+      </motion.div>
 
       {/* ── 공사 기간 · 금액 ── */}
-      <div className={styles.section}>
+      <motion.div className={styles.section} {...sCard(1)}>
         <div className={styles.sectionTitle}>공사 기간 · 금액</div>
         <div className={styles.fieldGrid}>
           <div className={styles.field}>
@@ -193,10 +200,10 @@ export default function GabjiForm({ doc, onChange }: Props) {
             />
           </div>
         </div>
-      </div>
+      </motion.div>
 
       {/* ── 확인자 서명 ── */}
-      <div className={styles.section}>
+      <motion.div className={styles.section} {...sCard(2)}>
         <div className={styles.sectionTitle}>확인자 서명</div>
         <div className={styles.fieldGrid}>
           <div className={styles.field}>
@@ -216,7 +223,7 @@ export default function GabjiForm({ doc, onChange }: Props) {
             <input {...txt("checker2_name")} placeholder="홍길동" />
           </div>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }
