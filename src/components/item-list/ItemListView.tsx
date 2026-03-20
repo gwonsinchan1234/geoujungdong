@@ -355,6 +355,12 @@ export default function ItemListView({ items, onChange }: Props) {
   return (
     <div className={styles.listView}>
 
+      {/* ── DEBUG TEST-A: 이 배너가 보이면 ItemListView v2 렌더 확인 ── */}
+      <div style={{ background: "#dc2626", color: "#fff", padding: "5px 14px", fontSize: 11, fontWeight: 700, letterSpacing: 0.3, flexShrink: 0 }}>
+        TEST-A · ItemListView v2 렌더 확인 · items: {items.length}개
+      </div>
+      {/* ─────────────────────────────────────────────────────────────── */}
+
       {/* ── 전체 요약바 (sticky) ──────────────────────────── */}
       <div className={styles.summaryBar}>
         <span className={styles.summaryLabel}>총 {items.length}건</span>

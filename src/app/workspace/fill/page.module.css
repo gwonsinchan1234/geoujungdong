@@ -311,6 +311,16 @@
   position: relative;     /* saveToast absolute 기준점 */
   animation: sheetFadeUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
+
+/* 항목별세부내역 탭: padding 없이 ItemListView 꽉 채움 */
+.viewportItems {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  animation: sheetFadeUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
 .viewportPhoto::-webkit-scrollbar { width: 6px; height: 6px; }
 .viewportPhoto::-webkit-scrollbar-track { background: #e5e7eb; }
 .viewportPhoto::-webkit-scrollbar-thumb { background: #9ca3af; border-radius: 3px; }

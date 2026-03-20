@@ -1504,6 +1504,11 @@ img{image-rendering:high-quality;display:block}
   const isCoverActive = sheet ? isCoverSheet(sheet.name) : false;
   const isItemActive  = sheet ? isItemSheet(sheet.name)  : false;
 
+  // DEBUG TEST-B: 시트 감지 결과 콘솔 출력
+  if (typeof window !== "undefined" && sheet) {
+    console.log("[TEST-B] sheet:", sheet.name, "| isCover:", isCoverActive, "| isItem:", isItemActive, "| isPhoto:", isPhotoSheet(sheet.name));
+  }
+
   // ── 갑지 GabjiData → 새 GabjiEditor 타입으로 변환 ─────────────
   const itemAmountsForGabji = useMemo(
     () => Object.fromEntries(Array.from({ length: 9 }, (_, i) => [i + 1, sumByCategory(items, i + 1)])),
@@ -1693,7 +1698,7 @@ img{image-rendering:high-quality;display:block}
               />
             </div>
           ) : sheet && isItemSheet(sheet.name) ? (
-            <div key={`items-${activeSheet}`} className={styles.viewportPhoto}>
+            <div key={`items-${activeSheet}`} className={styles.viewportItems}>
               <ItemListView items={items} onChange={handleItemsChange} />
             </div>
           ) : sheet && isPhotoSheet(sheet.name) ? (
