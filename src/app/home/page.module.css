@@ -5,7 +5,7 @@
   position: fixed;
   inset: 0;
   z-index: 9999;
-  background: #000;
+  background: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -13,10 +13,9 @@
 }
 
 .splashLogo {
-  width: clamp(160px, 45vw, 260px);
+  width: clamp(140px, 40vw, 220px);
   height: auto;
   object-fit: contain;
-  filter: brightness(0) invert(1);
 }
 
 /* ── Design tokens ── */
