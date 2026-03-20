@@ -72,7 +72,7 @@
   white-space: nowrap;
 }
 
-/* gabji 버튼 완전 동일 (미래 확장용 포함) */
+/* 버튼 — gabji 완전 동일 */
 .btnPrimary {
   height: 32px; padding: 0 14px; background: #3b82f6; color: #fff;
   border: none; border-radius: 6px; font-size: 12px; font-weight: 600;
@@ -91,6 +91,23 @@
 }
 .btnSecondary:hover  { background: #1e293b; color: #f1f5f9; border-color: #64748b; }
 .btnSecondary:active { transform: scale(0.97); }
+
+.btnPrint {
+  height: 32px; padding: 0 12px; background: #0f172a;
+  color: #94a3b8; border: 1px solid #334155; border-radius: 6px;
+  font-size: 12px; cursor: pointer; white-space: nowrap;
+  transition: background 0.15s, color 0.15s, transform 0.1s;
+  display: flex; align-items: center; gap: 5px; font-family: inherit;
+}
+.btnPrint:hover  { background: #1e293b; color: #f1f5f9; }
+.btnPrint:active { transform: scale(0.97); }
+
+.saveSpinner {
+  width: 12px; height: 12px;
+  border: 2px solid rgba(255,255,255,.3); border-top-color: #fff;
+  border-radius: 50%; animation: spin 0.7s linear infinite;
+}
+.savedBadge { font-size: 11px; color: #4ade80; font-weight: 500; }
 
 /* ════════════════════════════════════════════════════════════════
    모바일 탭 — gabji .mobileTabs / .tabBar / .tabBtn 완전 동일
@@ -275,6 +292,9 @@
   background: #555;
   padding: 8px;
   box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 /* ── A4 용지 — gabji .a4Wrap 완전 동일 ──────────────────────── */
@@ -462,6 +482,8 @@
   .toolbarRight { gap: 5px; }
   .btnPrimary   { height: 32px; padding: 0 10px; font-size: 11px; }
   .btnSecondary { height: 32px; padding: 0 9px;  font-size: 11px; }
+  .btnPrint     { height: 32px; padding: 0 10px; font-size: 11px; }
+  .btnPrimary svg, .btnSecondary svg, .btnPrint svg { width: 12px; height: 12px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

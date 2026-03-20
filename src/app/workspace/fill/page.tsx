@@ -1699,7 +1699,13 @@ img{image-rendering:high-quality;display:block}
             </div>
           ) : sheet && isItemSheet(sheet.name) ? (
             <div key={`items-${activeSheet}`} className={styles.viewportItems}>
-              <ItemListView items={items} onChange={handleItemsChange} />
+              <ItemListView
+                items={items}
+                onChange={handleItemsChange}
+                onSave={handleInAppSave}
+                onPrint={() => setShowPreview(true)}
+                saved={inAppSaved}
+              />
             </div>
           ) : sheet && isPhotoSheet(sheet.name) ? (
             <div key={`photo-${activeSheet}`} className={styles.viewportPhoto}>
