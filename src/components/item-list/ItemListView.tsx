@@ -406,6 +406,7 @@ export default function ItemListView({ items, onChange, onSave, onPrint, saved }
       <div className={styles.toolbar}>
         <div className={styles.toolbarLeft}>
           <span className={styles.toolbarTitle}>항목별세부내역</span>
+          <span className={styles.toolbarSep} />
           <span className={styles.toolbarCount}>총 {items.length}건</span>
           <span className={styles.toolbarTotal}>{fmtNum(total)}원</span>
         </div>
@@ -476,7 +477,7 @@ export default function ItemListView({ items, onChange, onSave, onPrint, saved }
                         <col className={styles.colNo} />
                         <col />
                         <col className={styles.colAmt} />
-                        <col style={{ width: "52px" }} />
+                        <col style={{ width: "48px" }} />
                       </colgroup>
                       <thead>
                         <tr>
