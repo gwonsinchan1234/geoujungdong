@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useRef, useState, useCallback, useEffect, useMemo } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import * as XLSX from "xlsx";
 import PhotoSheetView from "@/components/photo-sheet/PhotoSheetView";
@@ -2177,8 +2178,15 @@ img{image-rendering:high-quality;display:block}
       </div>
 
       {/* ── 인쇄 미리보기 모달: 현재 활성 시트만 표시 ── */}
+      <AnimatePresence>
       {showPreview && sheet && (
-        <div className={styles.previewOverlay}>
+        <motion.div
+          className={styles.previewOverlay}
+          initial={{ opacity: 0, y: 32 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 20 }}
+          transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+        >
           <div className={styles.previewHeader}>
             <span className={styles.previewTitle}>
               인쇄 미리보기 <span className={styles.previewCount}>· {sheet.name}</span>
@@ -2244,8 +2252,9 @@ img{image-rendering:high-quality;display:block}
               닫기
             </button>
           </div>
-        </div>
+        </motion.div>
       )}
+      </AnimatePresence>
 
       {/* ── 사진 바텀시트 ── */}
       {photoSlot && <div className={styles.backdrop} onClick={() => setPhotoSlot(null)} />}
