@@ -172,7 +172,7 @@ export default function ItemListPdf({ items }: Props) {
 
   // 마지막 행 판별 (하단 이중 테두리 방지)
   // 카테고리 9가 항상 마지막 — 항목이 있으면 마지막 항목, 없으면 4번째 빈 행이 마지막
-  const EMPTY_ROWS = 4; // 데이터 없는 카테고리의 기본 빈 행 수
+  const EMPTY_ROWS = 2; // 데이터 없는 카테고리의 기본 빈 행 수
   const cat9Items = grouped.get(9) ?? [];
   const lastItemId = cat9Items.length > 0
     ? cat9Items[cat9Items.length - 1].id : null;
