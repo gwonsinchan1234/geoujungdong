@@ -52,8 +52,7 @@ const UW = { item: "37.1%", prev: "19.4%", curr: "20.7%", tot: "22.7%"  } as con
 const ROW = 34;      // 데이터 행 공통 (42pt × 0.80)
 const ROW_TITLE = 32; // 제목 행
 const ROW_TEXT  = 24; // 법적문구/날짜
-const ROW_SIG1  = 28; // 서명 행 1
-const ROW_SIG2  = 37; // 서명 행 2
+const ROW_SIG   = 33; // 서명 행 (1·2 동일)
 
 // ── 셀 기본 테두리 ─────────────────────────────────────────────
 const B_IN  = { borderRightWidth:0.5, borderRightColor:"#888", borderRightStyle:"solid" as const,
@@ -397,9 +396,9 @@ export default function GabjiPdf({ doc, items, valueFontSize }: Props) {
         <View style={B_OUT}>
 
           {/* 확인자 1 */}
-          <View style={{ ...S.row, height: ROW_SIG1 }}>
+          <View style={{ ...S.row, height: ROW_SIG }}>
             <View style={cx(S.sigTh, { width: "8%"  })}>
-              <Text>확{"\n"}인{"\n"}자</Text>
+              <Text>확인자</Text>
             </View>
             <View style={cx(S.sigTh, { width: "8%"  })}>
               <Text>직  책</Text>
@@ -419,9 +418,9 @@ export default function GabjiPdf({ doc, items, valueFontSize }: Props) {
           </View>
 
           {/* 확인자 2 */}
-          <View style={{ ...S.row, height: ROW_SIG2 }}>
+          <View style={{ ...S.row, height: ROW_SIG }}>
             <View style={cx(S.sigTh, { width: "8%"  }, false, true)}>
-              <Text>확{"\n"}인{"\n"}자</Text>
+              <Text>확인자</Text>
             </View>
             <View style={cx(S.sigTh, { width: "8%"  }, false, true)}>
               <Text>직  책</Text>
