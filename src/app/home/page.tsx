@@ -329,10 +329,10 @@ export default function HomePage() {
     e.preventDefault();
     setLogoVisible(true);
     setSplashVisible(true);
-    // 0.85s: 로고 충분히 보임 → 로고만 페이드아웃
-    setTimeout(() => setLogoVisible(false), 850);
-    // 1.35s: 로고 사라진 뒤 흰색 배경 유지한 채 navigate (흰→흰 무끊김)
-    setTimeout(() => router.push("/workspace/fill"), 1350);
+    // 1.4s: 로고 충분히 보임 → 로고만 페이드아웃
+    setTimeout(() => setLogoVisible(false), 1400);
+    // 2.0s: 로고 사라진 뒤 흰색 배경 유지한 채 navigate (흰→흰 무끊김)
+    setTimeout(() => router.push("/workspace/fill"), 2000);
   }, [router]);
 
   useEffect(() => {
@@ -370,7 +370,7 @@ export default function HomePage() {
                 ? { opacity: 1, scale: 1, filter: "blur(0px)" }
                 : { opacity: 0, scale: 0.96, filter: "blur(6px)" }
               }
-              transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1], delay: logoVisible ? 0.08 : 0 }}
+              transition={{ duration: logoVisible ? 0.75 : 0.55, ease: [0.16, 1, 0.3, 1], delay: logoVisible ? 0.12 : 0 }}
             />
           </motion.div>
         )}
