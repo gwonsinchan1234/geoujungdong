@@ -307,25 +307,105 @@
 
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* 빈 상태 */
+/* 파싱 중(시트 아직 없음): 빈 화면 대신 로딩 — 업로드 직후 깜빡임 방지 */
+.contentLoading {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  min-height: min(44vh, 380px);
+  padding: 32px 20px;
+  color: #64748b;
+}
+
+.contentLoadingText {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+/* 빈 상태 — 업로드 전 (진입 모션은 page.tsx Framer) */
 .empty {
   flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 12px;
-  color: #9ca3af;
-  font-size: 15px;
+  gap: 16px;
   text-align: center;
-  line-height: 1.7;
+  line-height: 1.65;
   padding: 40px 24px;
+  min-height: min(52vh, 420px);
+}
+
+.emptyIconWrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 72px;
+  height: 72px;
+  border-radius: 18px;
+  background: linear-gradient(155deg, #ffffff 0%, #f4f6fb 45%, #eef1f8 100%);
+  border: 1px solid rgb(226 232 240 / 0.95);
+  box-shadow:
+    0 1px 0 rgb(255 255 255 / 0.95) inset,
+    0 2px 8px rgb(15 23 42 / 0.045),
+    0 12px 40px rgb(99 102 241 / 0.06);
+  color: #94a3b8;
+}
+
+.emptyIconSvg {
+  stroke: currentColor;
+  stroke-width: 1.35;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.emptyTitle {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: #64748b;
+  max-width: 22em;
 }
 
 .emptyHint {
+  margin: -6px 0 0;
   font-size: 12px;
-  color: #c4b5fd;
-  margin-top: -4px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  color: rgb(99 102 241 / 0.72);
+}
+
+@media (max-width: 480px) {
+  .empty {
+    gap: 14px;
+    padding: 32px 20px;
+    min-height: min(48vh, 360px);
+  }
+
+  .emptyIconWrap {
+    width: 64px;
+    height: 64px;
+    border-radius: 16px;
+  }
+
+  .emptyIconSvg {
+    width: 42px;
+    height: 42px;
+  }
+
+  .emptyTitle {
+    font-size: 14px;
+  }
+
+  .emptyHint {
+    font-size: 11px;
+  }
 }
 
 /* ── Sheet Tabs ────────────────────────────────────────────────── */
@@ -373,10 +453,17 @@
   border-bottom-color: #2563eb;
 }
 
-/* ── 시트 전환 시 공통 페이드 업 (사진대지·항목별 세부내역 동일) ── */
+/* 시트 영역 진입: opacity 제외(리마운트·Strict Mode에서 잠깐 보였다 사라지는 느낌 방지), 이동만 */
 @keyframes sheetFadeUp {
-  from { opacity: 0; transform: translateY(12px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from { transform: translateY(10px); }
+  to { transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .viewport,
+  .viewportPhoto {
+    animation: none !important;
+  }
 }
 
 /* ── Viewport + Table ──────────────────────────────────────────── */
@@ -392,11 +479,12 @@
 
 .viewport {
   flex: 1;
+  min-height: 0; /* flex 열에서 스크롤·자식 너비 측정(ResizeObserver) 안정화 */
   overflow: auto;
   padding: 16px;
   background: #f0f2f5;
   -webkit-overflow-scrolling: touch;
-  animation: sheetFadeUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: sheetFadeUp 0.32s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 .fitHost {
@@ -422,7 +510,7 @@
   background: #f0f2f5;
   -webkit-overflow-scrolling: touch;
   position: relative;     /* saveToast absolute 기준점 */
-  animation: sheetFadeUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: sheetFadeUp 0.32s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 /* 항목별세부내역 탭: GabjiEditor와 동일하게 overflow hidden (내부에서 관리) */

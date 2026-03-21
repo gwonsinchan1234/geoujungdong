@@ -6,6 +6,12 @@ import type { ReactNode } from "react";
 export default function HomeLayout({ children }: { children: ReactNode }) {
   return (
     <>
+      <link rel="preconnect" href="https://fonts.googleapis.com" />
+      <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+      <link
+        href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700&display=swap"
+        rel="stylesheet"
+      />
       <link
         rel="preload"
         href="/main.mp4"

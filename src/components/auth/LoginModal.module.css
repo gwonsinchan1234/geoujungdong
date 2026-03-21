@@ -1,0 +1,56 @@
+/* 홈 등 오버레이 로그인 — 본문 화면 유지 */
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right))
+    max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+  background: linear-gradient(165deg, rgb(15 23 42 / 0.52) 0%, rgb(15 23 42 / 0.42) 100%);
+  backdrop-filter: blur(12px) saturate(1.05);
+  -webkit-backdrop-filter: blur(12px) saturate(1.05);
+  animation: loginModalIn 0.24s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.dialogShell {
+  width: 100%;
+  max-width: 440px;
+  max-height: min(90dvh, 720px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  position: relative;
+  outline: none;
+}
+
+.cardInDialog {
+  animation: loginModalCard 0.32s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes loginModalIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes loginModalCard {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .backdrop,
+  .cardInDialog {
+    animation: none;
+  }
+}

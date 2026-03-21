@@ -477,12 +477,12 @@ export default function ItemListView({ items, onChange, onSave, onPrint, saved, 
           </div>
         </div>
 
-        {/* 우측 패널: 모바일/데스크탑 공통 PDF 미리보기 — motion opacity 전환 */}
+        {/* 우측 패널: 데스크탑 항상 표시, 모바일 preview 탭일 때만 표시 */}
         <motion.div
           className={styles.rightPanel}
-          animate={{ opacity: mobileTab === "preview" ? 1 : 0, y: mobileTab === "preview" ? 0 : 16 }}
+          animate={{ opacity: (!mobilePdfFallback || mobileTab === "preview") ? 1 : 0, y: (!mobilePdfFallback || mobileTab === "preview") ? 0 : 16 }}
           transition={{ duration: 0.32, ease: [0.16, 1, 0.3, 1] }}
-          style={{ pointerEvents: mobileTab === "preview" ? "auto" : "none" }}
+          style={{ pointerEvents: (!mobilePdfFallback || mobileTab === "preview") ? "auto" : "none" }}
         >
           <ItemListPdfViewer items={items} stableDebounceMs={pdfStableDebounceMs} />
         </motion.div>

@@ -79,7 +79,7 @@ const S = StyleSheet.create({
   // 대제목
   title: {
     textAlign: "center",
-    fontSize: 14,
+    fontSize: 11,
     fontWeight: "bold",
     letterSpacing: 3,
     height: ROW_TITLE,
@@ -114,7 +114,7 @@ const S = StyleSheet.create({
   // 계산된 안전관리비 값 셀 (colspan=3)
   iTdSafety: {
     height: ROW,
-    fontSize: 10,
+    fontSize: 8,
     fontWeight: "bold",
     paddingLeft: 5, paddingRight: 5,
     textAlign: "center",
@@ -126,7 +126,7 @@ const S = StyleSheet.create({
   usageSectionTitle: {
     height: ROW,
     textAlign: "center",
-    fontSize: 11,
+    fontSize: 9,
     fontWeight: "bold",
     letterSpacing: 10,
     justifyContent: "center",
@@ -193,7 +193,7 @@ const S = StyleSheet.create({
   writeDate: {
     height: ROW_TEXT,
     textAlign: "center",
-    fontSize: 10,
+    fontSize: 8.5,
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 6,

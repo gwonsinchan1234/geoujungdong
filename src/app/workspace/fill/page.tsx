@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useRef, useState, useCallback, useEffect, useMemo } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import Link from "next/link";
 import * as XLSX from "xlsx";
 import PhotoSheetView from "@/components/photo-sheet/PhotoSheetView";
@@ -295,7 +295,11 @@ function FitToWidth(props: {
     return () => ro.disconnect();
   }, []);
 
-  const availW = Math.max(1, hostW);
+  /* 첫 프레임 hostW===0 이면 availW=1 → zoom이 극소로 떨어져 표가 안 보이는 현상 방지 */
+  const availW = Math.max(
+    1,
+    hostW > 0 ? hostW : (typeof window !== "undefined" ? window.innerWidth : 960),
+  );
   // Excel 배율 우선, 뷰포트보다 넘치면 뷰포트에 맞게 축소
   const naturalScale = zoomScale / 100;
   const fittedScale  = contentWidth > 0 ? availW / contentWidth : 1;
@@ -345,15 +349,18 @@ function parseGabjiFromSheet(sheet: ParsedSheet): ParsedGabji {
 
   // ① 기본정보 라벨 → 오른쪽 값 셀 스캔
   const BASIC: Array<{ field: keyof GabjiData; keywords: string[] }> = [
-    { field: "gongsamyeong",    keywords: ["공사명"] },
-    { field: "hyeonjangmyeong", keywords: ["건설업체명", "업체명", "현장명"] },
-    { field: "gongsageumaek",   keywords: ["공사금액", "계약금액"] },
-    { field: "gongsagigan",     keywords: ["공사기간", "공기"] },
-    { field: "baljuja",         keywords: ["발주자"] },
-    { field: "gongjungnyul",    keywords: ["누계공정율", "공정율", "공정률"] },
-    { field: "signDate",        keywords: ["작성일", "작 성 일"] },
-    { field: "signRep",         keywords: ["현장대리인", "현장소장"] },
-    { field: "signSafety",      keywords: ["안전관리담당자", "안전담당", "안전관리자"] },
+    { field: "gongsamyeong",       keywords: ["공사명"] },
+    { field: "hyeonjangmyeong",    keywords: ["현장명"] },
+    { field: "constructionCompany",keywords: ["건설업체명", "업체명"] },
+    { field: "address",            keywords: ["소재지", "현장주소", "주소"] },
+    { field: "representative",     keywords: ["대표자"] },
+    { field: "gongsageumaek",      keywords: ["공사금액", "계약금액"] },
+    { field: "gongsagigan",        keywords: ["공사기간", "공기"] },
+    { field: "baljuja",            keywords: ["발주자"] },
+    { field: "gongjungnyul",       keywords: ["누계공정율", "공정율", "공정률"] },
+    { field: "signDate",           keywords: ["작성일", "작 성 일"] },
+    { field: "signRep",            keywords: ["현장대리인", "현장소장"] },
+    { field: "signSafety",         keywords: ["안전관리담당자", "안전담당", "안전관리자"] },
   ];
 
   for (let ri = 0; ri < sheet.rows.length; ri++) {
@@ -687,6 +694,66 @@ const WORKBOOK_CACHE_NAME = "workspace-fill-cache-v1";
 const WORKBOOK_CACHE_KEY = "/workspace-fill/last-workbook";
 const WORKBOOK_META_KEY = "workspace_fill_last_workbook_name";
 
+/** 빈 화면(업로드 전) 진입 — 대기업 느낌 스태거 + 블러·이징 */
+const FILL_EMPTY_EASE = [0.22, 1, 0.36, 1] as const;
+
+const fillEmptyContainer = {
+  hidden: {},
+  visible: {
+    /* 스플래시 직후 이어지는 느낌 — 초기 정적 구간 최소화 */
+    transition: { staggerChildren: 0.065, delayChildren: 0.04 },
+  },
+} as const;
+
+const fillEmptyIcon = {
+  hidden: { opacity: 0, y: 22, scale: 0.9, filter: "blur(12px)" },
+  visible: {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    filter: "blur(0px)",
+    transition: { duration: 0.62, ease: FILL_EMPTY_EASE },
+  },
+} as const;
+
+const fillEmptyTitle = {
+  hidden: { opacity: 0, y: 16, filter: "blur(8px)" },
+  visible: {
+    opacity: 1,
+    y: 0,
+    filter: "blur(0px)",
+    transition: { duration: 0.52, ease: FILL_EMPTY_EASE },
+  },
+} as const;
+
+const fillEmptyHint = {
+  hidden: { opacity: 0, y: 10 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.45, ease: FILL_EMPTY_EASE },
+  },
+} as const;
+
+function EmptySheetGlyph() {
+  return (
+    <svg
+      className={styles.emptyIconSvg}
+      width="48"
+      height="48"
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden
+    >
+      <rect x="3" y="3" width="18" height="18" rx="2.5" />
+      <line x1="3" y1="9" x2="21" y2="9" />
+      <line x1="3" y1="15" x2="21" y2="15" />
+      <line x1="9" y1="3" x2="9" y2="21" />
+      <line x1="15" y1="3" x2="15" y2="21" />
+    </svg>
+  );
+}
+
 // ── Page ─────────────────────────────────────────────────────────
 export default function FillPage() {
   type DocState = {
@@ -753,6 +820,9 @@ export default function FillPage() {
   const [laborNewAmount, setLaborNewAmount] = useState<number>(0);
   const [allowanceMobileTab, setAllowanceMobileTab] = useState<"edit" | "preview">("edit");
   const restoringWorkbookRef = useRef(false);
+  /** 직렬이 아닌 parseWorkbookFile 호출 시, 늦게 끝난 작업이 상태를 덮어쓰지 않게 함 */
+  const workbookParseGenRef = useRef(0);
+  const reduceMotion = useReducedMotion();
 
   const formValues      = docState.formValues;
   const gabjiData       = docState.gabjiData;
@@ -1318,18 +1388,22 @@ export default function FillPage() {
 
   // ── 파일 파싱 공통 처리 (직접 업로드 + 새로고침 복원 공용) ──
   const parseWorkbookFile = useCallback(async (file: File) => {
+    const parseId = ++workbookParseGenRef.current;
     setLoading(true);
     try {
       const buf = await file.arrayBuffer();
+      if (parseId !== workbookParseGenRef.current) return;
       setRawBuf(buf);
       setFileName(file.name);
       let parsed = await parseExcelBuffer(buf);
+      if (parseId !== workbookParseGenRef.current) return;
       // 갑지 시트를 맨 앞으로 (모바일·웹 동일하게)
       const gabjiIdx = parsed.findIndex(s => s.name.trim() === "갑지" || s.name.includes("갑지"));
       if (gabjiIdx > 0) {
         const gabji = parsed[gabjiIdx];
         parsed = [gabji, ...parsed.slice(0, gabjiIdx), ...parsed.slice(gabjiIdx + 1)];
       }
+      if (parseId !== workbookParseGenRef.current) return;
       setSheets(parsed);
       setActiveSheet(0);
       setFormValues({});
@@ -1395,14 +1469,18 @@ export default function FillPage() {
 
       // DB 사진 병합은 비동기 후처리로 분리해 업로드 직후 진입 체감 속도를 개선
       void (async () => {
+        const mergeParseId = parseId;
+        const mergeDocId = docIdRef.current;
         try {
-          const res = await fetch(`/api/photo-blocks?docId=${docIdRef.current}`);
+          const res = await fetch(`/api/photo-blocks?docId=${mergeDocId}`);
+          if (mergeParseId !== workbookParseGenRef.current) return;
           const json = await res.json() as { ok: boolean; blocks?: Array<{
             sheet_name: string; no: number; id: string;
             photos: Array<{ id: string; block_id: string; side: string; slot_index: number; storage_path: string; url: string }>;
           }> };
           const blocks = json.blocks ?? [];
           if (!json.ok || blocks.length === 0) return;
+          if (mergeParseId !== workbookParseGenRef.current) return;
           setPhotoBlocks(prev => {
             const next = { ...prev };
             for (const dbBlock of blocks) {
@@ -1411,7 +1489,7 @@ export default function FillPage() {
               const localBlock = localArr.find(b => b.no === dbBlock.no);
               if (!localBlock || !dbBlock.photos.length) continue;
               localBlock.id = dbBlock.id;
-              localBlock.doc_id = docIdRef.current;
+              localBlock.doc_id = mergeDocId;
               localBlock.photos = dbBlock.photos.map(p => ({
                 id: p.id, block_id: p.block_id,
                 side: p.side as "left" | "right",
@@ -1430,6 +1508,7 @@ export default function FillPage() {
       // 새로고침 복구용으로 마지막 업로드 파일 자체를 캐시에 보관
       try {
         const cache = await caches.open(WORKBOOK_CACHE_NAME);
+        if (parseId !== workbookParseGenRef.current) return;
         await cache.put(
           WORKBOOK_CACHE_KEY,
           new Response(file, {
@@ -1448,7 +1527,7 @@ export default function FillPage() {
       const detail = err instanceof Error ? err.message : String(err);
       alert(`엑셀 파일을 읽는 중 오류가 났습니다.\n${detail}`);
     } finally {
-      setLoading(false);
+      if (parseId === workbookParseGenRef.current) setLoading(false);
     }
   }, [setFormValues, setGabjiData, setItems, setPhotoBlocks]);
 
@@ -1791,26 +1870,43 @@ img{image-rendering:high-quality;display:block}
     [items],
   );
 
-  const gabjiEditorDoc = useMemo((): GabjiDoc => ({
-    site_name:               gabjiData.hyeonjangmyeong || fileName || "",
-    year_month:              (() => { const n = new Date(); return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,"0")}`; })(),
-    construction_company:    "",
-    address:                 "",
-    project_name:            gabjiData.gongsamyeong   || "",
-    representative_name:     gabjiData.signRep        || "",
-    client_name:             gabjiData.baljuja        || "",
-    contract_amount:         parseFloat(String(gabjiData.gongsageumaek).replace(/,/g,"")) || 0,
-    contract_amount_note:    "",
-    start_date:              "",
-    end_date:                "",
-    cumulative_progress_rate:parseFloat(String(gabjiData.gongjungnyul).replace(/[^0-9.]/g,"")) || 0,
-    budgeted_safety_cost:    0,
-    write_date:              "",
-    checker1_position:       "",
-    checker1_name:           "",
-    checker2_position:       "",
-    checker2_name:           "",
-  }), [gabjiData, fileName]);
+  const gabjiEditorDoc = useMemo((): GabjiDoc => {
+    // "YYYY년 M월 D일" 또는 "YYYY. M. D." → "YYYY-MM-DD"
+    const parseKorDate = (s: string): string => {
+      if (!s) return "";
+      const flat = s.trim();
+      const m1 = flat.replace(/\s/g,"").match(/(\d{4})년(\d{1,2})월(\d{1,2})일/);
+      if (m1) return `${m1[1]}-${m1[2].padStart(2,"0")}-${m1[3].padStart(2,"0")}`;
+      const m2 = flat.match(/(\d{4})[.\-]\s*(\d{1,2})[.\-]\s*(\d{1,2})/);
+      if (m2) return `${m2[1]}-${m2[2].padStart(2,"0")}-${m2[3].padStart(2,"0")}`;
+      return flat;
+    };
+    // "YYYY. M. D ~ YYYY. M. D" 형식 공사기간 → start/end
+    const parts = (gabjiData.gongsagigan || "").split(/[~～]/);
+    const startDate = parts[0] ? parseKorDate(parts[0].trim()) : "";
+    const endDate   = parts[1] ? parseKorDate(parts[1].trim()) : "";
+    const now = new Date();
+    return {
+      site_name:               gabjiData.hyeonjangmyeong || fileName || "",
+      year_month:              `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}`,
+      construction_company:    gabjiData.constructionCompany || "",
+      address:                 gabjiData.address         || "",
+      project_name:            gabjiData.gongsamyeong   || "",
+      representative_name:     gabjiData.representative  || "",
+      client_name:             gabjiData.baljuja        || "",
+      contract_amount:         parseFloat(String(gabjiData.gongsageumaek).replace(/,/g,"")) || 0,
+      contract_amount_note:    "",
+      start_date:              startDate,
+      end_date:                endDate,
+      cumulative_progress_rate:parseFloat(String(gabjiData.gongjungnyul).replace(/[^0-9.]/g,"")) || 0,
+      budgeted_safety_cost:    0,
+      write_date:              parseKorDate(gabjiData.signDate || ""),
+      checker1_position:       "안전담당",
+      checker1_name:           gabjiData.signSafety || "",
+      checker2_position:       "현장소장",
+      checker2_name:           gabjiData.signRep    || "",
+    };
+  }, [gabjiData, fileName]);
 
   const gabjiEditorItems = useMemo((): GNewItem[] =>
     gabjiData.items.map(gi => {
@@ -1832,7 +1928,7 @@ img{image-rendering:high-quality;display:block}
     const sizes = Object.values(gabjiCellStyles)
       .map(s => (s as Record<string, string>).fontSize)
       .filter((v): v is string => Boolean(v));
-    return sizes[0] ?? "10pt";
+    return sizes[0] ?? "";
   }, [gabjiCellStyles]);
 
   /** 갑지·항목별세부내역: localStorage에 데이터 저장 */
@@ -1964,16 +2060,39 @@ img{image-rendering:high-quality;display:block}
 
       {/* ── CONTENT ── */}
       <div className={styles.content}>
-        {!loading && sheets.length === 0 && (
-          <div className={styles.empty}>
-            <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" strokeWidth="1.2">
-              <rect x="3" y="3" width="18" height="18" rx="2" />
-              <line x1="3" y1="9" x2="21" y2="9" /><line x1="3" y1="15" x2="21" y2="15" />
-              <line x1="9" y1="3" x2="9" y2="21" /><line x1="15" y1="3" x2="15" y2="21" />
-            </svg>
-            <p>엑셀 파일을 업로드하면<br />시트 미리보기가 표시됩니다</p>
-            <p className={styles.emptyHint}>셀을 탭하면 바로 수정할 수 있어요</p>
+        {sheets.length === 0 && loading && (
+          <div className={styles.contentLoading} role="status" aria-live="polite">
+            <div className={styles.spinner} />
+            <p className={styles.contentLoadingText}>엑셀을 불러오는 중…</p>
           </div>
+        )}
+        {!loading && sheets.length === 0 && (
+          reduceMotion ? (
+            <div className={styles.empty}>
+              <div className={styles.emptyIconWrap}>
+                <EmptySheetGlyph />
+              </div>
+              <p className={styles.emptyTitle}>엑셀 파일을 업로드하면<br />시트 미리보기가 표시됩니다</p>
+              <p className={styles.emptyHint}>셀을 탭하면 바로 수정할 수 있어요</p>
+            </div>
+          ) : (
+            <motion.div
+              className={styles.empty}
+              initial="hidden"
+              animate="visible"
+              variants={fillEmptyContainer}
+            >
+              <motion.div className={styles.emptyIconWrap} variants={fillEmptyIcon}>
+                <EmptySheetGlyph />
+              </motion.div>
+              <motion.p className={styles.emptyTitle} variants={fillEmptyTitle}>
+                엑셀 파일을 업로드하면<br />시트 미리보기가 표시됩니다
+              </motion.p>
+              <motion.p className={styles.emptyHint} variants={fillEmptyHint}>
+                셀을 탭하면 바로 수정할 수 있어요
+              </motion.p>
+            </motion.div>
+          )
         )}
         {sheets.length > 0 && (<>
           <div className={styles.tabs}>

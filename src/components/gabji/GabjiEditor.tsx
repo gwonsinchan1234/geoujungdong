@@ -183,12 +183,12 @@ export default function GabjiEditor({ initialDoc, initialItems, valueFontSize }:
           </div>
         </div>
 
-        {/* 우측: PDF 미리보기 — motion으로 opacity 전환 (PDF 재렌더 방지) */}
+        {/* 우측: PDF 미리보기 — 데스크탑: 항상 표시, 모바일: preview 탭일 때만 표시 */}
         <motion.div
           className={styles.rightPanel}
-          animate={{ opacity: mobileTab === "preview" ? 1 : 0, y: mobileTab === "preview" ? 0 : 16 }}
+          animate={{ opacity: (!mobilePdfFallback || mobileTab === "preview") ? 1 : 0, y: (!mobilePdfFallback || mobileTab === "preview") ? 0 : 16 }}
           transition={{ duration: 0.32, ease: [0.16, 1, 0.3, 1] }}
-          style={{ pointerEvents: mobileTab === "preview" ? "auto" : "none" }}
+          style={{ pointerEvents: (!mobilePdfFallback || mobileTab === "preview") ? "auto" : "none" }}
         >
           <GabjiPreview
             doc={doc}

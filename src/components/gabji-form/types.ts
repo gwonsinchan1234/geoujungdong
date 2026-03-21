@@ -8,12 +8,15 @@ export interface GabjiItem {
 
 export interface GabjiData {
   // 현장 기본정보
-  gongsamyeong: string;    // 공사명
-  hyeonjangmyeong: string; // 현장명
-  gongsageumaek: string;   // 공사금액 (계약금액)
-  gongsagigan: string;     // 공사기간
-  baljuja: string;         // 발주자
-  gongjungnyul: string;    // 공정율 (%)
+  gongsamyeong: string;       // 공사명
+  hyeonjangmyeong: string;    // 현장명
+  constructionCompany: string;// 건설업체명
+  address: string;            // 소재지
+  representative: string;     // 대표자
+  gongsageumaek: string;      // 공사금액 (계약금액)
+  gongsagigan: string;        // 공사기간
+  baljuja: string;            // 발주자
+  gongjungnyul: string;       // 공정율 (%)
 
   // 사용금액 항목
   items: GabjiItem[];
@@ -40,6 +43,9 @@ export function makeEmptyGabji(): GabjiData {
   return {
     gongsamyeong: "",
     hyeonjangmyeong: "",
+    constructionCompany: "",
+    address: "",
+    representative: "",
     gongsageumaek: "",
     gongsagigan: "",
     baljuja: "",

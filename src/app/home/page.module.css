@@ -5,24 +5,39 @@
   position: fixed;
   inset: 0;
   z-index: 9999;
-  background: #fff;
+  /* workspace/fill .page 와 동일 — 로고 사라진 뒤·페이지 전환 시 색 점프 최소화 */
+  background: #f0f2f5;
   display: flex;
   align-items: center;
   justify-content: center;
   opacity: 0; /* 첫 paint부터 invisible — Framer Motion이 JS로 덮어씀 */
 }
 
-/* 가로형 로고: 높이 기준으로 키워 화면에서 잘 보이게 */
+/* 가로형 로고: 높이 기준 (시작하기 스플래시 — 데스크톱·모바일 균형) */
 .splashLogo {
   width: auto;
-  height: clamp(92px, 22vmin, 230px);
-  max-width: min(86vw, 440px);
+  height: clamp(42px, 10.5vmin, 114px);
+  max-width: min(66vw, 220px);
   object-fit: contain;
   display: block;
   border: none;
   outline: none;
   box-shadow: none;
   border-radius: 0;
+}
+
+@media (max-width: 600px) {
+  .splashLogo {
+    height: clamp(36px, 9vmin, 80px);
+    max-width: min(74vw, 176px);
+  }
+}
+
+@media (max-width: 390px) {
+  .splashLogo {
+    height: clamp(32px, 8.5vmin, 68px);
+    max-width: min(78vw, 152px);
+  }
 }
 
 /* ── Design tokens ── */
@@ -36,6 +51,15 @@
   --bg:     #ffffff;
   --bg-gray:#f8f9fa;
   --w:      1200px;
+  /* 한글 우선 Noto Sans KR, 라틴·숫자는 Plus Jakarta */
+  --font-sans: "Noto Sans KR", "Plus Jakarta Sans", "Apple SD Gothic Neo", -apple-system,
+    BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-ent: "Noto Sans KR", "Plus Jakarta Sans", "Apple SD Gothic Neo", -apple-system,
+    BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --type-hero-title: clamp(34px, 5.4vw, 58px);
+  --type-svc-title: clamp(30px, 3.05vw, 44px);
+  --type-svc-body: 16px;
+  --type-svc-kicker: 13px;
 }
 
 /* ── Base ── */
@@ -45,8 +69,11 @@
   color: var(--text);
   overflow-x: clip;
   -webkit-font-smoothing: antialiased;
-  font-family: "Noto Sans KR", "Apple SD Gothic Neo", -apple-system,
-               BlinkMacSystemFont, "Segoe UI", sans-serif;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-family: var(--font-sans);
+  font-feature-settings: "kern" 1, "liga" 1;
+  font-optical-sizing: auto;
 }
 
 /* ── Topbar ── */
@@ -150,17 +177,18 @@
 .ctaTop {
   margin-left: 10px;
   height: 36px;
-  padding: 0 18px;
-  border-radius: 10px;
+  padding: 0 20px;
+  border-radius: 12px;
   background: var(--dark);
   color: #fff;
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 600;
+  letter-spacing: 0.04em;
   text-decoration: none;
   display: inline-flex;
   align-items: center;
   box-shadow:
-    0 1px 0 rgb(255 255 255 / 0.12) inset,
+    0 1px 0 rgb(255 255 255 / 0.1) inset,
     var(--shadow-premium-sm);
   transition:
     opacity 0.15s,
@@ -172,26 +200,30 @@
   opacity: 0.92;
   transform: translateY(-1px);
   box-shadow:
-    0 1px 0 rgb(255 255 255 / 0.1) inset,
+    0 1px 0 rgb(255 255 255 / 0.08) inset,
     var(--shadow-premium-md);
 }
 
-/* 로그인 버튼 (outline) */
+/* 로그인 버튼 (outline) — <a> 또는 <button>(모달 오픈) */
 .loginBtn {
   margin-left: 10px;
   height: 36px;
-  padding: 0 16px;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.65);
-  border: 1.5px solid var(--border);
+  padding: 0 18px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(0, 0, 0, 0.1);
   color: var(--text);
   font-size: 13px;
   font-weight: 600;
+  letter-spacing: 0.02em;
   text-decoration: none;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   box-shadow: var(--shadow-premium-xs);
   transition: border-color 0.15s, background 0.15s, box-shadow 0.2s;
+  cursor: pointer;
+  font-family: inherit;
 }
 
 .loginBtn:hover {
@@ -222,7 +254,7 @@
   flex-shrink: 0;
   cursor: default;
   box-shadow:
-    0 1px 0 rgb(255 255 255 / 0.15) inset,
+    0 1px 0 rgb(255 255 255 / 0.12) inset,
     var(--shadow-premium-xs);
 }
 
@@ -307,9 +339,9 @@
 
 .heroTitle {
   margin: 0;
-  font-size: clamp(32px, 5.2vw, 56px);
-  line-height: 1.14;
-  letter-spacing: -0.5px;
+  font-size: var(--type-hero-title);
+  line-height: 1.12;
+  letter-spacing: -0.04em;
   font-weight: 700;
   color: #fff;
 }
@@ -340,13 +372,14 @@
 /* KakaoPay-style dark rounded CTA button */
 .ctaHero {
   height: 52px;
-  padding: 0 30px;
-  border-radius: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.30);
-  background: rgba(0, 0, 0, 0.30);
+  padding: 0 32px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.34);
+  background: rgba(0, 0, 0, 0.32);
   color: #fff;
   font-size: 15px;
-  font-weight: 700;
+  font-weight: 600;
+  letter-spacing: 0.06em;
   text-decoration: none;
   display: inline-flex;
   align-items: center;
@@ -354,9 +387,9 @@
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   box-shadow:
-    0 1px 0 rgb(255 255 255 / 0.12) inset,
-    0 4px 20px rgb(0 0 0 / 0.35),
-    0 0 0 1px rgb(0 0 0 / 0.12);
+    0 1px 0 rgb(255 255 255 / 0.1) inset,
+    0 3px 16px rgb(0 0 0 / 0.28),
+    0 0 0 1px rgb(0 0 0 / 0.09);
   transition: background 0.2s, border-color 0.2s, box-shadow 0.2s, transform 0.2s var(--ease-out, cubic-bezier(0.22, 1, 0.36, 1));
 }
 
@@ -365,9 +398,9 @@
   border-color: rgba(255, 255, 255, 0.50);
   transform: translateY(-1px);
   box-shadow:
-    0 1px 0 rgb(255 255 255 / 0.18) inset,
-    0 8px 32px rgb(0 0 0 / 0.45),
-    0 0 0 1px rgb(255 255 255 / 0.08);
+    0 1px 0 rgb(255 255 255 / 0.14) inset,
+    0 6px 26px rgb(0 0 0 / 0.36),
+    0 0 0 1px rgb(255 255 255 / 0.06);
 }
 
 
@@ -445,9 +478,9 @@
 
 .svcKicker {
   margin: 0;
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.5px;
+  font-size: var(--type-svc-kicker);
+  font-weight: 700;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--muted);
 }
@@ -458,10 +491,10 @@
 
 .svcTitle {
   margin: 0;
-  font-size: clamp(28px, 2.8vw, 42px);
-  line-height: 1.26;
+  font-size: var(--type-svc-title);
+  line-height: 1.24;
   font-weight: 700;
-  letter-spacing: -0.4px;
+  letter-spacing: -0.038em;
   color: var(--text);
 }
 
@@ -471,16 +504,134 @@
 
 .svcDesc {
   margin: 0;
-  font-size: 15px;
-  line-height: 1.78;
+  font-size: var(--type-svc-body);
+  line-height: 1.72;
+  letter-spacing: -0.018em;
   color: var(--muted);
-  max-width: 50ch;
+  max-width: 48ch;
 }
 
 .svcDescLight {
   color: rgba(255, 255, 255, 0.65);
 }
 
+/* ── 사진 증빙 섹션: 여백을 자연스럽게 채우는 배경 + 하이라이트 카드 ── */
+.svcRowEvidence {
+  position: relative;
+  overflow: hidden;
+}
+
+.svcRowEvidence::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(circle at center, rgb(15 23 42 / 0.045) 1px, transparent 1px);
+  background-size: 24px 24px;
+  mask-image: linear-gradient(180deg, rgb(0 0 0 / 0.55) 0%, rgb(0 0 0 / 0.2) 45%, rgb(0 0 0 / 0.45) 100%);
+  pointer-events: none;
+}
+
+.svcRowEvidence::after {
+  content: "";
+  position: absolute;
+  top: -25%;
+  right: -8%;
+  width: min(52vw, 520px);
+  height: min(85vh, 640px);
+  background: radial-gradient(ellipse at center, rgb(59 130 246 / 0.07) 0%, transparent 68%);
+  pointer-events: none;
+}
+
+.svcRowEvidence .svcInner {
+  position: relative;
+  z-index: 1;
+}
+
+.svcEvidencePoints {
+  list-style: none;
+  margin: 28px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 52ch;
+}
+
+.svcEvidencePoint {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 14px 16px 14px 14px;
+  border-radius: 16px;
+  border: 1px solid rgb(0 0 0 / 0.06);
+  background: linear-gradient(145deg, rgb(255 255 255 / 0.92) 0%, rgb(248 250 252 / 0.88) 100%);
+  box-shadow:
+    0 1px 0 rgb(255 255 255 / 0.9) inset,
+    0 4px 20px rgb(15 23 42 / 0.04);
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.svcEvidencePoint:hover {
+  border-color: rgb(37 99 235 / 0.12);
+  box-shadow:
+    0 1px 0 rgb(255 255 255 / 0.95) inset,
+    0 8px 28px rgb(37 99 235 / 0.07);
+}
+
+.svcEvidenceIconWrap {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: linear-gradient(160deg, #f1f5f9 0%, #e8eef5 100%);
+  border: 1px solid rgb(0 0 0 / 0.05);
+  color: #334155;
+}
+
+.svcEvidenceIcon {
+  display: block;
+  color: #1e40af;
+  opacity: 0.92;
+}
+
+.svcEvidenceBody {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding-top: 1px;
+}
+
+.svcEvidenceTitle {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.028em;
+  line-height: 1.35;
+  color: var(--text);
+}
+
+.svcEvidenceSub {
+  font-size: 14px;
+  line-height: 1.6;
+  letter-spacing: -0.018em;
+  color: var(--muted);
+}
+
+.svcEvidenceFootnote {
+  margin: 20px 0 0;
+  padding: 12px 0 0;
+  border-top: 1px solid rgb(0 0 0 / 0.06);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.012em;
+  color: rgb(100 116 139 / 0.95);
+  max-width: 52ch;
+}
 
 /* ── Yellow highlight (KakaoPay underline style) ── */
 .hl {
@@ -515,14 +666,44 @@
   box-shadow: var(--shadow-premium-lg);
 }
 
+/* 사진·엑셀 슬라이더 카드: 세로로 영역 채움 */
+.mockCardStretch {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  width: 100%;
+  max-width: min(480px, 100%);
+  /* min-height:0 대신 하한 보장 — 예전 목 카드 체감 높이에 가깝게 */
+  min-height: clamp(480px, 58vh, 680px);
+}
+
+/* 서비스2 그리드: 텍스트는 위에, 미디어 열은 행 높이까지 확장 */
+.svcInnerMediaTall {
+  align-items: stretch;
+}
+
+.svcInnerMediaTall > .svcText {
+  align-self: start;
+}
+
+.svcInnerMediaTall > .svcMediaLeft {
+  display: flex;
+  flex-direction: column;
+  align-self: stretch;
+  justify-content: stretch;
+  width: 100%;
+  /* 예전 콘텐츠 기준보다 작아지지 않게: min() 대신 하한·vh 함께 사용 */
+  min-height: clamp(520px, 62vh, 720px);
+}
+
 .mockCardDark {
   background: var(--dark2);
   border-color: rgba(255, 255, 255, 0.08);
   box-shadow:
-    0 4px 12px rgb(0 0 0 / 0.35),
-    0 28px 64px rgb(0 0 0 / 0.5),
-    0 0 0 1px rgb(255 255 255 / 0.06),
-    inset 0 1px 0 rgb(255 255 255 / 0.06);
+    0 3px 10px rgb(0 0 0 / 0.28),
+    0 22px 52px rgb(0 0 0 / 0.4),
+    0 0 0 1px rgb(255 255 255 / 0.05),
+    inset 0 1px 0 rgb(255 255 255 / 0.05);
 }
 
 /* Browser / window title bar */
@@ -574,25 +755,272 @@
   gap: 10px;
 }
 
-.mockTableHead {
-  height: 12px;
-  width: 68%;
-  border-radius: 4px;
-  background: rgba(0, 0, 0, 0.14);
+/* 슬라이드 패널 안: 남는 높이까지 콘텐츠 확장 */
+.mockContentSlide {
+  flex: 1;
+  min-height: 0;
 }
 
-.mockTableRow {
-  height: 10px;
-  border-radius: 4px;
-  background: rgba(0, 0, 0, 0.07);
+/* ── 서비스1: 엑셀 목 — 대기업/공문서 톤 (카드 크기 유지, 촘촘한 밀도) ── */
+.mockContentEnterprise {
+  gap: 10px;
+  padding-top: 16px;
+  padding-bottom: 16px;
+  font-family: var(--font-ent);
+  font-feature-settings: "kern" 1, "liga" 1, "tnum" 1;
+  -webkit-font-smoothing: antialiased;
 }
 
-.mockRowShort {
-  width: 52%;
+.entDocHeader {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid rgb(226 232 240 / 0.95);
+  background: linear-gradient(165deg, #ffffff 0%, #f4f6f9 52%, #eef1f6 100%);
+  box-shadow:
+    0 1px 0 rgb(255 255 255 / 0.9) inset,
+    0 1px 2px rgb(15 23 42 / 0.04),
+    0 4px 14px rgb(15 23 42 / 0.05);
 }
 
-.mockRowDark {
-  background: rgba(255, 255, 255, 0.14);
+.entDocHeaderIcon {
+  flex-shrink: 0;
+  color: #334155;
+  margin-top: 1px;
+  opacity: 0.88;
+}
+
+.entDocHeaderText {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* 라벨·제목: 진한 배지 대신 라인 액센트 + 타입그래피 계층 (대기업 문서 톤) */
+.entDocHeaderLines {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-left: 12px;
+  border-left: 2px solid rgb(37 99 235 / 0.28);
+  min-width: 0;
+}
+
+.entDocBadge {
+  align-self: flex-start;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #64748b;
+  padding: 0;
+  margin: 0;
+  background: none;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.entDocTitle {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.35;
+  color: #0f172a;
+}
+
+.entMetaGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px 12px;
+}
+
+.entMetaItem {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.entMetaKey {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.entMetaVal {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: #0f172a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.entSectionRule {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #e2e8f0 12%, #e2e8f0 88%, transparent);
+  margin-top: 2px;
+}
+
+.entSectionTitle {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+  color: #1e293b;
+  letter-spacing: -0.01em;
+  line-height: 1.4;
+}
+
+.entTable {
+  border: 1px solid rgb(226 232 240 / 0.9);
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fff;
+  box-shadow:
+    0 1px 0 rgb(255 255 255 / 0.85) inset,
+    0 2px 8px rgb(15 23 42 / 0.045);
+}
+
+.entThead {
+  display: grid;
+  grid-template-columns: 1.35fr 0.42fr 0.78fr 0.55fr;
+  gap: 4px;
+  align-items: center;
+  padding: 8px 10px;
+  background: linear-gradient(180deg, #fafbfc 0%, #f1f5f9 100%);
+  border-bottom: 1px solid #e2e8f0;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.entThead span:nth-child(2),
+.entThead span:nth-child(3),
+.entThead span:nth-child(4) {
+  text-align: right;
+}
+
+.entThead span:first-child {
+  text-align: left;
+}
+
+.entTbody {
+  display: flex;
+  flex-direction: column;
+}
+
+.entTr {
+  display: grid;
+  grid-template-columns: 1.35fr 0.42fr 0.78fr 0.55fr;
+  gap: 4px;
+  align-items: center;
+  padding: 8px 10px;
+  font-size: 11px;
+  font-weight: 500;
+  color: #334155;
+  border-bottom: 1px solid #f1f5f9;
+  transition: background 0.15s ease;
+}
+
+.entTr:hover {
+  background: rgb(248 250 252 / 0.85);
+}
+
+.entTr:last-child {
+  border-bottom: none;
+}
+
+.entTr span:nth-child(2),
+.entTr span:nth-child(3) {
+  text-align: right;
+  font-weight: 600;
+  font-feature-settings: "tnum" 1;
+  color: #0f172a;
+}
+
+.entTr span:nth-child(4) {
+  text-align: right;
+}
+
+.entPill {
+  justify-self: end;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: linear-gradient(180deg, #ffffff 0%, #f4f6f9 100%);
+  color: #475569;
+  border: 1px solid rgb(226 232 240 / 0.95);
+  box-shadow: 0 1px 0 rgb(255 255 255 / 0.9) inset;
+}
+
+.entFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-top: 2px;
+}
+
+.entFooterLeft {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: #475569;
+}
+
+.entDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, #4ade80, #16a34a);
+  box-shadow: 0 0 0 2px rgb(22 163 74 / 0.2);
+  flex-shrink: 0;
+}
+
+.entFooterRight {
+  font-size: 10px;
+  font-weight: 600;
+  color: #94a3b8;
+  letter-spacing: 0.02em;
+}
+
+@media (max-width: 480px) {
+  .entMetaGrid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .entDocTitle {
+    font-size: 14px;
+    line-height: 1.32;
+  }
+
+  .entMetaItem:last-child {
+    grid-column: 1 / -1;
+  }
+
+  .entThead,
+  .entTr {
+    grid-template-columns: 1.2fr 0.38fr 0.72fr 0.52fr;
+    font-size: 10px;
+    padding-left: 8px;
+    padding-right: 8px;
+  }
 }
 
 /* Photo evidence header */
@@ -605,6 +1033,7 @@
   background: rgba(0, 0, 0, 0.03);
   border: 1px solid var(--border);
   margin-bottom: 2px;
+  flex-shrink: 0;
 }
 
 .mockPhotoHeaderLabel {
@@ -629,12 +1058,25 @@
   gap: 8px;
 }
 
+.mockPhotoGridStretch {
+  flex: 1;
+  min-height: 0;
+  grid-template-rows: minmax(200px, 1fr);
+  align-items: stretch;
+}
+
 /* Individual photo slot with badge */
 .mockPhotoSlot {
   position: relative;
   border-radius: 10px;
   overflow: hidden;
   aspect-ratio: 1;
+}
+
+.mockPhotoGridStretch .mockPhotoSlot {
+  aspect-ratio: auto;
+  min-height: 200px;
+  height: 100%;
 }
 
 .mockPhotoImg {
@@ -644,7 +1086,11 @@
   display: block;
 }
 
-/* 사전/사후 badge */
+.mockPhotoGridStretch .mockPhotoImg {
+  object-fit: cover;
+}
+
+/* 반입/지급 사진 badge */
 .mockPhotoBadge {
   position: absolute;
   bottom: 6px;
@@ -670,6 +1116,7 @@
   position: relative;
   display: flex;
   border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
 }
 
 .sliderTab {
@@ -712,18 +1159,27 @@
 /* 슬라이드 영역 */
 .sliderViewport {
   overflow: hidden;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .sliderTrack {
   display: flex;
   /* 각 pane이 100% 너비, 2개 → 트랙 너비 200% */
   width: 200%;
+  flex: 1;
+  min-height: 0;
   transition: transform 0.42s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .slidePane {
   width: 50%; /* 트랙의 50% = 카드 100% */
   flex-shrink: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 /* 도트 인디케이터 */
@@ -733,6 +1189,11 @@
   gap: 6px;
   padding: 12px 0 14px;
   border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.mockCardStretch > .mockTitleBar {
+  flex-shrink: 0;
 }
 
 .sliderDot {
@@ -756,110 +1217,441 @@
 .excelUploadBtn {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 9px 12px;
-  border-radius: 10px;
-  border: 1.5px dashed rgba(0, 0, 0, 0.18);
-  background: rgba(0, 0, 0, 0.02);
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px dashed rgb(100 116 139 / 0.35);
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
   font-size: 12px;
   font-weight: 600;
-  color: var(--muted);
+  letter-spacing: -0.01em;
+  color: #475569;
   cursor: default;
-  margin-bottom: 2px;
+  margin-bottom: 0;
+  flex-shrink: 0;
+  font-family: var(--font-sans);
+  box-shadow: 0 1px 0 rgb(255 255 255 / 0.8) inset, 0 1px 3px rgb(15 23 42 / 0.04);
 }
 
-.excelUploadIcon {
-  font-size: 15px;
+.excelUploadLucide {
+  flex-shrink: 0;
+  color: #64748b;
+  padding: 6px;
+  border-radius: 8px;
+  background: linear-gradient(145deg, #f1f5f9 0%, #e2e8f0 100%);
+  border: 1px solid rgb(226 232 240 / 0.9);
+  box-sizing: content-box;
 }
 
-.excelTable {
+/* fill / ItemListView「항목별세부내역」 톤에 맞춘 패널 */
+.excelItemPanel {
   border-radius: 10px;
-  border: 1px solid var(--border);
+  border: 1px solid #e5e7eb;
+  background: #fff;
   overflow: hidden;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  font-family: "Pretendard", "Noto Sans KR", "Apple SD Gothic Neo", -apple-system,
+    BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.excelSectionBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  background: #fff;
+  border-bottom: 1px solid #e5e7eb;
+  flex-shrink: 0;
+}
+
+.excelSectionLeft {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.excelSectionRight {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.excelCatNum {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #111111;
+  color: #fff;
   font-size: 11px;
-}
-
-.excelHeader {
-  display: grid;
-  grid-template-columns: 2fr 1fr 0.6fr 1fr;
-  background: rgba(0, 0, 0, 0.05);
-  border-bottom: 1px solid var(--border);
-}
-
-.excelHeader span {
-  padding: 7px 8px;
   font-weight: 700;
-  color: var(--muted);
-  letter-spacing: 0.2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
-.excelRow {
-  display: grid;
-  grid-template-columns: 2fr 1fr 0.6fr 1fr;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
-  transition: background 0.12s;
-}
-
-.excelRow:last-child {
-  border-bottom: none;
-}
-
-.excelRow:hover {
-  background: rgba(0, 0, 0, 0.02);
-}
-
-.excelCell {
-  padding: 7px 8px;
-  color: var(--text);
-  font-weight: 500;
-  white-space: nowrap;
+.excelCatTitle {
+  font-size: 12px;
+  font-weight: 600;
+  color: #111111;
+  letter-spacing: -0.01em;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.excelCellNum {
-  padding: 7px 8px;
-  color: var(--muted);
-  font-weight: 500;
+.excelCatCount {
+  font-size: 10px;
+  font-weight: 600;
+  color: #6b7280;
+  background: #f1f5f9;
+  padding: 2px 8px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+
+.excelCatSum {
+  font-size: 12px;
+  font-weight: 700;
+  color: #111111;
+  letter-spacing: -0.2px;
+  font-feature-settings: "tnum" 1;
+  white-space: nowrap;
+}
+
+.excelTableWrap {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  background: #f9fafb;
+}
+
+.excelItemsTable {
+  width: 100%;
+  min-width: 220px;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: 11px;
+}
+
+.excelColNo {
+  width: 34px;
+}
+
+.excelColAmt {
+  width: 76px;
+}
+
+@media (min-width: 400px) {
+  .excelItemsTable {
+    font-size: 12px;
+  }
+  .excelColNo {
+    width: 40px;
+  }
+  .excelColAmt {
+    width: 88px;
+  }
+}
+
+.excelItemsTable th {
+  background: #f9fafb;
+  color: #6b7280;
+  font-weight: 600;
+  font-size: 10px;
+  padding: 6px 5px;
+  text-align: center;
+  border-bottom: 2px solid #e5e7eb;
+  line-height: 1.3;
+  word-break: keep-all;
+}
+
+.excelItemsTable th:first-child {
+  text-align: center;
+}
+
+.excelItemsTable th:nth-child(2) {
+  text-align: left;
+  padding-left: 8px;
+}
+
+.excelItemsTable th:last-child {
   text-align: right;
+  padding-right: 8px;
+}
+
+.excelTdNo {
+  text-align: center;
+  color: #9ca3af;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 7px 4px;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: middle;
   font-variant-numeric: tabular-nums;
 }
 
-.excelCellTotal {
-  color: var(--text);
-  font-weight: 700;
-}
-
-.excelSumRow {
-  display: grid;
-  grid-template-columns: 2fr 1fr 0.6fr 1fr;
-  background: rgba(0, 0, 0, 0.04);
-  border-top: 1px solid var(--border);
-}
-
-.excelSumRow span {
+.excelTdName {
+  color: #374151;
+  font-size: 11px;
+  font-weight: 500;
   padding: 7px 8px;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: middle;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.excelTdAmt {
+  text-align: right;
+  font-size: 11px;
+  font-weight: 700;
+  color: #111111;
+  padding: 7px 8px;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: middle;
+  font-feature-settings: "tnum" 1;
+}
+
+.excelItemsTable tbody tr:hover .excelTdNo,
+.excelItemsTable tbody tr:hover .excelTdName,
+.excelItemsTable tbody tr:hover .excelTdAmt {
+  background: #f9fafb;
+}
+
+.excelTotalRow td {
+  background: #f4f4f5;
   font-weight: 700;
   font-size: 11px;
-  color: var(--text);
-  text-align: right;
-  font-variant-numeric: tabular-nums;
+  color: #111111;
+  padding: 7px 8px;
+  border-top: 2px solid #e5e7eb;
+  font-feature-settings: "tnum" 1;
 }
 
-.excelSumRow span:first-child {
+.excelTotalRow td:first-child {
   text-align: left;
-  color: var(--muted);
+  color: #6b7280;
+  font-weight: 600;
 }
 
-/* Preview mock cards */
-.mockPreviewCard {
-  height: 68px;
-  border-radius: 12px;
-  background: rgba(0, 0, 0, 0.06);
+.excelTotalRow td:last-child {
+  text-align: right;
 }
 
-.mockPreviewCardDark {
-  background: rgba(255, 255, 255, 0.09);
+.excelAddRowMock {
+  display: block;
+  width: 100%;
+  padding: 9px 0;
+  font-size: 11px;
+  font-weight: 600;
+  color: #9ca3af;
+  background: #fff;
+  border-top: 1px dashed #e5e7eb;
+  text-align: center;
+  pointer-events: none;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+@media (min-width: 400px) {
+  .excelTdName,
+  .excelTdAmt,
+  .excelTotalRow td {
+    font-size: 12px;
+  }
+}
+
+/* ── 다크 섹션: 미리보기 목 UI (모바일 탭 + A4 윤곽) ── */
+.mockContentPreviewDark {
+  gap: 12px;
+}
+
+.previewMockMobile {
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: linear-gradient(
+    165deg,
+    rgba(255, 255, 255, 0.09) 0%,
+    rgba(255, 255, 255, 0.04) 100%
+  );
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.06) inset;
+}
+
+.previewMockMobileTop {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.previewMockIcon {
+  flex-shrink: 0;
+  color: rgba(255, 255, 255, 0.55);
+  padding: 5px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.22);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-sizing: content-box;
+}
+
+.previewMockTabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.previewMockTab {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  padding: 6px 11px;
+  border-radius: 9px;
+  color: rgba(255, 255, 255, 0.45);
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.previewMockTabActive {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  padding: 6px 11px;
+  border-radius: 9px;
+  background: linear-gradient(180deg, #fffef0 0%, var(--yellow) 100%);
+  color: var(--dark);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.35) inset;
+}
+
+.previewMockThumbs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.previewMockThumb {
+  border-radius: 10px;
+  min-height: 56px;
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px dashed rgba(255, 255, 255, 0.14);
+  display: flex;
+  align-items: flex-end;
+  padding: 8px;
+}
+
+.previewMockThumbAccent {
+  border-style: solid;
+  border-color: rgba(255, 235, 0, 0.4);
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.previewMockThumbLabel {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: rgba(255, 255, 255, 0.58);
+}
+
+.previewMockA4 {
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.05);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.previewMockA4Chrome {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 9px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.previewMockA4Chrome span {
+  flex: 1;
+  text-align: center;
+}
+
+.previewMockA4Body {
+  padding: 12px 14px 14px;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.95) 0%,
+    rgba(244, 244, 246, 0.93) 100%
+  );
+}
+
+.previewMockA4TitleBar {
+  height: 8px;
+  width: 58%;
+  margin: 0 auto 12px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.11);
+}
+
+.previewMockA4Lines {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.previewMockA4Line {
+  height: 5px;
+  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.07);
+}
+
+.previewMockA4LineShort {
+  width: 72%;
+}
+
+.previewMockA4Meta {
+  margin: 12px 0 0;
+  font-size: 9px;
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.38);
+  text-align: center;
+  letter-spacing: 0.02em;
+  line-height: 1.35;
+}
+
+@media (max-width: 480px) {
+  .previewMockMobileTop {
+    font-size: 11px;
+  }
+
+  .previewMockTab,
+  .previewMockTabActive {
+    font-size: 9px;
+    padding: 4px 8px;
+  }
+
+  .previewMockThumb {
+    min-height: 48px;
+  }
 }
 
 /* ── Badge Strip ── */
@@ -991,10 +1783,10 @@
   padding: 28px;
   border-radius: 18px;
   border: 1px solid var(--border);
-  background: var(--bg-gray);
+  background: linear-gradient(180deg, #fafafa 0%, #f4f4f5 100%);
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
   box-shadow: var(--shadow-premium-xs);
   transition: box-shadow 0.25s var(--ease-out, cubic-bezier(0.22, 1, 0.36, 1)), transform 0.25s var(--ease-out, cubic-bezier(0.22, 1, 0.36, 1));
 }
@@ -1010,15 +1802,33 @@
   }
 }
 
-.featIcon {
-  font-size: 26px;
-  line-height: 1;
+.featIconWrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  line-height: 0;
+  color: var(--text);
+  border-radius: 13px;
+  background: linear-gradient(145deg, #ffffff 0%, #f0f2f5 100%);
+  border: 1px solid rgb(0 0 0 / 0.06);
+  box-shadow:
+    0 1px 0 rgb(255 255 255 / 0.95) inset,
+    0 2px 6px rgb(15 23 42 / 0.05);
+}
+
+.featLucideIcon {
+  flex-shrink: 0;
+  stroke: currentColor;
+  opacity: 0.88;
 }
 
 .featTitle {
   margin: 0;
   font-size: 15px;
   font-weight: 700;
+  letter-spacing: -0.02em;
   color: var(--text);
 }
 
@@ -1136,20 +1946,21 @@
 .ctaBtn {
   margin-top: 8px;
   height: 54px;
-  padding: 0 36px;
-  border-radius: 14px;
-  background: var(--yellow);
+  padding: 0 38px;
+  border-radius: 16px;
+  background: linear-gradient(180deg, #fffef5 0%, var(--yellow) 45%, #f5e400 100%);
   color: var(--dark);
   font-size: 15px;
-  font-weight: 800;
+  font-weight: 700;
+  letter-spacing: 0.05em;
   text-decoration: none;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   box-shadow:
-    0 1px 0 rgb(255 255 255 / 0.45) inset,
-    0 4px 18px rgb(0 0 0 / 0.14),
-    0 0 0 1px rgb(0 0 0 / 0.06);
+    0 1px 0 rgb(255 255 255 / 0.4) inset,
+    0 3px 14px rgb(0 0 0 / 0.11),
+    0 0 0 1px rgb(0 0 0 / 0.05);
   transition:
     opacity 0.15s,
     transform 0.2s var(--ease-out, cubic-bezier(0.22, 1, 0.36, 1)),
@@ -1160,9 +1971,9 @@
   opacity: 0.98;
   transform: translateY(-2px);
   box-shadow:
-    0 1px 0 rgb(255 255 255 / 0.5) inset,
-    0 8px 28px rgb(0 0 0 / 0.18),
-    0 0 0 1px rgb(0 0 0 / 0.05);
+    0 1px 0 rgb(255 255 255 / 0.45) inset,
+    0 6px 22px rgb(0 0 0 / 0.14),
+    0 0 0 1px rgb(0 0 0 / 0.04);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1235,6 +2046,15 @@
   .svcInnerReverse { direction: ltr; }
   .svcMediaLeft    { order: 2; }
   .svcMedia        { justify-content: flex-start; }
+
+  .svcInnerMediaTall > .svcMediaLeft {
+    min-height: clamp(480px, 58dvh, 640px);
+  }
+
+  .svcEvidencePoints {
+    margin-top: 22px;
+    max-width: none;
+  }
 }
 
 /* 768px 이하 — 헤더 압축: 단일 행 유지 */
@@ -1266,10 +2086,33 @@
 /* 640px 이하 — 히어로/섹션 패딩 */
 @media (max-width: 640px) {
   .heroCopy  { gap: 18px; }
-  .heroTitle { font-size: clamp(28px, 7.5vw, 40px); }
+  .heroTitle {
+    font-size: clamp(30px, 8vw, 44px);
+    line-height: 1.14;
+  }
   .ctaHero   { width: 100%; justify-content: center; }
 
   .svcInner { padding: 56px 16px; gap: 32px; }
+
+  .svcInnerMediaTall > .svcMediaLeft {
+    min-height: clamp(440px, 56dvh, 600px);
+  }
+
+  .mockCardStretch {
+    min-height: clamp(440px, 54dvh, 620px);
+  }
+
+  .svcEvidencePoint {
+    padding: 12px 14px;
+    gap: 12px;
+  }
+
+  .svcEvidenceIconWrap {
+    width: 40px;
+    height: 40px;
+    border-radius: 11px;
+  }
+
   .howRow, .featRow, .faqRow { padding: 64px 16px; }
   .ctaRow   { padding: 80px 16px; }
   .howSteps { gap: 16px; }
