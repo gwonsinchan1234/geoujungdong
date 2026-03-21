@@ -327,10 +327,9 @@ export default function HomePage() {
   const handleStart = useCallback((e: React.MouseEvent<HTMLAnchorElement>) => {
     e.preventDefault();
     setSplashVisible(true);
-    // 1.0s: 로고 충분히 보임 → 페이드아웃 시작
-    setTimeout(() => setSplashVisible(false), 1000);
-    // 1.45s: 페이드아웃(0.45s) 완료 후 navigate
-    setTimeout(() => router.push("/workspace/fill"), 1450);
+    // 로고 충분히 보인 뒤 스플래시가 흰색인 채로 navigate
+    // fill 페이지도 흰색 배경이라 끊김 없이 이어짐
+    setTimeout(() => router.push("/workspace/fill"), 950);
   }, [router]);
 
   useEffect(() => {
@@ -357,8 +356,7 @@ export default function HomePage() {
             className={styles.splash}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.45, ease: "easeInOut" }}
+            transition={{ duration: 0.3, ease: "easeOut" }}
           >
             <motion.img
               src="/safety.png"
@@ -366,7 +364,6 @@ export default function HomePage() {
               className={styles.splashLogo}
               initial={{ opacity: 0, scale: 0.88, filter: "blur(12px)" }}
               animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
-              exit={{ opacity: 0, scale: 0.95, filter: "blur(4px)" }}
               transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1], delay: 0.08 }}
             />
           </motion.div>
