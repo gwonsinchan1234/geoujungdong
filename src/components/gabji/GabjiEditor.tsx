@@ -13,6 +13,11 @@ import GabjiForm from "./GabjiForm";
 import GabjiItemsForm from "./GabjiItemsForm";
 import GabjiPreview from "./GabjiPreview";
 import styles from "./gabji.module.css";
+import { useMobilePdfOpenFallback } from "@/lib/useMobilePdfOpenFallback";
+
+/** 모바일에서 편집 탭일 때 백그라운드로 PDF 미리 만들기 */
+const MOBILE_PREFETCH_DEBOUNCE_MS = 220;
+const PREVIEW_TAB_DEBOUNCE_MS = 600;
 
 interface Props {
   initialDoc: GabjiDoc | null;
@@ -34,6 +39,11 @@ export default function GabjiEditor({ initialDoc, initialItems, valueFontSize }:
   const [loading, setLoading] = useState(false);
   const [toast,   setToast]   = useState<Toast>(null);
   const [mobileTab, setMobileTab] = useState<MobileTab>("form");
+  const mobilePdfFallback = useMobilePdfOpenFallback();
+  const pdfStableDebounceMs =
+    mobilePdfFallback && mobileTab !== "preview"
+      ? MOBILE_PREFETCH_DEBOUNCE_MS
+      : PREVIEW_TAB_DEBOUNCE_MS;
 
   useEffect(() => { if (initialDoc) setDoc(initialDoc); }, [initialDoc]);
   useEffect(() => {
@@ -173,10 +183,20 @@ export default function GabjiEditor({ initialDoc, initialItems, valueFontSize }:
           </div>
         </div>
 
-        {/* 우측: PDF 미리보기 */}
-        <div className={`${styles.rightPanel} ${mobileTab !== "preview" ? styles.mobileHidden : ""}`}>
-          <GabjiPreview doc={doc} items={items} valueFontSize={valueFontSize} />
-        </div>
+        {/* 우측: PDF 미리보기 — motion으로 opacity 전환 (PDF 재렌더 방지) */}
+        <motion.div
+          className={styles.rightPanel}
+          animate={{ opacity: mobileTab === "preview" ? 1 : 0, y: mobileTab === "preview" ? 0 : 16 }}
+          transition={{ duration: 0.32, ease: [0.16, 1, 0.3, 1] }}
+          style={{ pointerEvents: mobileTab === "preview" ? "auto" : "none" }}
+        >
+          <GabjiPreview
+            doc={doc}
+            items={items}
+            valueFontSize={valueFontSize}
+            stableDebounceMs={pdfStableDebounceMs}
+          />
+        </motion.div>
       </div>
 
       {/* 로딩 오버레이 */}

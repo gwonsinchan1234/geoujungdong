@@ -440,10 +440,11 @@
    반응형 (≤768px)
    ════════════════════════════════════════════════════════════════ */
 @media (max-width: 768px) {
-  .editorBody { grid-template-columns: 1fr; grid-template-rows: 1fr; }
+  .editorBody { grid-template-columns: 1fr; grid-template-rows: 1fr; position: relative; }
   .mobileTabs { display: block; }
   .leftPanel  { border-right: none; }
-  .rightPanel { padding: 0; background: #555; }
+  /* rightPanel은 motion으로 opacity 제어 — absolute 오버레이 */
+  .rightPanel { padding: 0; background: #555; position: absolute; inset: 0; z-index: 5; }
   .fieldGrid  { grid-template-columns: 1fr; }
   .mobileHidden { display: none !important; }
   .leftSummary { display: none; }

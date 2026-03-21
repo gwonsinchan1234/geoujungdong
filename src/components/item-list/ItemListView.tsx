@@ -35,6 +35,10 @@ import {
   makeNewItem, fmtNum, parseNum, calcAmount,
 } from "./types";
 import styles from "./item-list.module.css";
+import { useMobilePdfOpenFallback } from "@/lib/useMobilePdfOpenFallback";
+
+const MOBILE_PREFETCH_DEBOUNCE_MS = 220;
+const PREVIEW_TAB_DEBOUNCE_MS = 600;
 
 // ── 숫자 인라인 입력 (포커스: raw값, blur: 포맷) ──────────────────
 function useInlineNum(value: number, onChange: (v: string) => void) {
@@ -316,12 +320,18 @@ interface Props {
   onSave?: () => void;
   onPrint?: () => void;
   saved?: boolean;
+  title?: string;
 }
 
-export default function ItemListView({ items, onChange, onSave, onPrint, saved }: Props) {
+export default function ItemListView({ items, onChange, onSave, onPrint, saved, title = "항목별세부내역" }: Props) {
   const [editingItem, setEditingItem] = useState<ItemData | null>(null);
   const [deletingId,  setDeletingId]  = useState<string | null>(null);
   const [mobileTab,   setMobileTab]   = useState<"list" | "preview">("list");
+  const mobilePdfFallback = useMobilePdfOpenFallback();
+  const pdfStableDebounceMs =
+    mobilePdfFallback && mobileTab === "list"
+      ? MOBILE_PREFETCH_DEBOUNCE_MS
+      : PREVIEW_TAB_DEBOUNCE_MS;
 
   const grouped = useMemo(() => {
     const map = new Map<number, ItemData[]>();
@@ -392,7 +402,7 @@ export default function ItemListView({ items, onChange, onSave, onPrint, saved }
         {/* 좌측 패널 */}
         <div className={`${styles.leftPanel} ${mobileTab === "preview" ? styles.mobileHidden : ""}`}>
           <div className={styles.leftSummary}>
-            <span className={styles.leftSummaryTitle}>항목별세부내역</span>
+            <span className={styles.leftSummaryTitle}>{title}</span>
             <span className={styles.leftSummarySep} />
             <span className={styles.leftSummaryCount}>총 {items.length}건</span>
             <span className={styles.leftSummaryTotal}>{fmtNum(total)}원</span>
@@ -467,10 +477,15 @@ export default function ItemListView({ items, onChange, onSave, onPrint, saved }
           </div>
         </div>
 
-        {/* 우측 패널: 모바일/데스크탑 공통 PDF 미리보기 */}
-        <div className={`${styles.rightPanel} ${mobileTab === "list" ? styles.mobileHidden : ""}`}>
-          <ItemListPdfViewer items={items} />
-        </div>
+        {/* 우측 패널: 모바일/데스크탑 공통 PDF 미리보기 — motion opacity 전환 */}
+        <motion.div
+          className={styles.rightPanel}
+          animate={{ opacity: mobileTab === "preview" ? 1 : 0, y: mobileTab === "preview" ? 0 : 16 }}
+          transition={{ duration: 0.32, ease: [0.16, 1, 0.3, 1] }}
+          style={{ pointerEvents: mobileTab === "preview" ? "auto" : "none" }}
+        >
+          <ItemListPdfViewer items={items} stableDebounceMs={pdfStableDebounceMs} />
+        </motion.div>
 
       </div>
 
