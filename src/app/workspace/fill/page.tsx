@@ -1963,12 +1963,6 @@ img{image-rendering:high-quality;display:block}
 
       {/* ── CONTENT ── */}
       <div className={styles.content}>
-        {loading && (
-          <div className={styles.overlay}>
-            <div className={styles.spinner} />
-            <span>파일 분석 중…</span>
-          </div>
-        )}
         {!loading && sheets.length === 0 && (
           <div className={styles.empty}>
             <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" strokeWidth="1.2">
@@ -1980,7 +1974,7 @@ img{image-rendering:high-quality;display:block}
             <p className={styles.emptyHint}>셀을 탭하면 바로 수정할 수 있어요</p>
           </div>
         )}
-        {!loading && sheets.length > 0 && (<>
+        {sheets.length > 0 && (<>
           <div className={styles.tabs}>
             {sheets.map((s, i) => (
               <button key={i} type="button"
