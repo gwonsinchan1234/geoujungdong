@@ -10,6 +10,12 @@ type Props = {
 export function LoadingState({ label = "불러오는 중…" }: Props) {
   return (
     <div className={styles.wrap} role="status" aria-live="polite" aria-busy="true">
+      <img
+        src="/logo1.png"
+        alt="SafetyCost 로고"
+        className={styles.logo}
+        draggable={false}
+      />
       <div className={styles.spinner} aria-hidden />
       {label && <p className={styles.label}>{label}</p>}
     </div>

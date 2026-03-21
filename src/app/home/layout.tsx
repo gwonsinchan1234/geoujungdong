@@ -1,0 +1,18 @@
+import type { ReactNode } from "react";
+
+/**
+ * 홈 히어로 배경 동영상을 문서 초기에 프리로드해 첫 화면에서 재생까지 시간을 줄입니다.
+ */
+export default function HomeLayout({ children }: { children: ReactNode }) {
+  return (
+    <>
+      <link
+        rel="preload"
+        href="/main.mp4"
+        as="video"
+        type="video/mp4"
+      />
+      {children}
+    </>
+  );
+}

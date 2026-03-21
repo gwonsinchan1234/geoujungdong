@@ -5,6 +5,20 @@
   justify-content: center;
   padding: var(--space-12) var(--space-6);
   min-height: 160px;
+  width: 100%;
+  background: #ffffff;
+  animation: fadeInSoft 180ms ease;
+}
+
+.logo {
+  width: auto;
+  height: clamp(64px, 16vmin, 150px);
+  max-width: min(80vw, 360px);
+  object-fit: contain;
+  margin-bottom: var(--space-4);
+  opacity: 1;
+  transform: none;
+  animation: none;
 }
 
 .spinner {
@@ -28,7 +42,31 @@
   }
 }
 
+@keyframes fadeInSoft {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes logoIn {
+  from {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .logo {
+    opacity: 1;
+    transform: none;
+  }
   .spinner {
     animation: none;
     border-top-color: var(--muted-foreground);

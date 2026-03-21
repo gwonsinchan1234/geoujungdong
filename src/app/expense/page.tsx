@@ -10,8 +10,10 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import PhotoSection from "@/components/PhotoSection";
+import styles from "./expense.module.css";
 
 type ExpenseDoc = {
   id: string;
@@ -32,6 +34,25 @@ type ExpenseItem = {
   source_fingerprint?: string | null;
   source_row_no?: number | null;
 };
+
+type SafetyLaborRow = {
+  id: string;
+  person_name: string;
+  payment_date: string;
+  amount: number;
+  attachment_count: number;
+  status: "미완료" | "완료";
+};
+
+function todayMonth() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function todayDate() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
 
 function dedupeById<T extends { id: string }>(rows: T[]): T[] {
   const map = new Map<string, T>();
@@ -63,6 +84,16 @@ export default function ExpensePage() {
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement | null>(null);
+
+  // 안전관리자 인건비 누적/조회
+  const [laborRows, setLaborRows] = useState<SafetyLaborRow[]>([]);
+  const [laborLoading, setLaborLoading] = useState(false);
+  const [laborSearch, setLaborSearch] = useState("");
+  const [laborMonth, setLaborMonth] = useState(todayMonth());
+  const [laborPersonFilter, setLaborPersonFilter] = useState("");
+  const [laborNewName, setLaborNewName] = useState("");
+  const [laborNewDate, setLaborNewDate] = useState(todayDate());
+  const [laborNewAmount, setLaborNewAmount] = useState<number>(0);
 
   /** 최근 문서 로드 */
   const loadLatestDoc = async () => {
@@ -104,8 +135,49 @@ export default function ExpensePage() {
     setEvidenceNo(nextEvidenceNo(deduped));
   };
 
+  const loadLaborRows = async () => {
+    setLaborLoading(true);
+    try {
+      const qs = new URLSearchParams();
+      if (laborSearch.trim()) qs.set("search", laborSearch.trim());
+      if (laborMonth.trim()) qs.set("month", laborMonth.trim());
+      if (laborPersonFilter.trim()) qs.set("person", laborPersonFilter.trim());
+
+      const res = await fetch(`/api/safety-labor/documents?${qs.toString()}`, { cache: "no-store" });
+      const json = await res.json();
+      if (!res.ok || !json?.ok) throw new Error(json?.error ?? "안전관리자 인건비 조회 실패");
+      setLaborRows(Array.isArray(json.rows) ? json.rows : []);
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : "안전관리자 인건비 조회 실패");
+    } finally {
+      setLaborLoading(false);
+    }
+  };
+
+  const createLaborDoc = async () => {
+    try {
+      const res = await fetch("/api/safety-labor/documents", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          personName: laborNewName,
+          paymentDate: laborNewDate,
+          amount: Number(laborNewAmount),
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json?.ok) throw new Error(json?.error ?? "문서 생성 실패");
+      setLaborNewName("");
+      await loadLaborRows();
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : "문서 생성 실패");
+    }
+  };
+
   useEffect(() => {
     loadLatestDoc();
+    void loadLaborRows();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -225,6 +297,62 @@ export default function ExpensePage() {
 
   return (
     <main style={{ padding: 16 }}>
+      <section className={styles.panel}>
+        <h2 className={styles.panelTitle}>1) 안전관리자 인건비 시트 (누적/조회)</h2>
+        <div className={styles.panelDesc}>문서 누적 저장, 검색/월/사람 필터, 상태(미완료/완료), 상세 화면 연결</div>
+
+        <div className={styles.row}>
+          <input className={styles.input} placeholder="이름" value={laborNewName} onChange={(e) => setLaborNewName(e.target.value)} />
+          <input className={styles.input} type="date" value={laborNewDate} onChange={(e) => setLaborNewDate(e.target.value)} />
+          <input className={styles.input} type="number" min={0} value={laborNewAmount} onChange={(e) => setLaborNewAmount(Number(e.target.value || 0))} />
+          <button className={`${styles.btn} ${styles.btnPrimary}`} onClick={createLaborDoc}>문서 생성</button>
+          <Link className={styles.btn} href="/expense/labor">전용 화면 열기</Link>
+        </div>
+
+        <div className={styles.row}>
+          <input className={styles.input} placeholder="검색(이름/상태)" value={laborSearch} onChange={(e) => setLaborSearch(e.target.value)} />
+          <input className={styles.input} type="month" value={laborMonth} onChange={(e) => setLaborMonth(e.target.value)} />
+          <input className={styles.input} placeholder="사람 필터" value={laborPersonFilter} onChange={(e) => setLaborPersonFilter(e.target.value)} />
+          <button className={styles.btn} onClick={loadLaborRows}>조회</button>
+        </div>
+
+        <div className={styles.meta}>총 {laborRows.length}건 {laborLoading ? "· 조회 중" : ""}</div>
+        <div className={styles.tableWrap}>
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th>NO</th>
+                <th>이름</th>
+                <th>지급일</th>
+                <th>금액</th>
+                <th>첨부수</th>
+                <th>상태</th>
+              </tr>
+            </thead>
+            <tbody>
+              {laborRows.map((row, idx) => (
+                <tr key={row.id}>
+                  <td><Link className={styles.linkRow} href={`/expense/labor/${row.id}`}>{idx + 1}</Link></td>
+                  <td><Link className={styles.linkRow} href={`/expense/labor/${row.id}`}>{row.person_name}</Link></td>
+                  <td><Link className={styles.linkRow} href={`/expense/labor/${row.id}`}>{row.payment_date}</Link></td>
+                  <td><Link className={styles.linkRow} href={`/expense/labor/${row.id}`}>{Number(row.amount ?? 0).toLocaleString()}</Link></td>
+                  <td><Link className={styles.linkRow} href={`/expense/labor/${row.id}`}>{row.attachment_count ?? 0}</Link></td>
+                  <td>
+                    <Link className={styles.linkRow} href={`/expense/labor/${row.id}`}>
+                      <span className={row.status === "완료" ? styles.done : styles.todo}>{row.status}</span>
+                    </Link>
+                  </td>
+                </tr>
+              ))}
+              {laborRows.length === 0 && (
+                <tr>
+                  <td colSpan={6}>조회 데이터가 없습니다.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
       <h1>안전관리비 관리(문서/품목 + 사진)</h1>
 
       {/* 1) 문서 */}

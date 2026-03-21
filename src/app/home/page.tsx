@@ -346,7 +346,14 @@ export default function HomePage() {
     };
     tryPlay();
     v.addEventListener("canplay", tryPlay, { once: true });
-    return () => v.removeEventListener("canplay", tryPlay);
+
+    // 네트워크가 느려 canplay/loadedData가 늦게 오면 2s 후 무조건 표시
+    const fallback = setTimeout(() => setHeroVideoReady(true), 2000);
+
+    return () => {
+      v.removeEventListener("canplay", tryPlay);
+      clearTimeout(fallback);
+    };
   }, []);
 
   return (
@@ -362,7 +369,7 @@ export default function HomePage() {
             transition={{ duration: 0.3, ease: "easeOut" }}
           >
             <motion.img
-              src="/safety.png"
+              src="/logo1.png"
               alt="safetycost"
               className={styles.splashLogo}
               initial={{ opacity: 0, scale: 0.88, filter: "blur(12px)" }}
@@ -380,13 +387,15 @@ export default function HomePage() {
       <header className={styles.topbar}>
         <div className={styles.topbarInner}>
           <div className={styles.brand}>
-            <Image
-              src="/safety.png"
+            {/* public 정적 파일은 <img>로 직접 로드 (배포 시 파일이 있어야 함) */}
+            <img
+              src="/logo1.png"
               alt="safetycost"
               className={styles.brandLogoImg}
-              width={160}
-              height={40}
-              priority
+              width={400}
+              height={80}
+              decoding="async"
+              fetchPriority="high"
             />
           </div>
 
@@ -429,6 +438,7 @@ export default function HomePage() {
             loop
             playsInline
             preload="auto"
+            onLoadedMetadata={() => setHeroVideoReady(true)}
             onLoadedData={() => setHeroVideoReady(true)}
             onCanPlay={() => setHeroVideoReady(true)}
           />

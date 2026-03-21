@@ -11,6 +11,7 @@ interface Props {
   doc: GabjiDoc;
   items: GabjiItem[];
   valueFontSize?: string;
+  stableDebounceMs?: number;
 }
 
 const GabjiPdfViewer = dynamic(() => import("./GabjiPdfViewer"), {
@@ -35,10 +36,20 @@ const GabjiPdfViewer = dynamic(() => import("./GabjiPdfViewer"), {
   ),
 });
 
-export default function GabjiPreview({ doc, items, valueFontSize }: Props) {
+export default function GabjiPreview({
+  doc,
+  items,
+  valueFontSize,
+  stableDebounceMs,
+}: Props) {
   return (
     <div style={{ width: "100%", height: "100%", overflow: "hidden" }}>
-      <GabjiPdfViewer doc={doc} items={items} valueFontSize={valueFontSize} />
+      <GabjiPdfViewer
+        doc={doc}
+        items={items}
+        valueFontSize={valueFontSize}
+        stableDebounceMs={stableDebounceMs}
+      />
     </div>
   );
 }

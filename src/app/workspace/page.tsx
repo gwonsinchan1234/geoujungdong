@@ -1468,7 +1468,13 @@ function WorkspacePageContent() {
 
 export default function Page() {
   return (
-    <Suspense fallback={<LoadingState label="워크스페이스 불러오는 중…" />}>
+    <Suspense
+      fallback={
+        <div style={{ minHeight: "100dvh", background: "#ffffff", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <LoadingState label="워크스페이스 불러오는 중…" />
+        </div>
+      }
+    >
       <WorkspacePageContent />
     </Suspense>
   );

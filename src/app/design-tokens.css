@@ -53,6 +53,26 @@
   --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
   --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
 
+  /* 다층 그림자: 헤더·카드·CTA용 (과한 드롭 섀도우 지양) */
+  --shadow-premium-xs:
+    0 1px 2px rgb(0 0 0 / 0.04),
+    0 0 0 1px rgb(0 0 0 / 0.03);
+  --shadow-premium-sm:
+    0 1px 2px rgb(0 0 0 / 0.05),
+    0 4px 14px rgb(0 0 0 / 0.06),
+    0 0 0 1px rgb(0 0 0 / 0.04);
+  --shadow-premium-md:
+    0 2px 4px rgb(0 0 0 / 0.04),
+    0 8px 28px rgb(0 0 0 / 0.08),
+    0 0 0 1px rgb(0 0 0 / 0.05);
+  --shadow-premium-lg:
+    0 4px 8px rgb(0 0 0 / 0.05),
+    0 24px 56px rgb(0 0 0 / 0.11),
+    0 0 0 1px rgb(0 0 0 / 0.04);
+  --shadow-nav:
+    0 1px 0 rgb(0 0 0 / 0.05),
+    0 10px 28px rgb(0 0 0 / 0.05);
+
   /* ─── Typography scale ─── */
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
@@ -84,6 +104,25 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
+    --shadow-premium-xs:
+      0 1px 2px rgb(0 0 0 / 0.35),
+      0 0 0 1px rgb(255 255 255 / 0.06);
+    --shadow-premium-sm:
+      0 1px 2px rgb(0 0 0 / 0.4),
+      0 4px 14px rgb(0 0 0 / 0.45),
+      0 0 0 1px rgb(255 255 255 / 0.06);
+    --shadow-premium-md:
+      0 2px 4px rgb(0 0 0 / 0.45),
+      0 8px 28px rgb(0 0 0 / 0.5),
+      0 0 0 1px rgb(255 255 255 / 0.07);
+    --shadow-premium-lg:
+      0 4px 8px rgb(0 0 0 / 0.5),
+      0 24px 56px rgb(0 0 0 / 0.55),
+      0 0 0 1px rgb(255 255 255 / 0.06);
+    --shadow-nav:
+      0 1px 0 rgb(255 255 255 / 0.06),
+      0 10px 28px rgb(0 0 0 / 0.55);
+
     --background: #0a0a0a;
     --foreground: #fafafa;
     --card: #0a0a0a;
