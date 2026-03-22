@@ -398,8 +398,17 @@
   border-bottom: 2px solid #e5e7eb;
 }
 .tabBtn {
-  flex: 1; height: 42px; background: none; border: none;
-  font-size: 13px; font-weight: 500; color: #9ca3af; cursor: pointer;
+  flex: 1;
+  min-height: 46px;
+  height: auto;
+  background: none;
+  border: none;
+  font-size: 14px;
+  font-weight: 500;
+  color: #9ca3af;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
   border-bottom: 2px solid transparent; margin-bottom: -2px;
   transition: color 0.15s, border-color 0.15s; font-family: inherit;
 }
@@ -444,10 +453,29 @@
   .mobileTabs { display: block; }
   .leftPanel  { border-right: none; }
   /* rightPanel은 motion으로 opacity 제어 — absolute 오버레이 */
-  .rightPanel { padding: 0; background: #555; position: absolute; inset: 0; z-index: 5; }
+  .rightPanel {
+    padding: 0;
+    padding-bottom: env(safe-area-inset-bottom);
+    background: #555;
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+  }
   .fieldGrid  { grid-template-columns: 1fr; }
   .mobileHidden { display: none !important; }
-  .leftSummary { display: none; }
+  /* 모바일에서도 문맥 유지: 한 줄 요약 (이전에는 숨김) */
+  .leftSummary {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 4px 8px;
+    padding: 8px 10px;
+    background: #fff;
+    border-bottom: 1px solid #e5e7eb;
+  }
+  .leftSummaryTitle { font-size: 11px; }
+  .leftSummaryCount { font-size: 10px; }
+  .leftSummaryTotal { font-size: 11px; }
 
   .toolbar { padding: 7px 10px; gap: 5px; flex-wrap: wrap; align-items: center; }
   .toolbarTitle { display: none; }

@@ -197,10 +197,20 @@
 
 /* Ghost / 메뉴 버튼 (모바일 탭) */
 .tabBtn {
-  flex: 1; height: 42px; background: transparent; border: 1px solid transparent;
-  font-size: 13px; font-weight: 500; color: #6B7280; cursor: pointer;
-  border-bottom: 2px solid transparent; margin-bottom: -2px;
+  flex: 1;
+  min-height: 46px;
+  height: auto;
+  background: transparent;
+  border: 1px solid transparent;
+  font-size: 14px;
+  font-weight: 500;
+  color: #6B7280;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
   font-family: inherit;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 .tabBtn:active { background: #F1F5F9; }
 .tabBtn:focus-visible {
@@ -583,10 +593,28 @@
   .mobileTabs { display: block; }
   .leftPanel  { border-right: none; }
   /* rightPanel은 motion으로 opacity 제어 — absolute 오버레이 */
-  .rightPanel { padding: 0; background: #555; position: absolute; inset: 0; z-index: 5; }
+  .rightPanel {
+    padding: 0;
+    padding-bottom: env(safe-area-inset-bottom);
+    background: #555;
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+  }
   .mobileHidden { display: none !important; }
 
-  .leftSummary { display: none; }
+  .leftSummary {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 4px 8px;
+    padding: 8px 10px;
+    background: #fff;
+    border-bottom: 1px solid #e5e7eb;
+  }
+  .leftSummaryTitle { font-size: 11px; }
+  .leftSummaryCount { font-size: 10px; }
+  .leftSummaryTotal { font-size: 11px; }
   .btnPrimary   { height: 30px; padding: 0 10px; font-size: 11px; }
   .btnSecondary { height: 32px; padding: 0 9px;  font-size: 11px; }
   .btnPrint     { height: 30px; padding: 0 10px; font-size: 11px; }

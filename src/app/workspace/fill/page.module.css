@@ -14,6 +14,7 @@
   padding-top: env(safe-area-inset-top);
   padding-left: env(safe-area-inset-left);
   padding-right: env(safe-area-inset-right);
+  padding-bottom: env(safe-area-inset-bottom);
   box-sizing: border-box;
 }
 
@@ -410,19 +411,70 @@
 
 /* ── Sheet Tabs ────────────────────────────────────────────────── */
 
-.tabs {
-  display: flex;
-  overflow-x: auto;
+.tabsWrap {
+  flex-shrink: 0;
   background: #fff;
   border-bottom: 2px solid #e5e7eb;
-  flex-shrink: 0;
-  padding: 0 16px;
-  scrollbar-width: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
 }
-.tabs::-webkit-scrollbar { display: none; }
+
+.tabsScroll {
+  display: flex;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0 max(12px, env(safe-area-inset-left)) 0 max(12px, env(safe-area-inset-right));
+  gap: 2px;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x proximity;
+  touch-action: pan-x manipulation;
+}
+.tabsScroll::-webkit-scrollbar { display: none; }
+
+.tabsMeta {
+  font-size: 10px;
+  font-weight: 500;
+  color: #6b7280;
+  padding: 6px max(12px, env(safe-area-inset-left)) 8px max(12px, env(safe-area-inset-right));
+  line-height: 1.35;
+  border-top: 1px solid #f1f5f9;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (min-width: 640px) {
+  .tabsWrap {
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: nowrap;
+  }
+  .tabsScroll {
+    flex: 1;
+    min-width: 0;
+    padding-right: 8px;
+    border-bottom: none;
+  }
+  .tabsMeta {
+    flex-shrink: 0;
+    max-width: min(42vw, 320px);
+    border-top: none;
+    padding: 10px 16px 10px 8px;
+    text-align: right;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
 
 .tab {
-  padding: 10px 18px;
+  flex-shrink: 0;
+  scroll-snap-align: start;
+  padding: 12px 16px;
+  min-height: 44px;
+  box-sizing: border-box;
   border: none;
   border-bottom: 2px solid transparent;
   margin-bottom: -2px;
@@ -432,6 +484,8 @@
   color: #6b7280;
   cursor: pointer;
   white-space: nowrap;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
   transition:
     background-color 160ms ease,
     border-color 160ms ease,
@@ -451,6 +505,13 @@
   color: #2563eb;
   font-weight: 700;
   border-bottom-color: #2563eb;
+}
+
+@media (max-width: 380px) {
+  .tab {
+    padding: 10px 12px;
+    font-size: 12px;
+  }
 }
 
 /* 시트 영역 진입: opacity 제외(리마운트·Strict Mode에서 잠깐 보였다 사라지는 느낌 방지), 이동만 */
@@ -598,12 +659,66 @@
 }
 
 @media (max-width: 900px) {
-  .allowanceMobileTabs { display: block; }
-  .allowanceBody { display: block; padding: 10px; }
+  .allowanceMobileTabs {
+    display: block;
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+  .allowanceTabBtn {
+    min-height: 46px;
+    font-size: 14px;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+  .allowanceBody {
+    display: block;
+    padding: 10px max(10px, env(safe-area-inset-left)) max(12px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-right));
+  }
   .allowanceMobileHidden { display: none !important; }
   .allowancePreviewPane {
     max-height: none;
-    min-height: calc(100vh - 260px);
+    min-height: min(72dvh, calc(100dvh - 220px));
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+    border-radius: 10px;
+  }
+}
+
+@media (max-width: 480px) {
+  .sheetDocument {
+    padding: 14px 12px;
+    border-width: 1.5px;
+  }
+  .allowancePanel {
+    padding: 12px;
+  }
+  .allowancePanelHead {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .allowanceLinkBtn {
+    width: 100%;
+    justify-content: center;
+    min-height: 44px;
+  }
+  .allowanceRow {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .allowanceInput {
+    min-height: 44px;
+    width: 100%;
+    font-size: 16px; /* iOS 줌 방지 */
+  }
+  .allowancePrimaryBtn,
+  .allowanceGhostBtn {
+    min-height: 44px;
+    width: 100%;
+    justify-content: center;
+  }
+  .allowanceTable th,
+  .allowanceTable td {
+    padding: 10px 8px;
+    font-size: 12px;
   }
 }
 
@@ -1436,15 +1551,73 @@
   transform: scale(0.98);
 }
 
+/* ── 모바일: 상단바 줄바꿈 · 터치 영역 ───────────────────────────── */
+
+@media (max-width: 768px) {
+  .topBar {
+    flex-wrap: wrap;
+    align-items: center;
+    row-gap: 8px;
+    column-gap: 6px;
+    padding: 8px max(10px, env(safe-area-inset-left)) 10px max(10px, env(safe-area-inset-right));
+  }
+  .fileArea {
+    order: 3;
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+  .uploadBtn {
+    order: 1;
+  }
+  .pwaBtn {
+    order: 2;
+  }
+  .clearRestoreBtn {
+    order: 3;
+  }
+  .saveBtn,
+  .printBtn,
+  .downloadBtn {
+    order: 4;
+  }
+}
+
 /* ── 모바일 미세 조정 ──────────────────────────────────────────── */
 
 @media (max-width: 480px) {
-  .topBar { padding: 8px 12px; gap: 8px; }
+  .topBar {
+    padding: 8px max(8px, env(safe-area-inset-left)) 10px max(8px, env(safe-area-inset-right));
+    gap: 6px;
+  }
   .uploadBtn  { padding: 8px 10px; font-size: 12px; }
-  .printBtn   { padding: 8px 10px; font-size: 12px; }
-  .downloadBtn{ padding: 8px 10px; font-size: 12px; }
+  .printBtn   { padding: 8px 10px; font-size: 12px; min-width: 44px; }
+  .downloadBtn{ padding: 8px 10px; font-size: 12px; min-width: 44px; }
   .clearRestoreBtn { padding: 8px 10px; font-size: 11px; }
-  .viewport   { padding: 10px; }
+  .saveBtn { padding: 8px 12px; font-size: 12px; }
+  .viewport   { padding: 10px max(10px, env(safe-area-inset-left)) 14px max(10px, env(safe-area-inset-right)); }
+  .viewportPhoto { padding: 12px max(10px, env(safe-area-inset-left)) max(16px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-right)); }
+  .editBadge { font-size: 10px; padding: 2px 6px; }
+}
+
+/* 좁은 화면: 인쇄·다운로드는 아이콘만 (레이블 숨김) */
+@media (max-width: 400px) {
+  .printBtn > span,
+  .downloadBtn > span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+  .printBtn,
+  .downloadBtn {
+    position: relative;
+    padding: 10px 12px;
+  }
 }
 
 /* ── PWA 설치 안내 버튼 ────────────────────────────────────────── */
