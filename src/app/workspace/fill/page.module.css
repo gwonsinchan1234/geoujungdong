@@ -583,58 +583,13 @@
   flex-direction: column;
 }
 
-/* 수당/인건비: 항목별세부내역과 유사한 좌(편집) + 우(미리보기) */
+/* 수당/인건비: LaborAllowanceSplitLayout → 항목별세부내역과 동일 editor + PDFViewer */
 .viewportAllowance {
   flex: 1;
   min-height: 0;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
-  padding: 0;
-  background: #f0f2f5;
-  overflow: hidden;
-}
-
-.allowanceMobileTabs { display: none; flex-shrink: 0; background: #fff; }
-.allowanceTabBar { display: flex; border-bottom: 1px solid #e5e7eb; }
-.allowanceTabBtn {
-  flex: 1;
-  min-height: 42px;
-  border: none;
-  background: transparent;
-  color: #6b7280;
-  font-size: 13px;
-  font-weight: 600;
-  border-bottom: 2px solid transparent;
-  cursor: pointer;
-}
-.allowanceTabActive { color: #111827; border-bottom-color: #111827; }
-
-.allowanceBody {
-  flex: 1;
-  min-height: 0;
-  display: grid;
-  grid-template-columns: minmax(560px, 1fr) minmax(420px, 560px);
-  gap: 12px;
-  padding: 12px;
-}
-
-.allowanceEditorPane {
-  min-height: 0;
-  overflow: auto;
-}
-
-.allowancePreviewPane {
-  min-height: 0;
-  overflow: auto;
-  border: 1px solid #d1d5db;
-  border-radius: 12px;
-  background: #1f2937;
-  padding: 12px;
-}
-
-.allowancePreviewPane .previewPage,
-.allowancePreviewPane .previewPageCover {
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.24);
 }
 .viewportPhoto::-webkit-scrollbar { width: 6px; height: 6px; }
 .viewportPhoto::-webkit-scrollbar-track { background: #e5e7eb; }
@@ -646,40 +601,6 @@
   .viewportAllowance,
   .viewportCover {
     animation: none;
-  }
-}
-
-@media (max-width: 1200px) {
-  .allowanceBody {
-    grid-template-columns: 1fr;
-  }
-  .allowancePreviewPane {
-    max-height: 60vh;
-  }
-}
-
-@media (max-width: 900px) {
-  .allowanceMobileTabs {
-    display: block;
-    padding-left: env(safe-area-inset-left);
-    padding-right: env(safe-area-inset-right);
-  }
-  .allowanceTabBtn {
-    min-height: 46px;
-    font-size: 14px;
-    -webkit-tap-highlight-color: transparent;
-    touch-action: manipulation;
-  }
-  .allowanceBody {
-    display: block;
-    padding: 10px max(10px, env(safe-area-inset-left)) max(12px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-right));
-  }
-  .allowanceMobileHidden { display: none !important; }
-  .allowancePreviewPane {
-    max-height: none;
-    min-height: min(72dvh, calc(100dvh - 220px));
-    padding-bottom: max(12px, env(safe-area-inset-bottom));
-    border-radius: 10px;
   }
 }
 

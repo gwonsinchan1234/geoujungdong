@@ -17,6 +17,7 @@ import { makeEmptyGabji, DEFAULT_ITEMS } from "@/components/gabji-form/types";
 import type { GabjiData } from "@/components/gabji-form/types";
 import ItemListView from "@/components/item-list/ItemListView";
 import type { ItemData } from "@/components/item-list/types";
+import LaborAllowanceSplitLayout from "@/components/labor-allowance/LaborAllowanceSplitLayout";
 import { parseNum as parseItemNum, sumByCategory } from "@/components/item-list/types";
 
 // ── 이미지 압축 ──────────────────────────────────────────────────
@@ -818,7 +819,6 @@ export default function FillPage() {
   const [laborNewName,   setLaborNewName]   = useState("");
   const [laborNewDate,   setLaborNewDate]   = useState(todayDateKey());
   const [laborNewAmount, setLaborNewAmount] = useState<number>(0);
-  const [allowanceMobileTab, setAllowanceMobileTab] = useState<"edit" | "preview">("edit");
   const restoringWorkbookRef = useRef(false);
   /** 직렬이 아닌 parseWorkbookFile 호출 시, 늦게 끝난 작업이 상태를 덮어쓰지 않게 함 */
   const workbookParseGenRef = useRef(0);
@@ -858,6 +858,15 @@ export default function FillPage() {
     photoBlocks,
     savedAt: docState.savedAt,
   }), [formValues, gabjiData, gabjiCellRefs, gabjiItemRefs, gabjiCellStyles, items, photoBlocks, docState.savedAt]);
+
+  const laborPdfMeta = useMemo(
+    () => ({
+      month: laborMonth.trim(),
+      search: laborSearch.trim(),
+      person: laborPerson.trim(),
+    }),
+    [laborMonth, laborSearch, laborPerson],
+  );
 
   const loadLaborRows = useCallback(async () => {
     setLaborLoading(true);
@@ -1859,11 +1868,6 @@ img{image-rendering:high-quality;display:block}
     void loadLaborRows();
   }, [isAllowanceActive, loadLaborRows]);
 
-  useEffect(() => {
-    if (!isAllowanceActive) return;
-    setAllowanceMobileTab("edit");
-  }, [activeSheet, isAllowanceActive]);
-
   // ── 갑지 GabjiData → 새 GabjiEditor 타입으로 변환 ─────────────
   const itemAmountsForGabji = useMemo(
     () => Object.fromEntries(Array.from({ length: 9 }, (_, i) => [i + 1, sumByCategory(items, i + 1)])),
@@ -2125,90 +2129,68 @@ img{image-rendering:high-quality;display:block}
             </div>
           ) : sheet && isAllowanceSheet(sheet.name) ? (
             <div key={`allowance-${activeSheet}`} className={styles.viewportAllowance}>
-              <div className={styles.allowanceMobileTabs}>
-                <div className={styles.allowanceTabBar}>
-                  <button
-                    type="button"
-                    className={`${styles.allowanceTabBtn} ${allowanceMobileTab === "edit" ? styles.allowanceTabActive : ""}`}
-                    onClick={() => setAllowanceMobileTab("edit")}
-                  >
-                    인건비 관리
-                  </button>
-                  <button
-                    type="button"
-                    className={`${styles.allowanceTabBtn} ${allowanceMobileTab === "preview" ? styles.allowanceTabActive : ""}`}
-                    onClick={() => setAllowanceMobileTab("preview")}
-                  >
-                    미리보기
-                  </button>
-                </div>
-              </div>
-
-              <div className={styles.allowanceBody}>
-                <div className={`${styles.allowanceEditorPane} ${allowanceMobileTab === "preview" ? styles.allowanceMobileHidden : ""}`}>
-                  <div className={styles.sheetDocument}>
-                    <section className={styles.allowancePanel}>
-                      <div className={styles.allowancePanelHead}>
-                        <div>
-                          <h3 className={styles.allowanceTitle}>안전관리자 인건비</h3>
-                          <p className={styles.allowanceSub}>기존 인건비 누적/조회 기능을 유지한 전용 화면입니다.</p>
-                        </div>
-                        <Link className={styles.allowanceLinkBtn} href="/expense/labor">전용 화면</Link>
+              <LaborAllowanceSplitLayout
+                rows={laborRows}
+                meta={laborPdfMeta}
+                loading={laborLoading}
+              >
+                <div className={styles.sheetDocument}>
+                  <section className={styles.allowancePanel}>
+                    <div className={styles.allowancePanelHead}>
+                      <div>
+                        <p className={styles.allowanceSub}>기존 인건비 누적/조회 기능을 유지한 전용 화면입니다.</p>
                       </div>
+                      <Link className={styles.allowanceLinkBtn} href="/expense/labor">전용 화면</Link>
+                    </div>
 
-                      <div className={styles.allowanceRow}>
-                        <input className={styles.allowanceInput} placeholder="이름" value={laborNewName} onChange={(e) => setLaborNewName(e.target.value)} />
-                        <input className={styles.allowanceInput} type="date" value={laborNewDate} onChange={(e) => setLaborNewDate(e.target.value)} />
-                        <input className={styles.allowanceInput} type="number" min={0} value={laborNewAmount} onChange={(e) => setLaborNewAmount(Number(e.target.value || 0))} />
-                        <button type="button" className={styles.allowancePrimaryBtn} onClick={() => { void createLaborDoc(); }}>문서 생성</button>
-                      </div>
+                    <div className={styles.allowanceRow}>
+                      <input className={styles.allowanceInput} placeholder="이름" value={laborNewName} onChange={(e) => setLaborNewName(e.target.value)} />
+                      <input className={styles.allowanceInput} type="date" value={laborNewDate} onChange={(e) => setLaborNewDate(e.target.value)} />
+                      <input className={styles.allowanceInput} type="number" min={0} value={laborNewAmount} onChange={(e) => setLaborNewAmount(Number(e.target.value || 0))} />
+                      <button type="button" className={styles.allowancePrimaryBtn} onClick={() => { void createLaborDoc(); }}>문서 생성</button>
+                    </div>
 
-                      <div className={styles.allowanceRow}>
-                        <input className={styles.allowanceInput} placeholder="검색(이름/상태)" value={laborSearch} onChange={(e) => setLaborSearch(e.target.value)} />
-                        <input className={styles.allowanceInput} type="month" value={laborMonth} onChange={(e) => setLaborMonth(e.target.value)} />
-                        <input className={styles.allowanceInput} placeholder="사람 필터" value={laborPerson} onChange={(e) => setLaborPerson(e.target.value)} />
-                        <button type="button" className={styles.allowanceGhostBtn} onClick={() => { void loadLaborRows(); }}>조회</button>
-                      </div>
+                    <div className={styles.allowanceRow}>
+                      <input className={styles.allowanceInput} placeholder="검색(이름/상태)" value={laborSearch} onChange={(e) => setLaborSearch(e.target.value)} />
+                      <input className={styles.allowanceInput} type="month" value={laborMonth} onChange={(e) => setLaborMonth(e.target.value)} />
+                      <input className={styles.allowanceInput} placeholder="사람 필터" value={laborPerson} onChange={(e) => setLaborPerson(e.target.value)} />
+                      <button type="button" className={styles.allowanceGhostBtn} onClick={() => { void loadLaborRows(); }}>조회</button>
+                    </div>
 
-                      <div className={styles.allowanceMeta}>총 {laborRows.length}건 {laborLoading ? "· 조회 중" : ""}</div>
-                      <div className={styles.allowanceTableWrap}>
-                        <table className={styles.allowanceTable}>
-                          <thead>
-                            <tr>
-                              <th>NO</th>
-                              <th>이름</th>
-                              <th>지급일</th>
-                              <th>금액</th>
-                              <th>첨부수</th>
-                              <th>상태</th>
+                    <div className={styles.allowanceTableWrap}>
+                      <table className={styles.allowanceTable}>
+                        <thead>
+                          <tr>
+                            <th>NO</th>
+                            <th>이름</th>
+                            <th>지급일</th>
+                            <th>금액</th>
+                            <th>첨부수</th>
+                            <th>상태</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {laborRows.map((row, idx) => (
+                            <tr key={row.id}>
+                              <td className={styles.allowanceColNo}><Link className={styles.allowanceCellLink} href={`/expense/labor/${row.id}`}>NO.{idx + 1}</Link></td>
+                              <td className={styles.allowanceColName}><Link className={styles.allowanceCellLink} href={`/expense/labor/${row.id}`}>{row.person_name}</Link></td>
+                              <td className={styles.allowanceColDate}><Link className={styles.allowanceCellLink} href={`/expense/labor/${row.id}`}>{row.payment_date}</Link></td>
+                              <td className={styles.allowanceColAmount}><Link className={styles.allowanceCellLink} href={`/expense/labor/${row.id}`}>{Number(row.amount ?? 0).toLocaleString()}</Link></td>
+                              <td className={styles.allowanceColAttach}><Link className={styles.allowanceCellLink} href={`/expense/labor/${row.id}`}>{row.attachment_count ?? 0}건</Link></td>
+                              <td><Link href={`/expense/labor/${row.id}`} className={row.status === "완료" ? styles.allowanceDone : styles.allowanceTodo}>{row.status}</Link></td>
                             </tr>
-                          </thead>
-                          <tbody>
-                            {laborRows.map((row, idx) => (
-                              <tr key={row.id}>
-                                <td className={styles.allowanceColNo}><Link className={styles.allowanceCellLink} href={`/expense/labor/${row.id}`}>NO.{idx + 1}</Link></td>
-                                <td className={styles.allowanceColName}><Link className={styles.allowanceCellLink} href={`/expense/labor/${row.id}`}>{row.person_name}</Link></td>
-                                <td className={styles.allowanceColDate}><Link className={styles.allowanceCellLink} href={`/expense/labor/${row.id}`}>{row.payment_date}</Link></td>
-                                <td className={styles.allowanceColAmount}><Link className={styles.allowanceCellLink} href={`/expense/labor/${row.id}`}>{Number(row.amount ?? 0).toLocaleString()}</Link></td>
-                                <td className={styles.allowanceColAttach}><Link className={styles.allowanceCellLink} href={`/expense/labor/${row.id}`}>{row.attachment_count ?? 0}건</Link></td>
-                                <td><Link href={`/expense/labor/${row.id}`} className={row.status === "완료" ? styles.allowanceDone : styles.allowanceTodo}>{row.status}</Link></td>
-                              </tr>
-                            ))}
-                            {laborRows.length === 0 && (
-                              <tr>
-                                <td colSpan={6}>조회 데이터가 없습니다.</td>
-                              </tr>
-                            )}
-                          </tbody>
-                        </table>
-                      </div>
-                    </section>
-                  </div>
+                          ))}
+                          {laborRows.length === 0 && (
+                            <tr>
+                              <td colSpan={6}>조회 데이터가 없습니다.</td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </section>
                 </div>
-                <div className={`${styles.allowancePreviewPane} ${allowanceMobileTab === "edit" ? styles.allowanceMobileHidden : ""}`}>
-                  <PreviewSheet sheet={sheet} sheetIdx={activeSheet} formValues={previewData.formValues} />
-                </div>
-              </div>
+              </LaborAllowanceSplitLayout>
             </div>
           ) : sheet && isItemSheet(sheet.name) ? (
             <div key={`items-${activeSheet}`} className={styles.viewportItems}>
