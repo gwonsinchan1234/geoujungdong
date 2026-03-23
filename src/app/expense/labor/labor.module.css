@@ -251,6 +251,90 @@
   margin-bottom: 12px;
 }
 
+.previewPhotoBlock {
+  margin-bottom: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.previewPhotoTitle {
+  font-size: 14px;
+  font-weight: 700;
+  color: #111827;
+  margin-bottom: 10px;
+  letter-spacing: -0.02em;
+}
+
+.previewPhotoEmpty {
+  margin: 0;
+  font-size: 12px;
+  color: #6b7280;
+  line-height: 1.5;
+  padding: 12px;
+  background: #f9fafb;
+  border-radius: 10px;
+  border: 1px dashed #d1d5db;
+}
+
+.previewPhotoGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.previewPhotoFigure {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.previewPhotoLink {
+  display: block;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid #e5e7eb;
+  background: #f3f4f6;
+  line-height: 0;
+}
+
+.previewPhotoImg {
+  width: 100%;
+  max-height: min(52vh, 420px);
+  min-height: 160px;
+  object-fit: contain;
+  display: block;
+  background: #111;
+}
+
+.previewPhotoPlaceholder {
+  min-height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: #9ca3af;
+  background: #f3f4f6;
+  border-radius: 10px;
+  border: 1px dashed #d1d5db;
+}
+
+.previewPhotoCaption {
+  font-size: 11px;
+  color: #6b7280;
+  word-break: break-all;
+  line-height: 1.35;
+}
+
+.previewSummaryTitle {
+  font-size: 12px;
+  font-weight: 700;
+  color: #374151;
+  margin-bottom: 8px;
+  letter-spacing: -0.01em;
+}
+
 .previewTable {
   border: 1px solid #111;
 }
@@ -310,6 +394,17 @@
   border-bottom: 2px solid #111111;
 }
 
+@media (max-width: 980px) {
+  .previewPhotoGrid {
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 10px;
+  }
+  .previewPhotoImg {
+    max-height: min(45vh, 360px);
+    min-height: 140px;
+  }
+}
+
 @media (max-width: 768px) {
   .editorBody { grid-template-columns: 1fr; }
   .mobileTabs { display: block; }
@@ -329,4 +424,13 @@
     border-radius: 0;
   }
   .attachList { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 480px) {
+  .previewPhotoGrid {
+    grid-template-columns: 1fr;
+  }
+  .previewPhotoImg {
+    max-height: min(50vh, 320px);
+  }
 }

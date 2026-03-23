@@ -1299,6 +1299,97 @@ export default function FillPage() {
     return () => window.removeEventListener("popstate", onPop);
   }, [showPreview]);
 
+  // 사진대지 인쇄 미리보기: localStorage 복원 등으로 url이 비어 있을 때 signed URL 재조회
+  useEffect(() => {
+    if (!showPreview) return;
+    const s = sheets[activeSheet];
+    if (!s || !isPhotoSheet(s.name)) return;
+    const docId = docIdRef.current;
+    if (!docId) return;
+    let cancelled = false;
+
+    void (async () => {
+      try {
+        const res = await fetch(`/api/photo-blocks?docId=${encodeURIComponent(docId)}`);
+        const json = (await res.json()) as {
+          ok?: boolean;
+          blocks?: Array<{
+            sheet_name: string;
+            no: number;
+            id: string;
+            photos: Array<{
+              id: string;
+              block_id: string;
+              side: string;
+              slot_index: number;
+              storage_path: string;
+              url: string;
+            }>;
+          }>;
+        };
+        if (cancelled || !res.ok || !json.ok || !json.blocks?.length) return;
+
+        setPhotoBlocks((prev) => {
+          let touched = false;
+          const next: Record<string, PhotoBlock[]> = { ...prev };
+          for (const dbBlock of json.blocks!) {
+            const arr = next[dbBlock.sheet_name];
+            if (!arr) continue;
+            const bi = arr.findIndex((b) => b.no === dbBlock.no);
+            if (bi < 0) continue;
+            const localBlock = arr[bi];
+            if (!dbBlock.photos?.length) continue;
+
+            const newPhotos: BlockPhoto[] = localBlock.photos.map((lp) => {
+              const dp = dbBlock.photos.find(
+                (p) => p.side === lp.side && p.slot_index === lp.slot_index,
+              );
+              if (!dp?.url) return lp;
+              const keepPendingBlob =
+                lp.url?.startsWith("blob:") && String(lp.id).startsWith("pending_");
+              if (keepPendingBlob) return lp;
+              return {
+                ...lp,
+                id: dp.id,
+                block_id: dbBlock.id,
+                storage_path: dp.storage_path || lp.storage_path,
+                url: dp.url,
+              };
+            });
+            for (const dp of dbBlock.photos) {
+              if (!newPhotos.some((lp) => lp.side === dp.side && lp.slot_index === dp.slot_index)) {
+                newPhotos.push({
+                  id: dp.id,
+                  block_id: dbBlock.id,
+                  side: dp.side as "left" | "right",
+                  slot_index: dp.slot_index,
+                  storage_path: dp.storage_path,
+                  url: dp.url,
+                });
+              }
+            }
+            const newArr = [...arr];
+            newArr[bi] = {
+              ...localBlock,
+              id: dbBlock.id,
+              doc_id: docId,
+              photos: newPhotos,
+            };
+            next[dbBlock.sheet_name] = newArr;
+            touched = true;
+          }
+          return touched ? next : prev;
+        });
+      } catch {
+        /* 네트워크 실패 시 기존 상태 유지 */
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [showPreview, activeSheet, sheets, setPhotoBlocks]);
+
   // 선택 셀 스크롤 into view
   useEffect(() => {
     selectedTdRef.current?.scrollIntoView({ block: "nearest", inline: "nearest" });

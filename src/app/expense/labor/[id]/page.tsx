@@ -39,7 +39,8 @@ export default function SafetyLaborDetailPage() {
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [loading, setLoading] = useState(false);
   const [copyMonth, setCopyMonth] = useState(thisMonth());
-  const [mobileTab, setMobileTab] = useState<"edit" | "preview">("edit");
+  /** 모바일: 증빙 사진 확인이 우선 → 기본은 미리보기(사진) 탭 */
+  const [mobileTab, setMobileTab] = useState<"edit" | "preview">("preview");
 
   const [personName, setPersonName] = useState("");
   const [paymentDate, setPaymentDate] = useState("");
@@ -143,7 +144,8 @@ export default function SafetyLaborDetailPage() {
             className={`${styles.tabBtn} ${mobileTab === "preview" ? styles.active : ""}`}
             onClick={() => setMobileTab("preview")}
           >
-            미리보기
+            증빙 사진
+            {attachments.length > 0 ? ` (${attachments.length})` : ""}
           </button>
         </div>
       </div>
@@ -251,14 +253,52 @@ export default function SafetyLaborDetailPage() {
           <div className={styles.previewCanvas}>
             <div className={styles.previewPaper}>
               <div className={styles.previewHead}>안전관리자 인건비 및 업무수당</div>
+
+              <div className={styles.previewPhotoBlock}>
+                <div className={styles.previewPhotoTitle}>증빙 사진</div>
+                {attachments.length === 0 ? (
+                  <p className={styles.previewPhotoEmpty}>
+                    등록된 이미지가 없습니다. 왼쪽 <strong>첨부 업로드</strong>에서 사진을 추가하세요.
+                  </p>
+                ) : (
+                  <div className={styles.previewPhotoGrid}>
+                    {attachments.map((att) => (
+                      <figure className={styles.previewPhotoFigure} key={att.id}>
+                        {att.url ? (
+                          <a
+                            href={att.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className={styles.previewPhotoLink}
+                            aria-label={`${att.file_name} 원본 보기`}
+                          >
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              className={styles.previewPhotoImg}
+                              src={att.url}
+                              alt={att.file_name}
+                              loading="lazy"
+                            />
+                          </a>
+                        ) : (
+                          <div className={styles.previewPhotoPlaceholder}>URL 없음</div>
+                        )}
+                        <figcaption className={styles.previewPhotoCaption}>{att.file_name}</figcaption>
+                      </figure>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className={styles.previewSummaryTitle}>문서 요약</div>
               <div className={styles.previewTable}>
                 <div className={styles.previewRow}><span>이름</span><strong>{personName || "-"}</strong></div>
                 <div className={styles.previewRow}><span>지급일</span><strong>{paymentDate || "-"}</strong></div>
                 <div className={styles.previewRow}><span>금액</span><strong>{Number(amount || 0).toLocaleString()}원</strong></div>
                 <div className={styles.previewRow}><span>상태</span><strong>{doc?.status ?? "-"}</strong></div>
-                <div className={styles.previewRow}><span>첨부</span><strong>{attachments.length}개</strong></div>
+                <div className={styles.previewRow}><span>첨부</span><strong>{attachments.length}건</strong></div>
               </div>
-              <div className={styles.previewNote}>* 실제 출력 양식은 기존 기능/엔진을 그대로 사용합니다.</div>
+              <div className={styles.previewNote}>* 출력/PDF 연동은 별도 기능을 따릅니다.</div>
             </div>
           </div>
         </div>

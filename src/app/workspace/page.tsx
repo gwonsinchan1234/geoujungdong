@@ -63,6 +63,33 @@ function makeSlots(spec: TemplateSpec): PhotoSlot[] {
   return [...incoming, ...install];
 }
 
+/** API grouped URL을 기존 슬롯에 병합 (로컬 file이 있으면 덮어쓰지 않음) */
+function mergePhotoSlotsWithGrouped(
+  existing: PhotoSlot[] | undefined,
+  spec: TemplateSpec,
+  grouped: { incoming?: string[]; install?: string[] },
+): PhotoSlot[] {
+  const base = existing ?? makeSlots(spec);
+  const next = base.map((s) => ({ ...s }));
+  const incoming = grouped.incoming ?? [];
+  const install = grouped.install ?? [];
+  for (let slot = 0; slot < incoming.length; slot++) {
+    const url = incoming[slot];
+    if (typeof url === "string" && url.length > 0) {
+      const idx = next.findIndex((x) => x.kind === "incoming" && x.slot === slot);
+      if (idx >= 0 && !next[idx].file) next[idx].previewUrl = url;
+    }
+  }
+  for (let slot = 0; slot < install.length; slot++) {
+    const url = install[slot];
+    if (typeof url === "string" && url.length > 0) {
+      const idx = next.findIndex((x) => x.kind === "install" && x.slot === slot);
+      if (idx >= 0 && !next[idx].file) next[idx].previewUrl = url;
+    }
+  }
+  return next;
+}
+
 function countFilled(slots: PhotoSlot[], kind: PhotoKind) {
   return slots.filter((s) => s.kind === kind && (!!s.file || !!(s.previewUrl && typeof s.previewUrl === "string" && s.previewUrl.length > 0))).length;
 }
@@ -439,6 +466,48 @@ function WorkspacePageContent() {
     }
     return () => { cancelled = true; };
   }, [selectedItemId, selectedItem, allItemSlots]);
+
+  // 사진대지 미리보기: 선택되지 않은 품목도 URL을 불러와야 썸네일이 보임
+  useEffect(() => {
+    if (!showPreview) return;
+    const items = currentItems;
+    let cancelled = false;
+
+    void (async () => {
+      await Promise.all(
+        items.map(async (item) => {
+          const spec = item.templateSpec ?? DEFAULT_TEMPLATE_SPEC;
+          try {
+            const res = await fetch(`/api/photos/list?itemId=${encodeURIComponent(item.id)}`);
+            const json = await res.json().catch(() => ({}));
+            if (cancelled) return;
+            if (!res.ok || !json.ok || !json.grouped) {
+              setAllItemSlots((prev) => {
+                if (prev[item.id]) return prev;
+                return { ...prev, [item.id]: makeSlots(spec) };
+              });
+              return;
+            }
+            setAllItemSlots((prev) => ({
+              ...prev,
+              [item.id]: mergePhotoSlotsWithGrouped(prev[item.id], spec, json.grouped),
+            }));
+          } catch {
+            if (!cancelled) {
+              setAllItemSlots((prev) => {
+                if (prev[item.id]) return prev;
+                return { ...prev, [item.id]: makeSlots(spec) };
+              });
+            }
+          }
+        }),
+      );
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [showPreview, currentItems]);
 
   // cleanup: 컴포넌트 언마운트 시 모든 previewUrl 해제
   useEffect(() => {
