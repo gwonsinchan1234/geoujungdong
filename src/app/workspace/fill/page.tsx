@@ -18,7 +18,7 @@ import type { GabjiData } from "@/components/gabji-form/types";
 import ItemListView from "@/components/item-list/ItemListView";
 import type { ItemData } from "@/components/item-list/types";
 import LaborAllowanceSplitLayout from "@/components/labor-allowance/LaborAllowanceSplitLayout";
-import { parseNum as parseItemNum, sumByCategory } from "@/components/item-list/types";
+import { parseNum as parseItemNum, sumByCategory, CATEGORY_LABELS, fmtNum } from "@/components/item-list/types";
 
 // ── 이미지 압축 ──────────────────────────────────────────────────
 const MAX_UPLOAD_BYTES = 8 * 1024 * 1024; // 8MB (직접 Supabase 업로드 — Vercel 제한 없음)
@@ -94,6 +94,99 @@ const isCoverSheet = (name: string) => name.trim() === "갑지" || name.includes
 
 /** 항목별세부내역 시트 */
 const isItemSheet = (name: string) => name.includes("항목별세부내역") || name.includes("항목별") || name === "항목";
+
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function isKakaoInAppBrowser(): boolean {
+  if (typeof navigator === "undefined") return false;
+  return /KAKAOTALK/i.test(navigator.userAgent);
+}
+
+function buildItemListPrintHtml(items: ItemData[], fileName: string): string {
+  const grouped = new Map<number, ItemData[]>();
+  for (let n = 1; n <= 9; n++) grouped.set(n, []);
+  for (const item of items) grouped.get(item.categoryNo)?.push(item);
+
+  const total = items.reduce((sum, item) => sum + item.amount, 0);
+  const rows: string[] = [];
+
+  rows.push(`
+    <tr class="sum-row">
+      <td colspan="6">합 계</td>
+      <td class="num">${fmtNum(total)}</td>
+    </tr>
+  `);
+
+  for (let catNo = 1; catNo <= 9; catNo++) {
+    const catItems = grouped.get(catNo) ?? [];
+    const catTotal = catItems.reduce((sum, item) => sum + item.amount, 0);
+    rows.push(`
+      <tr class="cat-row">
+        <td colspan="6">${catNo}. ${escapeHtml(CATEGORY_LABELS[catNo] ?? "")}</td>
+        <td class="num">${catTotal > 0 ? fmtNum(catTotal) : ""}</td>
+      </tr>
+    `);
+    if (catItems.length === 0) {
+      for (let i = 0; i < 2; i++) {
+        rows.push(`
+          <tr>
+            <td></td><td></td><td></td><td class="num"></td><td></td><td class="num"></td><td class="num"></td>
+          </tr>
+        `);
+      }
+      continue;
+    }
+    catItems.forEach((item, idx) => {
+      rows.push(`
+        <tr>
+          <td>${escapeHtml(item.evidenceNo || `NO.${idx + 1}`)}</td>
+          <td>${escapeHtml(item.usageDate || "")}</td>
+          <td>${escapeHtml(item.name || "")}</td>
+          <td class="num">${item.quantity ? fmtNum(item.quantity) : ""}</td>
+          <td>${escapeHtml(item.unit || "")}</td>
+          <td class="num">${item.unitPrice ? fmtNum(item.unitPrice) : ""}</td>
+          <td class="num">${item.amount ? fmtNum(item.amount) : ""}</td>
+        </tr>
+      `);
+    });
+  }
+
+  return `<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>항목별 세부내역서</title>
+<style>
+  @page{size:A4 portrait;margin:10mm}
+  *{box-sizing:border-box}
+  body{margin:0;color:#000;background:#fff;font-family:"Apple SD Gothic Neo","Malgun Gothic",sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .doc{width:100%;max-width:190mm;margin:0 auto}
+  .title{font-size:16px;font-weight:800;letter-spacing:0.08em;text-align:center;padding:4px 0 10px}
+  .meta{font-size:11px;color:#444;text-align:right;padding-bottom:6px}
+  table{width:100%;border-collapse:collapse;table-layout:fixed}
+  th,td{border:1px solid #777;font-size:10.5px;line-height:1.25;padding:4px 5px;vertical-align:middle}
+  th{background:#efefef;font-weight:800;text-align:center}
+  .cat-row td{background:#f7f7f7;font-weight:700}
+  .sum-row td{background:#f2f2f2;font-weight:800}
+  .num{text-align:right;font-variant-numeric:tabular-nums}
+  .w-no{width:11%}.w-date{width:13%}.w-name{width:37%}.w-qty{width:8%}.w-unit{width:8%}.w-price{width:13%}.w-amt{width:10%}
+</style></head><body><div class="doc">
+  <div class="title">항목별 세부내역서</div>
+  <div class="meta">${escapeHtml(fileName || "")}</div>
+  <table>
+    <thead>
+      <tr>
+        <th class="w-no">번호</th>
+        <th class="w-date">사용일자</th>
+        <th class="w-name">품명 / 규격</th>
+        <th class="w-qty">수량</th>
+        <th class="w-unit">단위</th>
+        <th class="w-price">단가</th>
+        <th class="w-amt">금액</th>
+      </tr>
+    </thead>
+    <tbody>${rows.join("")}</tbody>
+  </table>
+</div><script>window.onload=function(){window.focus();window.setTimeout(function(){window.print();},50);};<\/script></body></html>`;
+}
 
 function toAbsoluteRef(sheet: ParsedSheet, ri: number, ci: number): string {
   const absRow = sheet.renderRange.r1 + ri;
@@ -1806,6 +1899,19 @@ img{image-rendering:high-quality;display:block}
   // ── 항목별세부내역: react-pdf로 PDF 생성 후 새 탭 열기 (갑지와 동일 방식) ──
   const handleItemPdfPrint = useCallback(async () => {
     try {
+      if (isKakaoInAppBrowser()) {
+        const html = buildItemListPrintHtml(items, fileName || "");
+        const w = window.open("", "_blank");
+        if (!w) {
+          alert("카카오톡 브라우저에서 팝업이 차단되었습니다. 우측 상단 메뉴에서 외부 브라우저로 열어 인쇄해주세요.");
+          return;
+        }
+        w.document.open();
+        w.document.write(html);
+        w.document.close();
+        return;
+      }
+
       const [{ pdf }, { default: ItemListPdf }] = await Promise.all([
         import("@react-pdf/renderer"),
         import("@/components/item-list/ItemListPdf"),
