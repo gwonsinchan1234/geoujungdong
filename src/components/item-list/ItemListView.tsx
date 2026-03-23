@@ -68,6 +68,7 @@ function ItemRow({
   onStartDelete: (id: string) => void;
   onInlineChange: (id: string, field: keyof ItemData, raw: string) => void;
 }) {
+  const unitPriceProps = useInlineNum(item.unitPrice, v => onInlineChange(item.id, "unitPrice", v));
   const amtProps = useInlineNum(item.amount, v => onInlineChange(item.id, "amount", v));
 
   return (
@@ -90,6 +91,16 @@ function ItemRow({
           value={item.name}
           onChange={e => onInlineChange(item.id, "name", e.target.value)}
           placeholder="품명"
+        />
+      </td>
+
+      {/* 금액 */}
+      <td className={styles.itemPriceCell}>
+        <input
+          className={styles.itemPriceInput}
+          inputMode="numeric"
+          placeholder="0"
+          {...unitPriceProps}
         />
       </td>
 
@@ -437,6 +448,7 @@ export default function ItemListView({ items, onChange, onSave, onPrint, saved, 
                         <colgroup>
                           <col className={styles.colNo} />
                           <col />
+                          <col className={styles.colPrice} />
                           <col className={styles.colAmt} />
                           <col style={{ width: "48px" }} />
                         </colgroup>
@@ -444,6 +456,7 @@ export default function ItemListView({ items, onChange, onSave, onPrint, saved, 
                           <tr>
                             <th>NO</th>
                             <th>품명</th>
+                            <th>단가</th>
                             <th>금액</th>
                             <th></th>
                           </tr>
