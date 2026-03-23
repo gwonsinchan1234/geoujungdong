@@ -1099,7 +1099,8 @@ export default function FillPage() {
 
       const docId = docIdRef.current;
       const { data: { session } } = await supabase.auth.getSession();
-      const userId = session?.user?.id ?? "";
+      const userId      = session?.user?.id ?? "";
+      const accessToken = session?.access_token ?? "";
 
       let uploaded = false;
       if (userId) {
@@ -1150,6 +1151,14 @@ export default function FillPage() {
             .upload(storagePath, compressed, { contentType: "image/jpeg", upsert: false });
           if (storageErr) throw new Error(storageErr.message);
 
+          // 기존 block_photos 레코드 삭제 (재업로드 시 UNIQUE 충돌 방지)
+          await supabase
+            .from("block_photos")
+            .delete()
+            .eq("block_id",   dbBlockId)
+            .eq("side",       side)
+            .eq("slot_index", slotIndex);
+
           const { data: photoRow, error: photoErr } = await supabase
             .from("block_photos")
             .insert({ block_id: dbBlockId, side, slot_index: slotIndex, storage_path: storagePath })
@@ -1182,8 +1191,8 @@ export default function FillPage() {
             return next;
           });
           uploaded = true;
-        } catch {
-          // 직렬 업로드 실패 시 API 폴백
+        } catch (e) {
+          console.error("[직접 업로드 실패, API 폴백 진입]", e);
         }
       }
 
@@ -1203,7 +1212,11 @@ export default function FillPage() {
         fd.append("userId", userId);
         fd.append("file", new File([compressed], "photo.jpg", { type: "image/jpeg" }));
 
-        const res = await fetch("/api/photo-blocks/photos", { method: "POST", body: fd });
+        const res = await fetch("/api/photo-blocks/photos", {
+          method:  "POST",
+          body:    fd,
+          headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+        });
         const json = (await res.json()) as { ok: boolean; photoId?: string; blockId?: string; signedUrl?: string; error?: string };
         if (!json.ok) throw new Error(json.error ?? "사진 업로드 실패");
 

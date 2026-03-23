@@ -20,6 +20,7 @@ export const supabase = new Proxy({} as SupabaseClient, {
       if (prop === "auth") {
         return {
           getUser: () => Promise.resolve({ data: { user: null }, error: null }),
+          getSession: () => Promise.resolve({ data: { session: null }, error: null }),
           signInWithPassword: () => Promise.resolve({ data: {}, error: { message: "Auth not configured" } }),
           signUp: () => Promise.resolve({ data: {}, error: { message: "Auth not configured" } }),
           signOut: () => Promise.resolve({ error: null }),

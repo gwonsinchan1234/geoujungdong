@@ -1,13 +1,16 @@
 // src/app/api/photo-blocks/photos/route.ts
 //
 // POST   → 사진 업로드
+//          · 클라이언트가 Authorization: Bearer <access_token> 헤더를 전달하면
+//            해당 JWT로 인증된 Supabase 클라이언트를 생성해 RLS를 통과시킨다.
+//          · 토큰이 없으면 getSupabaseAdmin() fallback (service_role 또는 anon)
 //          · 블록 자연키(doc_id, sheet_name, no)로 upsert (photo_blocks 테이블)
-//          · 슬롯 중복 방어: 서버 SELECT 검사 + DB UNIQUE(block_id,side,slot_index) 이중 방어
-//          · private 버킷 업로드 + signed URL 발급 (1시간)
+//          · 슬롯 재업로드 처리: 기존 block_photos 레코드를 먼저 DELETE 후 INSERT
 //
 // DELETE → 사진 삭제 (Storage + block_photos)
 
 import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
 import { getSupabaseAdmin, DEV_USER_ID } from "@/lib/supabaseAdmin";
 
 export const runtime = "nodejs";
@@ -15,11 +18,30 @@ export const runtime = "nodejs";
 const SIGNED_URL_TTL = 3600; // 1시간
 const MAX_SLOTS      = 4;    // 슬롯 0~3
 
+// ── 인증된 Supabase 클라이언트 생성 ──────────────────────────────
+function makeSupabaseClient(userToken: string) {
+  if (userToken) {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    if (url && key) {
+      return createClient(url, key, {
+        global: { headers: { Authorization: `Bearer ${userToken}` } },
+        auth: { persistSession: false, autoRefreshToken: false },
+      });
+    }
+  }
+  return getSupabaseAdmin();
+}
+
 // ── POST: 사진 업로드 ─────────────────────────────────────────────
 export async function POST(req: NextRequest) {
   try {
-    const supabase = getSupabaseAdmin();
-    const fd       = await req.formData();
+    // Authorization: Bearer <token> 헤더에서 사용자 JWT 추출
+    const authHeader = req.headers.get("authorization") ?? "";
+    const userToken  = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";
+    const supabase   = makeSupabaseClient(userToken);
+
+    const fd         = await req.formData();
 
     // 블록 자연키
     const docId     = String(fd.get("docId")     ?? "").trim();
@@ -63,7 +85,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, error: "file 필요" }, { status: 400 });
     }
 
-    // ── 1. 블록 SELECT → INSERT or UPDATE (UNIQUE 제약 없이 안전하게) ──
+    // ── 1. 블록 SELECT → INSERT or UPDATE ──────────────────────────
     const { data: existingBlock } = await supabase
       .from("photo_blocks")
       .select("id")
@@ -74,7 +96,6 @@ export async function POST(req: NextRequest) {
 
     let blockId: string;
     if (existingBlock) {
-      // 이미 있으면 메타 업데이트
       const { error: upErr } = await supabase
         .from("photo_blocks")
         .update({ right_header: rightHeader, left_date: leftDate, right_date: rightDate, left_label: leftLabel, right_label: rightLabel, sort_order: sortOrder })
@@ -82,12 +103,11 @@ export async function POST(req: NextRequest) {
       if (upErr) return NextResponse.json({ ok: false, error: upErr.message }, { status: 500 });
       blockId = existingBlock.id as string;
     } else {
-      // 없으면 새로 삽입 (user_id는 null — DEV_USER_ID가 auth.users에 없을 수 있음)
       const { data: inserted, error: insErr } = await supabase
         .from("photo_blocks")
         .insert({
           doc_id:       docId,
-          user_id:      null,
+          user_id:      userId || null,
           sheet_name:   sheetName,
           no:           blockNo,
           right_header: rightHeader,
@@ -103,36 +123,37 @@ export async function POST(req: NextRequest) {
       blockId = inserted.id as string;
     }
 
-    // ── 2. 슬롯 중복 검증 (서버 이중 방어) ─────────────────────────
-    const { data: existing } = await supabase
+    // ── 2. 기존 block_photos 삭제 (재업로드 시 UNIQUE 충돌 방지) ───
+    //      기존 Storage 파일도 함께 제거
+    const { data: oldPhoto } = await supabase
       .from("block_photos")
-      .select("id")
+      .select("id, storage_path")
       .eq("block_id",   blockId)
       .eq("side",       side)
       .eq("slot_index", slotIndex)
       .maybeSingle();
 
-    if (existing) {
-      return NextResponse.json(
-        { ok: false, error: "이미 사진이 있는 슬롯입니다. 먼저 삭제 후 업로드하세요." },
-        { status: 409 }
-      );
+    if (oldPhoto) {
+      if (oldPhoto.storage_path) {
+        await supabase.storage.from("expense-evidence").remove([oldPhoto.storage_path]);
+      }
+      await supabase.from("block_photos").delete().eq("id", oldPhoto.id);
     }
 
-    // ── 3. private 버킷 업로드 (upsert: false → 중복 시 에러) ───────
+    // ── 3. private 버킷 업로드 ──────────────────────────────────────
     const storagePath = `${userId}/${blockId}/${side}/${slotIndex}.jpg`;
     const { error: upErr } = await supabase.storage
       .from("expense-evidence")
       .upload(storagePath, await file.arrayBuffer(), {
         contentType: "image/jpeg",
-        upsert: false,
+        upsert: true, // 혹시 남은 파일이 있어도 덮어쓰기
       });
 
     if (upErr) {
       return NextResponse.json({ ok: false, error: upErr.message }, { status: 500 });
     }
 
-    // ── 4. block_photos INSERT (DB UNIQUE 가 최후 방어선) ───────────
+    // ── 4. block_photos INSERT ────────────────────────────────────────
     const { data: photo, error: dbErr } = await supabase
       .from("block_photos")
       .insert({ block_id: blockId, side, slot_index: slotIndex, storage_path: storagePath })
@@ -140,12 +161,11 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (dbErr) {
-      // Storage 파일 롤백
       await supabase.storage.from("expense-evidence").remove([storagePath]);
       return NextResponse.json({ ok: false, error: dbErr.message }, { status: 500 });
     }
 
-    // ── 5. signed URL 발급 (1시간) ───────────────────────────────────
+    // ── 5. signed URL 발급 (1시간) ────────────────────────────────────
     const { data: signed } = await supabase.storage
       .from("expense-evidence")
       .createSignedUrl(storagePath, SIGNED_URL_TTL);
@@ -165,7 +185,10 @@ export async function POST(req: NextRequest) {
 // ── DELETE: 사진 삭제 ─────────────────────────────────────────────
 export async function DELETE(req: NextRequest) {
   try {
-    const supabase = getSupabaseAdmin();
+    const authHeader = req.headers.get("authorization") ?? "";
+    const userToken  = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";
+    const supabase   = makeSupabaseClient(userToken);
+
     const { photoId } = await req.json() as { photoId: string };
 
     if (!photoId) {
