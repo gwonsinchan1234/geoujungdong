@@ -1181,10 +1181,9 @@ export default function FillPage() {
                 photos: b.photos.map(p => p.id !== pId ? p : {
                   id: photoRow.id as string, block_id: dbBlockId, side, slot_index: slotIndex,
                   storage_path: storagePath,
-                  // ★ 모바일 깨진 이미지 방지: signed URL(네트워크 요청)을 쓰지 않고
-                  //   로컬 blob URL(URL.createObjectURL)을 그대로 사용.
-                  //   signed URL은 페이지 재로드 시 GET /api/photo-blocks 에서 재생성됨.
-                  url: signed?.signedUrl || pUrl,
+                  // 업로드 직후 = blob URL 사용 (모바일에서 signed URL 로드 실패 방지)
+                  // 페이지 재로드 시 GET /api/photo-blocks 에서 signed URL 재발급됨
+                  url: pUrl,
                 }),
               }));
             }
@@ -1217,7 +1216,7 @@ export default function FillPage() {
           body:    fd,
           headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
         });
-        const json = (await res.json()) as { ok: boolean; photoId?: string; blockId?: string; signedUrl?: string; error?: string };
+        const json = (await res.json()) as { ok: boolean; photoId?: string; blockId?: string; storagePath?: string; signedUrl?: string; error?: string };
         if (!json.ok) throw new Error(json.error ?? "사진 업로드 실패");
 
         setPhotoBlocks(prev => {
@@ -1227,9 +1226,8 @@ export default function FillPage() {
               ...b,
               photos: b.photos.map(p => p.id !== pId ? p : {
                 id: json.photoId!, block_id: json.blockId!, side, slot_index: slotIndex,
-                storage_path: "",
-                // ★ API 폴백 경로도 동일하게 로컬 blob URL 사용 (모바일 호환)
-                url: json.signedUrl || pUrl,
+                storage_path: json.storagePath ?? "",
+                url: pUrl,  // 업로드 직후 = blob URL (모바일 호환)
               }),
             }));
           }
