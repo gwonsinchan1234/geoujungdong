@@ -162,12 +162,12 @@ function buildItemListPrintHtml(items: ItemData[], fileName: string): string {
   .title{font-size:16px;font-weight:800;letter-spacing:0.08em;text-align:center;padding:4px 0 10px}
   .meta{font-size:11px;color:#444;text-align:right;padding-bottom:6px}
   table{width:100%;border-collapse:collapse;table-layout:fixed}
-  th,td{border:1px solid #777;font-size:10.5px;line-height:1.25;padding:4px 5px;vertical-align:middle}
+  th,td{border:1px solid #777;font-size:10px;line-height:1.25;padding:4px 4px;vertical-align:middle}
   th{background:#efefef;font-weight:800;text-align:center}
   .cat-row td{background:#f7f7f7;font-weight:700}
   .sum-row td{background:#f2f2f2;font-weight:800}
-  .num{text-align:right;font-variant-numeric:tabular-nums}
-  .w-no{width:11%}.w-date{width:13%}.w-name{width:37%}.w-qty{width:8%}.w-unit{width:8%}.w-price{width:13%}.w-amt{width:10%}
+  .num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden}
+  .w-no{width:8%}.w-date{width:10%}.w-name{width:35%}.w-qty{width:7%}.w-unit{width:7%}.w-price{width:16%}.w-amt{width:17%}
 </style></head><body><div class="doc">
   <div class="title">항목별 세부내역서</div>
   <div class="meta">${escapeHtml(fileName || "")}</div>
@@ -2145,6 +2145,37 @@ img{image-rendering:high-quality;display:block}
     return sizes[0] ?? "";
   }, [gabjiCellStyles]);
 
+  // ── 갑지: 항목별과 동일한 PDF 뷰어 경로(카카오 인앱은 HTML 인쇄 폴백) ──
+  const handleGabjiPdfPrint = useCallback(async () => {
+    try {
+      if (isKakaoInAppBrowser()) {
+        handlePrintActive();
+        return;
+      }
+      const [{ pdf }, { default: GabjiPdf }] = await Promise.all([
+        import("@react-pdf/renderer"),
+        import("@/components/gabji/GabjiPdf"),
+      ]);
+      const blob = await pdf(
+        React.createElement(
+          GabjiPdf,
+          { doc: gabjiEditorDoc, items: gabjiEditorItems, valueFontSize: gabjiValueFontSize },
+        ) as any,
+      ).toBlob();
+      const url = URL.createObjectURL(blob);
+      const w = window.open(url, "_blank");
+      if (!w) {
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `갑지_${fileName || "문서"}.pdf`;
+        a.click();
+      }
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "PDF 생성 실패");
+    }
+  }, [handlePrintActive, gabjiEditorDoc, gabjiEditorItems, gabjiValueFontSize, fileName]);
+
   /** 갑지·항목별세부내역: localStorage에 데이터 저장 */
   const handleInAppSave = useCallback(() => {
     if (!fileName) return;
@@ -2251,6 +2282,8 @@ img{image-rendering:high-quality;display:block}
             onClick={() => {
               if (isItemActive) {
                 void handleItemPdfPrint();
+              } else if (isCoverActive) {
+                void handleGabjiPdfPrint();
               } else {
                 setShowPreview(true);
               }
