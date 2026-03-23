@@ -1854,6 +1854,8 @@ img{image-rendering:high-quality;display:block}
     const printableW = 595 - mmToPx(20);
     const printableH = 842 - mmToPx(20);
     const fitScale = Math.min(1, printableW / contentW, printableH / contentH);
+    const scaledW = Math.max(1, Math.round(contentW * fitScale));
+    const scaledH = Math.max(1, Math.round(contentH * fitScale));
     const tbody = trimmedRows.map((row, ri) =>
       `<tr ${row.height !== null ? `style="height:${row.height}px"` : ""}>${
         row.cells.slice(0, usedCols).map((cell, ci) => {
@@ -1871,13 +1873,13 @@ img{image-rendering:high-quality;display:block}
       }</tr>`
     ).join("");
     const sheetHtml = `<div class="sheet-page">
-      <div class="sheet-stage">
-        <div class="sheet-scale" style="width:${contentW}px;height:${contentH}px;zoom:${fitScale}">
+      <div class="sheet-scale-wrap" style="width:${scaledW}px;height:${scaledH}px">
+        <div class="sheet-scale" style="width:${contentW}px;height:${contentH}px;transform:scale(${fitScale})">
           <table class="sheet-table"><colgroup>${colgroup}</colgroup><tbody>${tbody}</tbody></table>
         </div>
       </div>
     </div>`;
-    const fullHtml = `<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><title>${sheet.name}</title>
+    const fullHtml = `<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>${sheet.name}</title>
 <style>
   @page{size:A4 portrait;margin:10mm}
   *{box-sizing:border-box}
@@ -1886,12 +1888,8 @@ img{image-rendering:high-quality;display:block}
     margin:0 auto;
     padding:0;
   }
-  .sheet-stage{
-    width:100%;
-    height:${Math.round(printableH)}px;
-    display:flex;
-    align-items:flex-start;
-    justify-content:center;
+  .sheet-scale-wrap{
+    margin:0 auto;
     overflow:hidden;
   }
   .sheet-scale{ transform-origin: top left; }
@@ -1912,7 +1910,12 @@ img{image-rendering:high-quality;display:block}
     w.document.open();
     w.document.write(fullHtml);
     w.document.close();
-    w.onload = () => { w.focus(); w.print(); };
+    w.onload = () => {
+      w.focus();
+      w.requestAnimationFrame(() => {
+        w.setTimeout(() => w.print(), 40);
+      });
+    };
   }, [sheet, activeSheet, previewData, handleItemPdfPrint]);
 
   const handleDownload = useCallback(() => {
