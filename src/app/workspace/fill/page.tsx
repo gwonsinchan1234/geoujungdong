@@ -1776,10 +1776,10 @@ export default function FillPage() {
       return `<div style="${br}"><div class="pt">${s.name}</div>${bs}</div>`;
     }).join("");
 
-    const html = `<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><title>${s.name}</title><style>
+    const html = `<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><meta name="color-scheme" content="light"><title>${s.name}</title><style>
 @page{size:A4 portrait;margin:12mm}
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,"Apple SD Gothic Neo",sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+body{font-family:-apple-system,"Apple SD Gothic Neo",sans-serif;background:#fff !important;color:#000 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 img{image-rendering:high-quality;display:block}
 .pt{font-size:13px;font-weight:700;text-align:center;color:#111827;padding:6px 0 10px;border-bottom:2px solid #111827;margin-bottom:10px}
 .bc{border:1.5px solid #374151;border-radius:4px;overflow:hidden;margin-bottom:10px;break-inside:avoid}
@@ -1794,14 +1794,13 @@ img{image-rendering:high-quality;display:block}
 .fl{font-size:10px;font-weight:700;color:#6b7280}
 .fv{font-size:11px;color:#111827;font-weight:500}
 .fd{background:#d1d5db}
-</style></head><body>${pagesHtml}</body></html>`;
+</style></head><body>${pagesHtml}<script>window.onload=function(){window.focus();window.print();}<\/script></body></html>`;
 
     const w = window.open("", "_blank");
     if (!w) { alert("팝업이 차단되었습니다. 팝업 허용 후 다시 시도해주세요."); return; }
     w.document.open();
     w.document.write(html);
     w.document.close();
-    w.onload = () => { w.focus(); w.print(); };
   }, [sheets, activeSheet, previewData]);
 
   // ── 항목별세부내역: react-pdf로 PDF 생성 후 새 탭 열기 (갑지와 동일 방식) ──
