@@ -673,6 +673,7 @@
   flex: 1;
   width: 100%;
   max-width: min(480px, 100%);
+  margin: 0 auto; /* 컨테이너 내 가로 중앙 정렬 */
   /* min-height:0 대신 하한 보장 — 예전 목 카드 체감 높이에 가깝게 */
   min-height: clamp(480px, 58vh, 680px);
 }
@@ -2045,10 +2046,11 @@
 
   .svcInnerReverse { direction: ltr; }
   .svcMediaLeft    { order: 2; }
-  .svcMedia        { justify-content: flex-start; }
+  .svcMedia        { justify-content: center; align-items: center; }
 
   .svcInnerMediaTall > .svcMediaLeft {
     min-height: clamp(480px, 58dvh, 640px);
+    align-items: center; /* 가로 중앙 정렬 (column flex 크로스축) */
   }
 
   .svcEvidencePoints {
