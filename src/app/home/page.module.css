@@ -2048,9 +2048,28 @@
   .svcMediaLeft    { order: 2; }
   .svcMedia        { justify-content: center; align-items: center; }
 
+  /* 사진증빙·엑셀 슬라이더 카드: 가로·세로 센터, 고정 폭감으로 두 탭 체감 크기 통일 */
   .svcInnerMediaTall > .svcMediaLeft {
-    min-height: clamp(480px, 58dvh, 640px);
-    align-items: center; /* 가로 중앙 정렬 (column flex 크로스축) */
+    min-height: clamp(460px, 56dvh, 620px);
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+  }
+
+  .svcInnerMediaTall > .svcMediaLeft .mockCardStretch {
+    flex: 0 1 auto;
+    width: min(428px, 100%);
+    max-width: min(428px, 100%);
+    margin-inline: auto;
+    min-height: clamp(420px, 52dvh, 580px);
+  }
+
+  .svcInnerMediaTall > .svcMediaLeft .sliderViewport {
+    min-height: clamp(268px, 46dvh, 384px);
+  }
+
+  .svcInnerMediaTall > .svcMediaLeft .slidePane .mockContentSlide {
+    min-height: clamp(220px, 40dvh, 320px);
   }
 
   .svcEvidencePoints {
@@ -2097,11 +2116,21 @@
   .svcInner { padding: 56px 16px; gap: 32px; }
 
   .svcInnerMediaTall > .svcMediaLeft {
-    min-height: clamp(440px, 56dvh, 600px);
+    min-height: clamp(420px, 54dvh, 580px);
   }
 
-  .mockCardStretch {
-    min-height: clamp(440px, 54dvh, 620px);
+  .svcInnerMediaTall > .svcMediaLeft .mockCardStretch {
+    width: min(400px, 100%);
+    max-width: min(400px, 100%);
+    min-height: clamp(400px, 50dvh, 560px);
+  }
+
+  .svcInnerMediaTall > .svcMediaLeft .sliderViewport {
+    min-height: clamp(248px, 44dvh, 360px);
+  }
+
+  .svcInnerMediaTall > .svcMediaLeft .slidePane .mockContentSlide {
+    min-height: clamp(200px, 38dvh, 300px);
   }
 
   .svcEvidencePoint {
@@ -2146,5 +2175,11 @@
   .langBtn {
     padding: 0 7px;
     font-size: 11px;
+  }
+
+  /* 홈 사진증빙·엑셀 카드: 좁은 폭에서 max 폭만 살짝 줄임 */
+  .svcInnerMediaTall > .svcMediaLeft .mockCardStretch {
+    width: 100%;
+    max-width: min(360px, 100%);
   }
 }
