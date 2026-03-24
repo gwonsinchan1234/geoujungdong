@@ -219,7 +219,8 @@ function PhotoExcelSlider({ kor }: { kor: boolean }) {
                 <span className={styles.mockPhotoHeaderLabel}>{kor ? "항목명" : "Item"}</span>
                 <span className={styles.mockPhotoHeaderBadge}>{kor ? "소화기 설치" : "Fire extinguisher"}</span>
               </div>
-              <div className={cx(styles.mockPhotoGrid, styles.mockPhotoGridStretch)}>
+              <div className={styles.mockPhotoGridOuter}>
+                <div className={cx(styles.mockPhotoGrid, styles.mockPhotoGridStretch)}>
                 {EVIDENCE_PHOTOS.map((photo, i) => {
                   const isAfter = photo.variant === "after";
                   return (
@@ -228,7 +229,7 @@ function PhotoExcelSlider({ kor }: { kor: boolean }) {
                         src={photo.src}
                         alt={photo.alt}
                         fill
-                        sizes="(max-width: 640px) 42vw, 220px"
+                        sizes="(max-width: 480px) 160px, 180px"
                         className={styles.mockPhotoImg}
                         unoptimized
                       />
@@ -238,6 +239,7 @@ function PhotoExcelSlider({ kor }: { kor: boolean }) {
                     </div>
                   );
                 })}
+                </div>
               </div>
             </div>
           </div>
