@@ -45,6 +45,39 @@ async function compressImage(file: File, maxPx: number, quality: number): Promis
   });
 }
 
+function pickUploadProfile(file: File): { maxPx: number; quality: number; fallbackMaxPx: number; fallbackQuality: number } {
+  const sizeMb = file.size / (1024 * 1024);
+  const navConn = (typeof navigator !== "undefined"
+    ? (navigator as Navigator & { connection?: { effectiveType?: string } }).connection
+    : undefined);
+  const effectiveType = navConn?.effectiveType ?? "";
+  const isSlowNetwork = effectiveType === "slow-2g" || effectiveType === "2g" || effectiveType === "3g";
+
+  // 기본: 화질 우선 (WIFI/5G/4G)
+  let maxPx = 3000;
+  let quality = 0.92;
+  let fallbackMaxPx = 2200;
+  let fallbackQuality = 0.86;
+
+  // 느린 네트워크는 전송량 우선
+  if (isSlowNetwork) {
+    maxPx = 2400;
+    quality = 0.88;
+    fallbackMaxPx = 1800;
+    fallbackQuality = 0.82;
+  }
+
+  // 원본이 큰 경우만 추가로 한 단계 낮춤
+  if (sizeMb >= 8) {
+    maxPx = Math.min(maxPx, 2600);
+    quality = Math.min(quality, 0.9);
+    fallbackMaxPx = Math.min(fallbackMaxPx, 2000);
+    fallbackQuality = Math.min(fallbackQuality, 0.84);
+  }
+
+  return { maxPx, quality, fallbackMaxPx, fallbackQuality };
+}
+
 function colLetter(col: number): string {
   let r = "";
   while (col > 0) { col--; r = String.fromCharCode(65 + (col % 26)) + r; col = Math.floor(col / 26); }
@@ -1090,19 +1123,29 @@ export default function FillPage() {
     setPhotoSlot({ blockId, side, slotIndex });
   }, []);
 
-  // ── 사진 삭제: 서버 UUID가 있는 사진은 서버 삭제, 없으면 로컬만 ──
+  // ── 사진 삭제: 서버 API(/api/photo-blocks/photos) 단일 경로 사용 ──
   const handlePhotoDelete: OnPhotoDelete = useCallback(async (photoId, blockId) => {
-    // photoId 가 pending_ / local_ 로 시작하지 않으면 DB에 실제 레코드가 있음
+    // 서버 UUID가 아닌 로컬 임시 사진은 상태만 제거
     if (!photoId.startsWith("pending_") && !photoId.startsWith("local_")) {
-      const { data: photo } = await supabase
-        .from("block_photos")
-        .select("storage_path")
-        .eq("id", photoId)
-        .single();
-      if (photo?.storage_path) {
-        await supabase.storage.from("expense-evidence").remove([photo.storage_path]);
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const accessToken = session?.access_token ?? "";
+        const res = await fetch("/api/photo-blocks/photos", {
+          method: "DELETE",
+          headers: {
+            "Content-Type": "application/json",
+            ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+          },
+          body: JSON.stringify({ photoId }),
+        });
+        const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+        if (!res.ok || !json.ok) {
+          throw new Error(json.error ?? "사진 삭제 실패");
+        }
+      } catch (e) {
+        alert(e instanceof Error ? e.message : "사진 삭제 실패");
+        return;
       }
-      await supabase.from("block_photos").delete().eq("id", photoId);
     }
     setPhotoBlocks(prev => {
       const next = { ...prev };
@@ -1165,14 +1208,16 @@ export default function FillPage() {
       //    (canvas.toBlob 결과물은 일부 iOS에서 createObjectURL이 실패할 수 있음)
       pUrl = URL.createObjectURL(file);
 
-      // 업로드용 JPEG 변환 (포맷 통일 + 크기 제한)
+      // 업로드용 JPEG 변환: 동적 프로필(파일 크기/네트워크) + 1회 폴백
+      // - 기본은 화질 우선
+      // - 느린 네트워크/큰 원본에서만 전송량을 조금 더 줄임
       let compressed: Blob;
       try {
-        compressed = await compressImage(file, 4096, 0.97);
-        if (compressed.size > MAX_UPLOAD_BYTES)
-          compressed = await compressImage(file, 2560, 0.92);
-        if (compressed.size > MAX_UPLOAD_BYTES)
-          compressed = await compressImage(file, 1920, 0.90);
+        const profile = pickUploadProfile(file);
+        compressed = await compressImage(file, profile.maxPx, profile.quality);
+        if (compressed.size > MAX_UPLOAD_BYTES) {
+          compressed = await compressImage(file, profile.fallbackMaxPx, profile.fallbackQuality);
+        }
       } catch {
         compressed = file;
       }
@@ -1195,138 +1240,43 @@ export default function FillPage() {
       const userId      = session?.user?.id ?? "";
       const accessToken = session?.access_token ?? "";
 
-      let uploaded = false;
-      if (userId) {
-        try {
-          const { data: existingBlock } = await supabase
-        .from("photo_blocks")
-        .select("id")
-        .eq("doc_id",     docId)
-        .eq("sheet_name", block.sheet_name)
-        .eq("no",         block.no)
-        .maybeSingle();
+      const fd = new FormData();
+      fd.append("docId", docId);
+      fd.append("sheetName", block.sheet_name);
+      fd.append("blockNo", String(block.no));
+      fd.append("rightHeader", block.right_header ?? "지급/설치 사진");
+      fd.append("leftDate", block.left_date ?? "");
+      fd.append("rightDate", block.right_date ?? "");
+      fd.append("leftLabel", block.left_label ?? "");
+      fd.append("rightLabel", block.right_label ?? "");
+      fd.append("sortOrder", String(block.sort_order ?? 0));
+      fd.append("side", side);
+      fd.append("slotIndex", String(slotIndex));
+      fd.append("userId", userId);
+      fd.append("file", new File([compressed], "photo.jpg", { type: "image/jpeg" }));
 
-          let dbBlockId: string;
-          if (existingBlock) {
-            await supabase.from("photo_blocks").update({
-          right_header: block.right_header,
-          left_date:    block.left_date,
-          right_date:   block.right_date,
-          left_label:   block.left_label,
-          right_label:  block.right_label,
-          sort_order:   block.sort_order,
-        }).eq("id", existingBlock.id);
-        dbBlockId = existingBlock.id as string;
-      } else {
-        const { data: inserted, error: insErr } = await supabase
-          .from("photo_blocks")
-          .insert({
-            doc_id: docId, user_id: userId,
-            sheet_name:   block.sheet_name,
-            no:           block.no,
-            right_header: block.right_header,
-            left_date:    block.left_date,
-            right_date:   block.right_date,
-            left_label:   block.left_label,
-            right_label:  block.right_label,
-            sort_order:   block.sort_order,
-          })
-          .select("id")
-          .single();
-        if (insErr) throw new Error(insErr.message);
-        dbBlockId = inserted.id as string;
-      }
+      const res = await fetch("/api/photo-blocks/photos", {
+        method: "POST",
+        body: fd,
+        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+      });
+      const json = (await res.json()) as { ok: boolean; photoId?: string; blockId?: string; storagePath?: string; signedUrl?: string; error?: string };
+      if (!json.ok) throw new Error(json.error ?? "사진 업로드 실패");
 
-          const storagePath = `${userId}/${dbBlockId}/${side}/${slotIndex}.jpg`;
-          await supabase.storage.from("expense-evidence").remove([storagePath]);
-          const { error: storageErr } = await supabase.storage
-            .from("expense-evidence")
-            .upload(storagePath, compressed, { contentType: "image/jpeg", upsert: false });
-          if (storageErr) throw new Error(storageErr.message);
-
-          // 기존 block_photos 레코드 삭제 (재업로드 시 UNIQUE 충돌 방지)
-          await supabase
-            .from("block_photos")
-            .delete()
-            .eq("block_id",   dbBlockId)
-            .eq("side",       side)
-            .eq("slot_index", slotIndex);
-
-          const { data: photoRow, error: photoErr } = await supabase
-            .from("block_photos")
-            .insert({ block_id: dbBlockId, side, slot_index: slotIndex, storage_path: storagePath })
-            .select("id")
-            .single();
-          if (photoErr) {
-            await supabase.storage.from("expense-evidence").remove([storagePath]);
-            throw new Error(photoErr.message);
-          }
-
-          const { data: signed } = await supabase.storage
-            .from("expense-evidence")
-            .createSignedUrl(storagePath, 3600);
-
-          setPhotoBlocks(prev => {
-            const next = { ...prev };
-            for (const name of Object.keys(next)) {
-              next[name] = next[name].map(b => ({
-                ...b,
-                photos: b.photos.map(p => p.id !== pId ? p : {
-                  id: photoRow.id as string, block_id: dbBlockId, side, slot_index: slotIndex,
-                  storage_path: storagePath,
-                  // 업로드 직후 = blob URL 사용 (모바일에서 signed URL 로드 실패 방지)
-                  // 페이지 재로드 시 GET /api/photo-blocks 에서 signed URL 재발급됨
-                  url: pUrl,
-                }),
-              }));
-            }
-            return next;
-          });
-          uploaded = true;
-        } catch (e) {
-          console.error("[직접 업로드 실패, API 폴백 진입]", e);
+      setPhotoBlocks(prev => {
+        const next = { ...prev };
+        for (const name of Object.keys(next)) {
+          next[name] = next[name].map(b => ({
+            ...b,
+            photos: b.photos.map(p => p.id !== pId ? p : {
+              id: json.photoId!, block_id: json.blockId!, side, slot_index: slotIndex,
+              storage_path: json.storagePath ?? "",
+              url: pUrl,  // 업로드 직후 = blob URL (모바일 호환)
+            }),
+          }));
         }
-      }
-
-      if (!uploaded) {
-        const fd = new FormData();
-        fd.append("docId", docId);
-        fd.append("sheetName", block.sheet_name);
-        fd.append("blockNo", String(block.no));
-        fd.append("rightHeader", block.right_header ?? "지급/설치 사진");
-        fd.append("leftDate", block.left_date ?? "");
-        fd.append("rightDate", block.right_date ?? "");
-        fd.append("leftLabel", block.left_label ?? "");
-        fd.append("rightLabel", block.right_label ?? "");
-        fd.append("sortOrder", String(block.sort_order ?? 0));
-        fd.append("side", side);
-        fd.append("slotIndex", String(slotIndex));
-        fd.append("userId", userId);
-        fd.append("file", new File([compressed], "photo.jpg", { type: "image/jpeg" }));
-
-        const res = await fetch("/api/photo-blocks/photos", {
-          method:  "POST",
-          body:    fd,
-          headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
-        });
-        const json = (await res.json()) as { ok: boolean; photoId?: string; blockId?: string; storagePath?: string; signedUrl?: string; error?: string };
-        if (!json.ok) throw new Error(json.error ?? "사진 업로드 실패");
-
-        setPhotoBlocks(prev => {
-          const next = { ...prev };
-          for (const name of Object.keys(next)) {
-            next[name] = next[name].map(b => ({
-              ...b,
-              photos: b.photos.map(p => p.id !== pId ? p : {
-                id: json.photoId!, block_id: json.blockId!, side, slot_index: slotIndex,
-                storage_path: json.storagePath ?? "",
-                url: pUrl,  // 업로드 직후 = blob URL (모바일 호환)
-              }),
-            }));
-          }
-          return next;
-        });
-      }
+        return next;
+      });
     } catch (err) {
       // 에러 시에도 로컬 미리보기(pUrl)는 유지 — 사진은 화면에 남기고 알림만
       const msg = (err as Error)?.message ?? String(err);
@@ -1449,9 +1399,9 @@ export default function FillPage() {
                 (p) => p.side === lp.side && p.slot_index === lp.slot_index,
               );
               if (!dp?.url) return lp;
-              const keepPendingBlob =
-                lp.url?.startsWith("blob:") && String(lp.id).startsWith("pending_");
-              if (keepPendingBlob) return lp;
+              // 같은 세션에서는 로컬 blob 미리보기를 유지해
+              // signed URL 만료/지연과 무관하게 사진이 즉시 보이도록 함
+              if (lp.url?.startsWith("blob:")) return lp;
               return {
                 ...lp,
                 id: dp.id,
