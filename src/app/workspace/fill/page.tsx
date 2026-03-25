@@ -1246,43 +1246,97 @@ export default function FillPage() {
 
       const docId = docIdRef.current;
       const { data: { session } } = await supabase.auth.getSession();
-      const userId      = session?.user?.id ?? "";
-      const accessToken = session?.access_token ?? "";
+      const userId = session?.user?.id ?? "";
 
-      const fd = new FormData();
-      fd.append("docId", docId);
-      fd.append("sheetName", block.sheet_name);
-      fd.append("blockNo", String(block.no));
-      fd.append("rightHeader", block.right_header ?? "지급/설치 사진");
-      fd.append("leftDate", block.left_date ?? "");
-      fd.append("rightDate", block.right_date ?? "");
-      fd.append("leftLabel", block.left_label ?? "");
-      fd.append("rightLabel", block.right_label ?? "");
-      fd.append("sortOrder", String(block.sort_order ?? 0));
-      fd.append("side", side);
-      fd.append("slotIndex", String(slotIndex));
-      fd.append("userId", userId);
-      fd.append("file", new File([compressed], "photo.jpg", { type: "image/jpeg" }));
+      // ── DB: photo_blocks 레코드 확보 ──────────────────────────────
+      // 블록 ID가 "local_"로 시작하면 아직 DB에 없는 블록 → 자연키로 upsert
+      let dbBlockId: string;
+      if (!blockId.startsWith("local_")) {
+        dbBlockId = blockId;
+      } else {
+        const { data: existing } = await supabase
+          .from("photo_blocks")
+          .select("id")
+          .eq("doc_id",     docId)
+          .eq("sheet_name", block.sheet_name)
+          .eq("no",         block.no)
+          .maybeSingle();
+        if (existing) {
+          dbBlockId = existing.id as string;
+        } else {
+          const { data: inserted, error: insErr } = await supabase
+            .from("photo_blocks")
+            .insert({
+              doc_id:       docId,
+              user_id:      userId || null,
+              sheet_name:   block.sheet_name,
+              no:           block.no,
+              right_header: block.right_header ?? "지급/설치 사진",
+              left_date:    block.left_date ?? "",
+              right_date:   block.right_date ?? "",
+              left_label:   block.left_label ?? "",
+              right_label:  block.right_label ?? "",
+              sort_order:   block.sort_order ?? 0,
+            })
+            .select("id")
+            .single();
+          if (insErr) throw new Error(insErr.message);
+          dbBlockId = inserted.id as string;
+        }
+      }
 
-      const res = await fetch("/api/photo-blocks/photos", {
-        method: "POST",
-        body: fd,
-        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
-      });
-      const json = (await res.json()) as { ok: boolean; photoId?: string; blockId?: string; storagePath?: string; signedUrl?: string; error?: string };
-      if (!json.ok) throw new Error(json.error ?? "사진 업로드 실패");
+      // ── DB: 기존 슬롯 사진 삭제 (재업로드 UNIQUE 충돌 방지) ────────
+      const { data: oldPhoto } = await supabase
+        .from("block_photos")
+        .select("id, storage_path")
+        .eq("block_id",   dbBlockId)
+        .eq("side",       side)
+        .eq("slot_index", slotIndex)
+        .maybeSingle();
+      if (oldPhoto) {
+        if (oldPhoto.storage_path) {
+          await supabase.storage.from("expense-evidence").remove([oldPhoto.storage_path]);
+        }
+        await supabase.from("block_photos").delete().eq("id", oldPhoto.id);
+      }
+
+      // ── Storage: 브라우저 → Supabase 직접 업로드 (Vercel 미경유) ──
+      const storagePath = `${userId}/${dbBlockId}/${side}/${slotIndex}.jpg`;
+      const { error: storageErr } = await supabase.storage
+        .from("expense-evidence")
+        .upload(storagePath, compressed, { contentType: "image/jpeg", upsert: true });
+      if (storageErr) throw new Error(storageErr.message);
+
+      // ── DB: block_photos INSERT ────────────────────────────────────
+      const { data: photo, error: photoErr } = await supabase
+        .from("block_photos")
+        .insert({ block_id: dbBlockId, side, slot_index: slotIndex, storage_path: storagePath })
+        .select("id")
+        .single();
+      if (photoErr) {
+        await supabase.storage.from("expense-evidence").remove([storagePath]);
+        throw new Error(photoErr.message);
+      }
 
       setPhotoBlocks(prev => {
         const next = { ...prev };
         for (const name of Object.keys(next)) {
-          next[name] = next[name].map(b => ({
-            ...b,
-            photos: b.photos.map(p => p.id !== pId ? p : {
-              id: json.photoId!, block_id: json.blockId!, side, slot_index: slotIndex,
-              storage_path: json.storagePath ?? "",
-              url: pUrl,  // 업로드 직후 = blob URL (모바일 호환)
-            }),
-          }));
+          next[name] = next[name].map(b => {
+            if (b.id !== blockId && b.id !== dbBlockId) return b;
+            return {
+              ...b,
+              id:     dbBlockId,
+              doc_id: docId,
+              photos: b.photos.map(p => p.id !== pId ? p : {
+                id:           photo.id as string,
+                block_id:     dbBlockId,
+                side,
+                slot_index:   slotIndex,
+                storage_path: storagePath,
+                url:          pUrl,
+              }),
+            };
+          });
         }
         return next;
       });
