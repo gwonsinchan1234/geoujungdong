@@ -1686,16 +1686,21 @@
 
 @media (max-width: 768px) {
   .topBar {
-    flex-wrap: wrap;
+    /* 모바일: 상단 높이 최소화(대기업 앱 톤) → 단일 행 + 가로 스크롤 */
+    flex-wrap: nowrap;
     align-items: center;
-    row-gap: 8px;
+    row-gap: 0;
     column-gap: 6px;
-    padding: 8px max(10px, env(safe-area-inset-left)) 10px max(10px, env(safe-area-inset-right));
+    padding: 6px max(8px, env(safe-area-inset-left)) 6px max(8px, env(safe-area-inset-right));
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
   }
+  .topBar::-webkit-scrollbar { display: none; }
   .fileArea {
-    order: 3;
-    flex: 1 1 100%;
-    min-width: 0;
+    /* 파일명은 탭 영역 아래 메타로 충분 → 상단에서 제거해 높이 절약 */
+    display: none;
   }
   .uploadBtn {
     order: 1;
@@ -1717,14 +1722,14 @@
 
 @media (max-width: 480px) {
   .topBar {
-    padding: 8px max(8px, env(safe-area-inset-left)) 10px max(8px, env(safe-area-inset-right));
+    padding: 4px max(6px, env(safe-area-inset-left)) 4px max(6px, env(safe-area-inset-right));
     gap: 6px;
   }
-  .uploadBtn  { padding: 8px 10px; font-size: 12px; }
-  .printBtn   { padding: 8px 10px; font-size: 12px; min-width: 44px; }
-  .downloadBtn{ padding: 8px 10px; font-size: 12px; min-width: 44px; }
-  .clearRestoreBtn { padding: 8px 10px; font-size: 11px; }
-  .saveBtn { padding: 8px 12px; font-size: 12px; }
+  .uploadBtn  { padding: 6px 10px; font-size: 11px; min-height: 32px; }
+  .printBtn   { padding: 6px 10px; font-size: 11px; min-width: 38px; min-height: 32px; }
+  .downloadBtn{ padding: 6px 10px; font-size: 11px; min-width: 38px; min-height: 32px; }
+  .clearRestoreBtn { padding: 6px 9px; font-size: 10px; min-height: 32px; }
+  .saveBtn { padding: 6px 10px; font-size: 11px; min-height: 32px; }
   .viewport   { padding: 10px max(10px, env(safe-area-inset-left)) 14px max(10px, env(safe-area-inset-right)); }
   .viewportPhoto { padding: 12px max(10px, env(safe-area-inset-left)) max(16px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-right)); }
   .editBadge { font-size: 10px; padding: 2px 6px; }
