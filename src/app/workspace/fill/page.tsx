@@ -5,6 +5,7 @@ import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import Link from "next/link";
 import * as XLSX from "xlsx";
 import PhotoSheetView from "@/components/photo-sheet/PhotoSheetView";
+import PhotoBlockCard from "@/components/photo-sheet/PhotoBlockCard";
 import type { PhotoBlock, BlockPhoto, OnSlotClick, OnPhotoDelete, OnMetaUpdate } from "@/components/photo-sheet/types";
 import { parseExcelBuffer } from "@/lib/parseExcel";
 import type { ParsedSheet } from "@/lib/parseExcel";
@@ -1882,6 +1883,33 @@ img{image-rendering:high-quality;display:block}
   }, [items, fileName]);
 
   const sheet = sheets[activeSheet];
+  const activePhotoSheetName = (sheet && isPhotoSheet(sheet.name)) ? sheet.name : null;
+  const activePhotoBlocks = activePhotoSheetName ? (photoBlocks[activePhotoSheetName] ?? []) : [];
+
+  const [selectedPhotoBlockId, setSelectedPhotoBlockId] = useState<string | null>(null);
+  const [photoPanel, setPhotoPanel] = useState<"list" | "edit" | "preview">("edit");
+
+  useEffect(() => {
+    if (!activePhotoSheetName) return;
+    if (activePhotoBlocks.length === 0) {
+      setSelectedPhotoBlockId(null);
+      return;
+    }
+    const exists = selectedPhotoBlockId
+      ? activePhotoBlocks.some(b => b.id === selectedPhotoBlockId)
+      : false;
+    if (!exists) setSelectedPhotoBlockId(activePhotoBlocks[0]!.id);
+  }, [activePhotoSheetName, activePhotoBlocks, selectedPhotoBlockId]);
+
+  useEffect(() => {
+    // 시트가 바뀔 때(특히 사진대지 ↔ 다른 시트) 모바일 패널 상태가 꼬이지 않게 기본값으로 복귀
+    setPhotoPanel("edit");
+  }, [activePhotoSheetName]);
+
+  const selectedPhotoBlock = useMemo(() => {
+    if (!selectedPhotoBlockId) return activePhotoBlocks[0] ?? null;
+    return activePhotoBlocks.find(b => b.id === selectedPhotoBlockId) ?? activePhotoBlocks[0] ?? null;
+  }, [activePhotoBlocks, selectedPhotoBlockId]);
 
   // ── 갑지 미리보기 오버라이드 (렌더 단계 계산) ─────────────────────
   const { overrides: previewGabjiOv, formStyles: previewGabjiFs } =
@@ -2415,14 +2443,102 @@ img{image-rendering:high-quality;display:block}
                   </p>
                 </div>
               ) : (
-                <PhotoSheetView
-                  sheetName={sheet.name}
-                  blocks={photoBlocks[sheet.name] ?? []}
-                  availableLabels={availableLabels}
-                  onSlotClick={handleSlotClick}
-                  onPhotoDelete={handlePhotoDelete}
-                  onMetaUpdate={handleMetaUpdate}
-                />
+                <div className={styles.photoTri}>
+                  <div className={styles.photoTriTabs} role="tablist" aria-label="사진대지 패널">
+                    <button
+                      type="button"
+                      className={`${styles.photoTriTab} ${photoPanel === "list" ? styles.photoTriTabActive : ""}`}
+                      onClick={() => setPhotoPanel("list")}
+                    >
+                      목록
+                    </button>
+                    <button
+                      type="button"
+                      className={`${styles.photoTriTab} ${photoPanel === "edit" ? styles.photoTriTabActive : ""}`}
+                      onClick={() => setPhotoPanel("edit")}
+                    >
+                      편집
+                    </button>
+                    <button
+                      type="button"
+                      className={`${styles.photoTriTab} ${photoPanel === "preview" ? styles.photoTriTabActive : ""}`}
+                      onClick={() => setPhotoPanel("preview")}
+                    >
+                      미리보기
+                    </button>
+                  </div>
+
+                  <aside className={`${styles.photoTriLeft} ${photoPanel !== "list" ? styles.photoTriHideOnMobile : ""}`}>
+                    <div className={styles.photoTriPaneHead}>
+                      <div className={styles.photoTriPaneTitle}>블록 목록</div>
+                      <div className={styles.photoTriPaneMeta}>{activePhotoBlocks.length}개</div>
+                    </div>
+                    <div className={styles.photoTriList} role="list">
+                      {activePhotoBlocks
+                        .slice()
+                        .sort((a, b) => (a.sort_order ?? a.no) - (b.sort_order ?? b.no))
+                        .map((b) => {
+                          const isActive = b.id === (selectedPhotoBlock?.id ?? "");
+                          const photoCount = Array.isArray(b.photos) ? b.photos.length : 0;
+                          const label = `${b.left_label || "미지정"} / ${b.right_label || "미지정"}`;
+                          return (
+                            <button
+                              key={b.id}
+                              type="button"
+                              className={`${styles.photoTriListItem} ${isActive ? styles.photoTriListItemActive : ""}`}
+                              onClick={() => {
+                                setSelectedPhotoBlockId(b.id);
+                                setPhotoPanel("edit");
+                              }}
+                              role="listitem"
+                            >
+                              <div className={styles.photoTriListTop}>
+                                <div className={styles.photoTriListNo}>NO.{b.no}</div>
+                                <div className={styles.photoTriListCount}>{photoCount}장</div>
+                              </div>
+                              <div className={styles.photoTriListLabel}>{label}</div>
+                            </button>
+                          );
+                        })}
+                    </div>
+                  </aside>
+
+                  <main className={`${styles.photoTriCenter} ${photoPanel !== "edit" ? styles.photoTriHideOnMobile : ""}`}>
+                    <div className={styles.photoTriPaneHead}>
+                      <div className={styles.photoTriPaneTitle}>
+                        선택 블록 {selectedPhotoBlock ? `· NO.${selectedPhotoBlock.no}` : ""}
+                      </div>
+                      <div className={styles.photoTriPaneMeta}>여기서만 편집</div>
+                    </div>
+                    <div className={styles.photoTriCenterBody}>
+                      {selectedPhotoBlock ? (
+                        <PhotoBlockCard
+                          block={selectedPhotoBlock}
+                          availableLabels={availableLabels}
+                          onSlotClick={handleSlotClick}
+                          onPhotoDelete={handlePhotoDelete}
+                          onMetaUpdate={handleMetaUpdate}
+                        />
+                      ) : (
+                        <div className={styles.photoTriEmpty}>편집할 블록이 없습니다.</div>
+                      )}
+                    </div>
+                  </main>
+
+                  <section className={`${styles.photoTriRight} ${photoPanel !== "preview" ? styles.photoTriHideOnMobile : ""}`}>
+                    <div className={styles.photoTriPaneHead}>
+                      <div className={styles.photoTriPaneTitle}>A4 미리보기</div>
+                      <div className={styles.photoTriPaneMeta}>현재 시트 전체</div>
+                    </div>
+                    <div className={styles.photoTriPreviewScroll}>
+                      <PhotoSheetView
+                        sheetName={sheet.name}
+                        blocks={activePhotoBlocks}
+                        a4Mode
+                      />
+                    </div>
+                  </section>
+                </div>
               )}
             </div>
           ) : sheet && (

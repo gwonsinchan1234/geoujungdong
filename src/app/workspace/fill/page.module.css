@@ -574,6 +574,216 @@
   animation: sheetFadeUp 0.32s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
+/* ── 사진대지: 좌/중/우(목록/편집/미리보기) ─────────────────────── */
+.photoTri {
+  display: grid;
+  grid-template-columns: 260px minmax(320px, 1fr) minmax(360px, 520px);
+  gap: 12px;
+  align-items: start;
+  min-height: 0;
+}
+
+/* 모바일 탭 — 항목별세부내역 탭 스타일 통일 */
+.photoTriTabs {
+  display: none;
+  gap: 0;
+  padding: 0;
+  background: #fff;
+  border-bottom: 2px solid #e5e7eb;
+  flex-shrink: 0;
+}
+.photoTriTab {
+  flex: 1;
+  min-height: 46px;
+  box-sizing: border-box;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  background: transparent;
+  color: #6b7280;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  transition: color 160ms ease, border-color 160ms ease;
+}
+.photoTriTab:active {
+  background: #f1f5f9;
+}
+.photoTriTabActive {
+  color: #111111;
+  font-weight: 600;
+  border-bottom-color: #111111;
+}
+
+.photoTriLeft,
+.photoTriCenter,
+.photoTriRight {
+  min-height: 0;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.photoTriPaneHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 12px 14px 10px;
+  border-bottom: 1px solid #e5e7eb;
+  background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
+}
+.photoTriPaneTitle {
+  font-size: 13px;
+  font-weight: 700;
+  color: #111827;
+}
+.photoTriPaneMeta {
+  font-size: 12px;
+  color: #6b7280;
+  font-weight: 600;
+}
+
+.photoTriList {
+  padding: 10px;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  display: grid;
+  gap: 6px;
+}
+.photoTriListItem {
+  width: 100%;
+  text-align: left;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s, transform 0.05s;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+.photoTriListItem:hover {
+  border-color: #93c5fd;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.08);
+}
+.photoTriListItem:active {
+  transform: translateY(1px);
+  background: #f8fafc;
+}
+.photoTriListItemActive {
+  border-color: #93c5fd;
+  background: #eff6ff;
+}
+.photoTriListTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+.photoTriListNo {
+  font-size: 13px;
+  font-weight: 700;
+  color: #111827;
+}
+.photoTriListCount {
+  font-size: 12px;
+  font-weight: 700;
+  color: #6b7280;
+}
+.photoTriListLabel {
+  font-size: 12px;
+  color: #374151;
+  font-weight: 500;
+  line-height: 1.35;
+  word-break: keep-all;
+}
+
+.photoTriPreviewScroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 10px;
+  background: #f0f2f5;
+  -webkit-overflow-scrolling: touch;
+}
+
+.photoTriEmpty {
+  padding: 24px 16px;
+  color: #6b7280;
+  font-size: 13px;
+  font-weight: 500;
+  text-align: center;
+}
+
+/* 편집 패널 본문 래퍼 — 데스크탑: 없음, 모바일: gray bg + padding */
+.photoTriCenterBody {
+  display: contents; /* 데스크탑: 투명 래퍼 */
+}
+
+@media (max-width: 1100px) {
+  .photoTri {
+    grid-template-columns: 240px minmax(320px, 1fr) minmax(340px, 480px);
+  }
+}
+@media (max-width: 980px) {
+  .viewportPhoto {
+    padding: 0;
+    background: #fff;
+  }
+  .photoTri {
+    grid-template-columns: 1fr;
+    gap: 0;
+    margin: 0;
+  }
+  .photoTriTabs {
+    display: flex;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  .photoTriHideOnMobile { display: none !important; }
+  .photoTriLeft,
+  .photoTriCenter,
+  .photoTriRight {
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+    border-top: none;
+    box-shadow: none;
+    /* 탭 margin 상쇄 후 내부 패딩 복원 */
+    min-height: calc(100dvh - 180px);
+  }
+  /* 패널 내부 리스트/편집 영역에 여백 복원 */
+  .photoTriList {
+    padding: 12px 16px;
+  }
+  .photoTriListItem {
+    padding: 12px 14px;
+  }
+  .photoTriPaneHead {
+    padding: 12px 16px 10px;
+  }
+  .photoTriPreviewScroll {
+    padding: 12px 16px;
+  }
+  .photoTriEmpty {
+    padding: 32px 20px;
+  }
+  /* 편집 패널 본문: 회색 배경에 카드 떠있는 느낌 */
+  .photoTriCenterBody {
+    display: block;
+    background: #f0f2f5;
+    padding: 12px 16px 24px;
+    min-height: 100%;
+  }
+}
+
 /* 항목별세부내역 탭: GabjiEditor와 동일하게 overflow hidden (내부에서 관리) */
 .viewportItems {
   flex: 1;

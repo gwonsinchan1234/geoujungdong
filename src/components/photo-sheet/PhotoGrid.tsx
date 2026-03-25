@@ -28,32 +28,29 @@ export default function PhotoGrid({
   const gridClass = GRID_CLASS[Math.min(count, 4)] ?? "grid4";
 
   // 편집 모드: 4슬롯 항상 렌더 (채워진 것 + 빈 것)
-  // 읽기 모드: 사진 있는 것만 렌더
+  // 읽기 모드(미리보기/출력): 4슬롯 항상 렌더 (빈칸도 박스 출력)
   if (readOnly) {
-    if (!count) return (
-      <div className={`${styles.photoGrid} ${styles[gridClass]}`}>
-        <div className={styles.emptySlotPrint} />
-      </div>
-    );
+    const roSlots = Array.from({ length: 4 }, (_, i) => ({
+      index: i,
+      photo: photos.find(p => p.slot_index === i) ?? null,
+    }));
     return (
-      <div className={`${styles.photoGrid} ${styles[gridClass]}`}>
-        {photos
-          .sort((a, b) => a.slot_index - b.slot_index)
-          .map((p) => (
-            <div key={p.id} className={styles.photoCell}>
-              {p.url ? (
-                /* eslint-disable-next-line @next/next/no-img-element */
-                <img
-                  src={p.url}
-                  alt=""
-                  className={styles.photoImg}
-                  onError={(e) => { (e.currentTarget as HTMLImageElement).style.visibility = "hidden"; }}
-                />
-              ) : (
-                <div className={styles.photoImgPlaceholder} aria-hidden />
-              )}
-            </div>
-          ))}
+      <div className={`${styles.photoGrid} ${styles.grid4}`}>
+        {roSlots.map(({ index, photo }) => (
+          <div key={index} className={styles.photoCell}>
+            {photo?.url ? (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img
+                src={photo.url}
+                alt=""
+                className={styles.photoImg}
+                onError={(e) => { (e.currentTarget as HTMLImageElement).style.visibility = "hidden"; }}
+              />
+            ) : (
+              <div className={styles.emptySlotPrint} />
+            )}
+          </div>
+        ))}
       </div>
     );
   }

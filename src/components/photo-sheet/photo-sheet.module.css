@@ -1,5 +1,5 @@
 /* photo-sheet.module.css
-   미리보기 + 출력 동일 컴포넌트 사용 → @media print 대응 포함 */
+   항목별세부내역 디자인 시스템 통일 — CSS 변수 대신 직접 hex 사용 */
 
 /* ── 시트 뷰 ──────────────────────────────────────────────────── */
 .sheetView {
@@ -10,20 +10,20 @@
 }
 
 .sheetTitle {
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 700;
   color: #111827;
   text-align: center;
   padding: 10px 0 14px;
   border-bottom: 2px solid #111827;
   margin-bottom: 12px;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.2px;
 }
 
 .blockList {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
 }
 
 .emptySheet {
@@ -31,8 +31,8 @@
   align-items: center;
   justify-content: center;
   height: 200px;
-  color: #9ca3af;
-  font-size: 14px;
+  color: #6b7280;
+  font-size: 13px;
 }
 
 /* ── 블록 카드 ────────────────────────────────────────────────── */
@@ -41,44 +41,46 @@
   border-radius: 12px;
   overflow: hidden;
   background: #fff;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, .05), 0 1px 8px rgba(0, 0, 0, .03);
-  /* fadeUp → Framer Motion */
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
 }
 
 /* NO.XX 헤더 */
 .blockHeader {
-  background: #111827;
-  padding: 6px 12px;
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  padding: 8px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .blockNo {
   font-size: 13px;
   font-weight: 700;
-  color: #fff;
-  letter-spacing: 0.5px;
+  color: #ffffff;
+  letter-spacing: 0.2px;
 }
 
-/* 섹션 헤더 (반입사진 | 지급사진) */
+/* 섹션 헤더 (반입사진 | 지급/설치사진) */
 .sectionHeaders {
   display: grid;
   grid-template-columns: 1fr 1px 1fr;
-  border-bottom: 1px solid #d1d5db;
+  border-bottom: 1px solid #e5e7eb;
 }
 
 .sectionHeader {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   color: #374151;
   text-align: center;
-  padding: 5px 0;
+  padding: 6px 0;
   background: #f8fafc;
-  letter-spacing: 0.3px;
+  letter-spacing: 0.15px;
 }
 
 /* 그리드 영역 */
 .gridsRow {
   display: grid;
-  grid-template-columns: 1fr 1px 1fr; /* sectionHeaders(1fr 1fr)와 정확히 맞춤 */
+  grid-template-columns: 1fr 1px 1fr;
   min-height: 220px;
 }
 
@@ -90,11 +92,11 @@
 }
 
 .gridDivider {
-  background: #d1d5db;
+  background: #e5e7eb;
   width: 1px;
 }
 
-/* ── 사진 그리드 (동적 레이아웃 핵심) ────────────────────────── */
+/* ── 사진 그리드 ────────────────────────────────────────────── */
 .photoGrid {
   width: 100%;
   flex: 1;
@@ -142,12 +144,11 @@
 .photoCell {
   position: relative;
   overflow: hidden;
-  border-radius: 3px;
-  background: #e5e7eb;
+  border-radius: 4px;
+  background: #f1f5f9;
   min-height: 90px;
 }
 
-/* 셀 안 이미지가 항상 영역을 채우도록 (흰화면/아이콘만 보이는 현상 방지) */
 .photoImg {
   position: absolute;
   inset: 0;
@@ -162,11 +163,11 @@
   object-fit: cover;
 }
 
-/* url 없을 때 플레이스홀더 (깨진 이미지 아이콘 방지) */
+/* url 없을 때 플레이스홀더 */
 .photoImgPlaceholder {
   position: absolute;
   inset: 0;
-  background: #e5e7eb;
+  background: #f1f5f9;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -216,8 +217,8 @@
 /* ── 빈 슬롯 (편집 모드) ─────────────────────────────────────── */
 .emptySlot {
   border: 1.5px dashed #d1d5db;
-  border-radius: 3px;
-  background: #fafafa;
+  border-radius: 4px;
+  background: #f9fafb;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -231,15 +232,15 @@
 }
 
 .emptySlot:hover {
-  border-color: #6b7280;
-  background: #f3f4f6;
+  border-color: #93c5fd;
+  background: #eff6ff;
   transform: scale(1.02);
 }
 
 .emptySlot:active {
   transform: scale(0.96);
-  background: #e5e7eb;
-  border-color: #374151;
+  background: #dbeafe;
+  border-color: #60a5fa;
 }
 
 .addIcon {
@@ -250,7 +251,7 @@
 }
 
 .addLabel {
-  font-size: 10px;
+  font-size: 11px;
   color: #9ca3af;
   font-weight: 500;
 }
@@ -269,31 +270,31 @@
 .blockFooter {
   display: grid;
   grid-template-columns: 1fr 1px 1fr;
-  border-top: 1px solid #d1d5db;
-  background: #f9fafb;
+  border-top: 1px solid #e5e7eb;
+  background: #f8fafc;
 }
 
 .footerSide {
   display: grid;
   grid-template-columns: auto 1fr;
   gap: 2px 8px;
-  padding: 7px 10px;
+  padding: 8px 12px;
   align-items: baseline;
 }
 
 .footerDivider {
-  background: #d1d5db;
+  background: #e5e7eb;
 }
 
 .footerLabel {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   color: #6b7280;
   white-space: nowrap;
 }
 
 .footerValue {
-  font-size: 11px;
+  font-size: 12px;
   color: #111827;
   font-weight: 500;
   word-break: keep-all;
@@ -302,23 +303,23 @@
   margin: -1px -2px;
 }
 
-/* 편집 가능 상태: 호버 시 배경 힌트 */
+/* 편집 가능 상태 */
 .footerEditable {
   cursor: text;
   transition: background 0.15s;
 }
 
 .footerEditable:hover {
-  background: #e5e7eb;
+  background: #f1f5f9;
 }
 
 /* 인라인 편집 input */
 .footerInput {
-  font-size: 11px;
-  color: #111111;
+  font-size: 12px;
+  color: #111827;
   font-weight: 500;
   border: none;
-  border-bottom: 1.5px solid #111111;
+  border-bottom: 1.5px solid #374151;
   outline: none;
   background: transparent;
   padding: 0 0 1px;
@@ -345,12 +346,12 @@
   align-items: center;
   justify-content: space-between;
   gap: 4px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
   color: #111827;
   background: transparent;
   border: none;
-  border-bottom: 1.5px solid #d1d5db;
+  border-bottom: 1.5px solid #e5e7eb;
   padding: 0 0 2px;
   text-align: left;
   cursor: pointer;
@@ -360,7 +361,7 @@
 
 .labelSelectTrigger:focus {
   outline: none;
-  border-bottom-color: #111111;
+  border-bottom-color: #374151;
 }
 
 .labelSelectTriggerText {
@@ -373,7 +374,7 @@
 
 .labelSelectArrow {
   font-size: 9px;
-  color: #9ca3af;
+  color: #6b7280;
   flex-shrink: 0;
   transition: transform 0.15s;
   display: inline-block;
@@ -391,12 +392,11 @@
   background: #fff;
   border: 1px solid #e5e7eb;
   border-radius: 10px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
   max-height: 220px;
   overflow-y: auto;
   z-index: 200;
   padding: 4px;
-  /* menuPop → Framer Motion AnimatePresence */
 }
 
 .labelSelectOption {
@@ -406,8 +406,8 @@
   width: 100%;
   text-align: left;
   padding: 8px 10px;
-  font-size: 12px;
-  color: #374151;
+  font-size: 13px;
+  color: #111827;
   background: transparent;
   border: none;
   border-radius: 7px;
@@ -417,17 +417,17 @@
 }
 
 .labelSelectOption:hover {
-  background: #f3f4f6;
+  background: #f8fafc;
 }
 
 .labelSelectOption:active {
-  background: #e5e7eb;
+  background: #f1f5f9;
 }
 
-/* 현재 선택된(원래 배정된) 항목 */
+/* 현재 선택된 항목 */
 .labelSelectOptionActive {
   background: #f1f5f9;
-  color: #111111;
+  color: #111827;
   font-weight: 700;
 }
 
@@ -436,8 +436,8 @@
 }
 
 .labelSelectCheck {
-  font-size: 11px;
-  color: #111111;
+  font-size: 12px;
+  color: #2563eb;
   width: 14px;
   flex-shrink: 0;
   font-weight: 700;
@@ -463,12 +463,10 @@
 
 /* ── A4 미리보기 / 출력 전용 ─────────────────────────────────── */
 
-/* A4 페이지 래퍼 — 2블록씩 묶어서 페이지 나눔 */
 .a4PageWrap {
   break-after: page;
   page-break-after: always;
   padding-bottom: 0;
-  /* 화면 미리보기: 개별 흰 카드로 표시 */
   background: #fff;
   box-shadow: 0 4px 32px rgba(0, 0, 0, 0.5);
   padding: 16px 22px 22px;
@@ -479,7 +477,6 @@
   page-break-after: avoid;
 }
 
-/* 페이지 상단 시트 제목 */
 .a4PageTitle {
   font-size: 13px;
   font-weight: 700;
@@ -488,10 +485,9 @@
   padding: 6px 0 10px;
   border-bottom: 2px solid #111827;
   margin-bottom: 10px;
-  letter-spacing: 0.4px;
+  letter-spacing: 0.15px;
 }
 
-/* A4 모드 블록 사이 간격 */
 .a4Block {
   margin-bottom: 10px;
 }
@@ -499,19 +495,17 @@
   margin-bottom: 0;
 }
 
-/* A4 모드: 사진 그리드 영역만 고정, 여백 없음 */
 .a4Block .gridsRow {
   height: 200px;
   min-height: unset;
   overflow: hidden;
-  /* grid-template-rows 명시 → 행 높이를 200px로 확정해 하위 height:100% 해석 보장 */
   grid-template-rows: 200px;
 }
 
 .a4Block .gridWrap {
   padding: 0;
   overflow: hidden;
-  height: 200px; /* 명시적 높이 → photoGrid height:100% 정상 해석 */
+  height: 200px;
   box-sizing: border-box;
 }
 
@@ -540,7 +534,6 @@
     box-shadow: none !important;
   }
 
-  /* 인쇄 시 a4PageWrap 흰 카드 그림자/패딩 제거 */
   .a4PageWrap {
     box-shadow: none !important;
     padding: 0 !important;
@@ -584,7 +577,7 @@
   }
 
   .blockHeader {
-    padding: 8px 12px;
+    padding: 9px 14px;
   }
 
   .blockNo {
@@ -597,7 +590,7 @@
   }
 
   .footerSide {
-    padding: 8px 10px;
+    padding: 9px 12px;
     gap: 3px 8px;
   }
 
