@@ -2765,7 +2765,22 @@ img{image-rendering:high-quality;display:block}
             </svg>
             갤러리에서 선택
             <input type="file" accept="image/*" hidden
-              onChange={e => { const f = e.target.files?.[0]; e.target.value = ""; if (f) handlePhotoUpload(f); }} />
+              onChange={e => {
+                const input = e.target;
+                const f = input.files?.[0];
+                if (!f) { input.value = ""; return; }
+                // 갤러리 사진: Android content:// URI는 input 언마운트 후 접근 불가
+                // → value 클리어 전에 FileReader로 메모리에 먼저 적재 후 처리
+                const reader = new FileReader();
+                reader.onload = () => {
+                  input.value = "";
+                  if (!reader.result) return;
+                  const blob = new Blob([reader.result as ArrayBuffer], { type: f.type || "image/jpeg" });
+                  handlePhotoUpload(new File([blob], f.name || "photo", { type: blob.type }));
+                };
+                reader.onerror = () => { input.value = ""; };
+                reader.readAsArrayBuffer(f);
+              }} />
           </label>
           <button type="button" className={styles.sheetCancel} onClick={() => setPhotoSlot(null)}>취소</button>
         </div>
