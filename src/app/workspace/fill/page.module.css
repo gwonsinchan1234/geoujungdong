@@ -562,7 +562,7 @@
 .viewportPhoto {
   flex: 1;
   min-height: 0;          /* flex 자식 스크롤 활성화에 필수 */
-  overflow-y: auto;
+  overflow-y: hidden;     /* 상위 컨테이너 스크롤 깜빡임 방지: 내부 패널에서만 스크롤 */
   overflow-x: hidden;
   padding: 16px;
   background: #f0f2f5;
