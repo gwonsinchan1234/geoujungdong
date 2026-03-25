@@ -456,8 +456,6 @@ export default function HomePage() {
   useEffect(() => {
     const v = videoRef.current;
     if (!v) return;
-    // Chromium: 네트워크 우선순위 (타입 정의에 없어 DOM에 직접 설정)
-    v.setAttribute("fetchpriority", "high");
     // 일부 모바일에서 muted autoplay가 지연될 때 보조
     const tryPlay = () => {
       void v.play().catch(() => {});
@@ -578,7 +576,7 @@ export default function HomePage() {
             muted
             loop
             playsInline
-            preload="auto"
+            preload="metadata"
             onLoadedMetadata={() => setHeroVideoReady(true)}
             onLoadedData={() => setHeroVideoReady(true)}
             onCanPlay={() => setHeroVideoReady(true)}

@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -36,13 +37,16 @@ export default function RootLayout({
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#111827" />
         <link rel="apple-touch-icon" href="/icon-192.png" />
-        <script dangerouslySetInnerHTML={{ __html: `
+        <Script
+          id="sw-register"
+          strategy="afterInteractive"
+        >{`
           if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
               navigator.serviceWorker.register('/sw.js');
             });
           }
-        `}} />
+        `}</Script>
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
