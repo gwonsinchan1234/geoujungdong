@@ -56,8 +56,10 @@ export default function PhotoGrid({
         </div>
       );
     }
-    const totalSlots = def ? def.slots : Math.min(count, 4);
-    const cssClass   = def ? def.cssClass : (AUTO_GRID[Math.min(count, 4)] ?? "grid4");
+    // 미리보기/출력은 항상 "실제 사진 수" 기준으로 동일 렌더링:
+    // 1장=1칸 꽉참, 2장=2칸 꽉참, 3장=3칸, 4장=4칸
+    const totalSlots = Math.min(Math.max(count, 1), 4);
+    const cssClass   = AUTO_GRID[Math.min(count, 4)] ?? "grid4";
     return (
       <div className={`${styles.photoGrid} ${styles[cssClass]}`}>
         {Array.from({ length: totalSlots }, (_, i) => {
