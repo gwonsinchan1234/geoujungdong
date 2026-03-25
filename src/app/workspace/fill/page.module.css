@@ -576,7 +576,7 @@
   display: grid;
   grid-template-columns: 260px minmax(320px, 1fr) minmax(360px, 520px);
   gap: 12px;
-  align-items: start;
+  align-items: stretch;
   min-height: 0;
 }
 
@@ -619,9 +619,11 @@
 .photoTriRight {
   min-height: 0;
   background: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  border: 1px solid #e0e5ec;
+  border-radius: 14px;
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.04),
+    0 4px 16px rgba(0, 0, 0, 0.06);
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -629,21 +631,24 @@
 
 .photoTriPaneHead {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
-  padding: 12px 14px 10px;
-  border-bottom: 1px solid #e5e7eb;
-  background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
+  padding: 12px 16px 10px;
+  border-bottom: 1px solid #eaecf0;
+  background: linear-gradient(180deg, #f8fafc 0%, #f4f7fb 100%);
+  flex-shrink: 0;
 }
 .photoTriPaneTitle {
   font-size: 13px;
   font-weight: 700;
   color: #111827;
+  letter-spacing: -0.01em;
 }
 .photoTriPaneMeta {
-  font-size: 12px;
-  color: #6b7280;
+  font-size: 11px;
+  color: #94a3b8;
   font-weight: 600;
+  letter-spacing: 0.1px;
 }
 
 .photoTriList {
@@ -652,6 +657,7 @@
   -webkit-overflow-scrolling: touch;
   display: grid;
   gap: 6px;
+  align-content: start;
 }
 .photoTriListItem {
   width: 100%;
@@ -661,21 +667,25 @@
   border: 1px solid #e5e7eb;
   background: #fff;
   cursor: pointer;
-  transition: border-color 0.15s, box-shadow 0.15s, transform 0.05s;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  transition: border-color 0.15s, box-shadow 0.15s, transform 0.12s, background 0.15s;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
 }
 .photoTriListItem:hover {
   border-color: #93c5fd;
-  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.08);
+  box-shadow: 0 2px 10px rgba(37, 99, 235, 0.1), 0 0 0 3px rgba(147, 197, 253, 0.15);
+  transform: translateY(-1px);
 }
 .photoTriListItem:active {
-  transform: translateY(1px);
+  transform: translateY(0);
   background: #f8fafc;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 .photoTriListItemActive {
-  border-color: #93c5fd;
-  background: #eff6ff;
+  border-color: #3b82f6;
+  background: linear-gradient(180deg, #eff6ff 0%, #dbeafe 100%);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.18);
 }
 /* 상태 바: 좌측 컬러 라인 */
 .photoTriListItemEmpty   { border-left: 3px solid #d1d5db; }
@@ -763,9 +773,36 @@
   text-align: center;
 }
 
-/* 편집 패널 본문 래퍼 — 데스크탑: 없음, 모바일: gray bg + padding */
+/* 편집 패널 본문 래퍼 — 데스크탑: flex 컨테이너, 모바일: gray bg + padding */
 .photoTriCenterBody {
-  display: contents; /* 데스크탑: 투명 래퍼 */
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  background: #f4f6fa;
+  padding: 10px;
+}
+
+/* ── 데스크탑: 3패널 꽉채움 (뷰포트 고정 + 내부 독립 스크롤) ─────── */
+@media (min-width: 981px) {
+  .viewportPhoto {
+    overflow: hidden;
+    padding: 14px 16px 14px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .photoTri {
+    flex: 1;
+    min-height: 0;
+  }
+
+  .photoTriList {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+  }
 }
 
 @media (max-width: 1100px) {
@@ -820,9 +857,11 @@
   /* 편집 패널 본문: 회색 배경에 카드 떠있는 느낌 */
   .photoTriCenterBody {
     display: block;
+    overflow-y: visible;
     background: #f0f2f5;
     padding: 12px 16px 24px;
     min-height: 100%;
+    flex: unset;
   }
 }
 

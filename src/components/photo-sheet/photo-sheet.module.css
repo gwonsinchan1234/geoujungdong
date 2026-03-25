@@ -1,5 +1,4 @@
-/* photo-sheet.module.css
-   항목별세부내역 디자인 시스템 통일 — CSS 변수 대신 직접 hex 사용 */
+/* photo-sheet.module.css — premium redesign */
 
 /* ── 시트 뷰 ──────────────────────────────────────────────────── */
 .sheetView {
@@ -23,7 +22,7 @@
 .blockList {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
 }
 
 .emptySheet {
@@ -37,63 +36,85 @@
 
 /* ── 블록 카드 ────────────────────────────────────────────────── */
 .blockCard {
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
+  border: 1px solid rgba(0, 0, 0, 0.07);
+  border-radius: 14px;
   overflow: hidden;
-  background: #fff;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  background: #ffffff;
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.04),
+    0 4px 14px rgba(0, 0, 0, 0.07),
+    0 0 0 1px rgba(255, 255, 255, 0.6) inset;
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+@media (hover: hover) {
+  .blockCard:hover {
+    box-shadow:
+      0 2px 6px rgba(0, 0, 0, 0.05),
+      0 12px 32px rgba(0, 0, 0, 0.09);
+    transform: translateY(-1px);
+  }
 }
 
 /* NO.XX 헤더 */
 .blockHeader {
-  background: #ffffff;
-  border-bottom: 1px solid #e5e7eb;
-  padding: 8px 14px;
+  background: linear-gradient(180deg, #ffffff 0%, #fafbfd 100%);
+  border-bottom: 1px solid #eaecf0;
+  padding: 10px 16px;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  min-height: 40px;
 }
 
 .blockNo {
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 700;
-  color: #111827;
-  letter-spacing: 0.2px;
+  color: #374151;
+  letter-spacing: 0.7px;
+  text-transform: uppercase;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 5px;
+  padding: 3px 9px;
+  line-height: 1.4;
 }
 
 /* 섹션 헤더 (반입사진 | 지급/설치사진) */
 .sectionHeaders {
   display: grid;
   grid-template-columns: 1fr 1px 1fr;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid #eaecf0;
+  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
 }
 
 .sectionHeader {
-  font-size: 12px;
+  font-size: 10.5px;
   font-weight: 700;
-  color: #374151;
+  color: #4b5563;
   text-align: center;
-  padding: 6px 0;
-  background: #f8fafc;
-  letter-spacing: 0.15px;
+  padding: 7px 0;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
 }
 
 /* 그리드 영역 */
 .gridsRow {
   display: grid;
   grid-template-columns: 1fr 1px 1fr;
-  min-height: 220px;
+  min-height: 240px;
 }
 
 .gridWrap {
-  padding: 8px;
+  padding: 10px;
   display: flex;
   align-items: stretch;
   min-width: 0;
+  background: #fbfcfe;
 }
 
 .gridDivider {
-  background: #e5e7eb;
+  background: linear-gradient(180deg, transparent 0%, #d1d5db 8%, #d1d5db 92%, transparent 100%);
   width: 1px;
 }
 
@@ -103,7 +124,7 @@
   flex: 1;
   min-height: 180px;
   display: grid;
-  gap: 4px;
+  gap: 5px;
 }
 
 /* 0장: 빈 상태 */
@@ -186,9 +207,9 @@
   display: flex;
   align-items: center;
   gap: 0;
-  padding: 6px 10px;
-  background: #f8fafc;
-  border-bottom: 1px solid #e5e7eb;
+  padding: 8px 12px;
+  background: linear-gradient(180deg, #eef2f7 0%, #e8edf3 100%);
+  border-bottom: 1px solid #dde3ec;
 }
 .layoutPickerSide {
   flex: 1;
@@ -197,45 +218,53 @@
 .layoutPickerDivider {
   width: 1px;
   align-self: stretch;
-  background: #e5e7eb;
-  margin: 0 6px;
+  background: #d1d8e2;
+  margin: 0 8px;
 }
 .layoutPicker {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
-  padding: 2px 0;
+  padding: 1px 0;
 }
 .layoutBtn {
-  width: 28px;
-  height: 20px;
-  padding: 3px;
-  border-radius: 4px;
-  border: 1px solid #e5e7eb;
-  background: #fff;
+  width: 30px;
+  height: 22px;
+  padding: 3px 4px;
+  border-radius: 5px;
+  border: 1px solid #d1d5db;
+  background: #ffffff;
   color: #9ca3af;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.12s, border-color 0.12s, color 0.12s, transform 0.1s;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  transition: background 0.12s, border-color 0.12s, color 0.12s, transform 0.1s, box-shadow 0.12s;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
 }
-.layoutBtn:active { transform: scale(0.9); }
-.layoutBtnActive {
-  background: #eff6ff;
+.layoutBtn:hover {
+  background: #f8fafc;
   border-color: #93c5fd;
+  color: #3b82f6;
+}
+.layoutBtn:active { transform: scale(0.88); }
+.layoutBtnActive {
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+  border-color: #60a5fa;
   color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.25), 0 1px 3px rgba(37, 99, 235, 0.12);
 }
 
 /* ── 사진 셀 ──────────────────────────────────────────────────── */
 .photoCell {
   position: relative;
   overflow: hidden;
-  border-radius: 4px;
-  background: #f1f5f9;
+  border-radius: 6px;
+  background: #e8edf3;
   min-height: 90px;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.06) inset;
 }
 
 .photoImg {
@@ -245,18 +274,20 @@
   height: 100%;
   object-fit: cover;
   display: block;
-  transition: opacity 0.2s;
+  transition: opacity 0.2s, transform 0.3s ease;
 }
 
-.photoCell img[style*="position: absolute"] {
-  object-fit: cover;
+@media (hover: hover) {
+  .photoCell:hover .photoImg {
+    transform: scale(1.02);
+  }
 }
 
 /* url 없을 때 플레이스홀더 */
 .photoImgPlaceholder {
   position: absolute;
   inset: 0;
-  background: #f1f5f9;
+  background: #e8edf3;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -267,13 +298,15 @@
 /* 삭제 버튼 */
 .deleteBtn {
   position: absolute;
-  top: 4px;
-  right: 4px;
+  top: 5px;
+  right: 5px;
   width: 26px;
   height: 26px;
   border-radius: 50%;
   border: none;
-  background: rgba(0, 0, 0, 0.55);
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
   color: #fff;
   font-size: 11px;
   cursor: pointer;
@@ -281,9 +314,10 @@
   align-items: center;
   justify-content: center;
   opacity: 0;
-  transition: opacity 0.15s;
+  transition: opacity 0.15s, background 0.15s, transform 0.1s;
   z-index: 2;
 }
+.deleteBtn:active { transform: scale(0.9); }
 
 /* 데스크탑: hover 시 표시 */
 @media (hover: hover) {
@@ -305,45 +339,49 @@
 
 /* ── 빈 슬롯 (편집 모드) ─────────────────────────────────────── */
 .emptySlot {
-  border: 1.5px dashed #d1d5db;
-  border-radius: 4px;
-  background: #f9fafb;
+  border: 1.5px dashed #c8d0da;
+  border-radius: 6px;
+  background: linear-gradient(160deg, #f9fafb 0%, #f4f6fa 100%);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: 5px;
   cursor: pointer;
   min-height: 100px;
-  transition: border-color 0.15s, background 0.15s, transform 0.15s;
+  transition: border-color 0.15s, background 0.15s, transform 0.15s, box-shadow 0.15s;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
 }
 
 .emptySlot:hover {
-  border-color: #93c5fd;
-  background: #eff6ff;
-  transform: scale(1.02);
+  border-color: #60a5fa;
+  background: linear-gradient(160deg, #eff6ff 0%, #dbeafe 100%);
+  transform: scale(1.015);
+  box-shadow: 0 0 0 4px rgba(96, 165, 250, 0.15), 0 4px 12px rgba(37, 99, 235, 0.08);
 }
 
 .emptySlot:active {
   transform: scale(0.96);
-  background: #dbeafe;
-  border-color: #60a5fa;
+  background: linear-gradient(160deg, #dbeafe 0%, #bfdbfe 100%);
+  border-color: #3b82f6;
+  box-shadow: none;
 }
 
 .addIcon {
-  font-size: 22px;
-  font-weight: 300;
-  color: #9ca3af;
-  line-height: 1;
+  color: #94a3b8;
+  transition: color 0.15s;
 }
+.emptySlot:hover .addIcon { color: #3b82f6; }
 
 .addLabel {
   font-size: 11px;
-  color: #9ca3af;
-  font-weight: 500;
+  color: #94a3b8;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  transition: color 0.15s;
 }
+.emptySlot:hover .addLabel { color: #3b82f6; }
 
 /* 출력용 빈 슬롯 (테두리만) */
 .emptySlotPrint {
@@ -359,32 +397,34 @@
 .blockFooter {
   display: grid;
   grid-template-columns: 1fr 1px 1fr;
-  border-top: 1px solid #e5e7eb;
-  background: #f8fafc;
+  border-top: 1px solid #eaecf0;
+  background: linear-gradient(180deg, #f8fafc 0%, #f3f6fa 100%);
 }
 
 .footerSide {
   display: grid;
   grid-template-columns: auto 1fr;
   gap: 2px 8px;
-  padding: 8px 12px;
+  padding: 10px 14px;
   align-items: baseline;
 }
 
 .footerDivider {
-  background: #e5e7eb;
+  background: linear-gradient(180deg, transparent 0%, #d1d5db 15%, #d1d5db 85%, transparent 100%);
 }
 
 .footerLabel {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
   color: #6b7280;
+  letter-spacing: 0.45px;
+  text-transform: uppercase;
   white-space: nowrap;
 }
 
 .footerValue {
   font-size: 12px;
-  color: #111827;
+  color: #1e293b;
   font-weight: 500;
   word-break: keep-all;
   border-radius: 3px;
@@ -402,10 +442,30 @@
   background: #f1f5f9;
 }
 
+/* 날짜 date input */
+.footerDateInput {
+  font-size: 12px;
+  color: #1e293b;
+  font-weight: 500;
+  border: none;
+  border-bottom: 1.5px solid #cbd5e1;
+  outline: none;
+  background: transparent;
+  padding: 0 0 2px;
+  width: 100%;
+  min-width: 0;
+  cursor: pointer;
+  transition: border-color 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.footerDateInput:focus {
+  border-bottom-color: #3b82f6;
+}
+
 /* 인라인 편집 input */
 .footerInput {
   font-size: 12px;
-  color: #111827;
+  color: #1e293b;
   font-weight: 500;
   border: none;
   border-bottom: 1.5px solid #374151;
@@ -437,10 +497,10 @@
   gap: 4px;
   font-size: 12px;
   font-weight: 500;
-  color: #111827;
+  color: #1e293b;
   background: transparent;
   border: none;
-  border-bottom: 1.5px solid #e5e7eb;
+  border-bottom: 1.5px solid #cbd5e1;
   padding: 0 0 2px;
   text-align: left;
   cursor: pointer;
@@ -450,7 +510,7 @@
 
 .labelSelectTrigger:focus {
   outline: none;
-  border-bottom-color: #374151;
+  border-bottom-color: #3b82f6;
 }
 
 .labelSelectTriggerText {
@@ -479,13 +539,16 @@
   left: -10px;
   right: -10px;
   background: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: 10px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 12px;
+  box-shadow:
+    0 4px 8px rgba(0, 0, 0, 0.06),
+    0 16px 48px rgba(0, 0, 0, 0.13),
+    0 0 0 1px rgba(0, 0, 0, 0.04);
   max-height: 220px;
   overflow-y: auto;
   z-index: 200;
-  padding: 4px;
+  padding: 5px;
 }
 
 .labelSelectOption {
@@ -499,7 +562,7 @@
   color: #111827;
   background: transparent;
   border: none;
-  border-radius: 7px;
+  border-radius: 8px;
   cursor: pointer;
   transition: background 0.1s;
   -webkit-tap-highlight-color: transparent;
@@ -515,13 +578,13 @@
 
 /* 현재 선택된 항목 */
 .labelSelectOptionActive {
-  background: #f1f5f9;
-  color: #111827;
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+  color: #1d4ed8;
   font-weight: 700;
 }
 
 .labelSelectOptionActive:hover {
-  background: #e5e7eb;
+  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
 }
 
 .labelSelectCheck {
@@ -621,6 +684,7 @@
     border: 1.5px solid #374151 !important;
     border-radius: 2px !important;
     box-shadow: none !important;
+    transform: none !important;
   }
 
   .a4PageWrap {
@@ -640,6 +704,10 @@
   .photoGrid {
     gap: 2px;
   }
+
+  .layoutPickerRow {
+    display: none;
+  }
 }
 
 /* ── 반응형 ──────────────────────────────────────────────────── */
@@ -649,7 +717,7 @@
   }
 
   .gridWrap {
-    padding: 6px;
+    padding: 7px;
   }
 
   .photoCell,
@@ -666,15 +734,15 @@
   }
 
   .blockHeader {
-    padding: 9px 14px;
+    padding: 10px 14px;
   }
 
   .blockNo {
-    font-size: 14px;
+    font-size: 10px;
   }
 
   .sectionHeader {
-    font-size: 12px;
+    font-size: 11px;
     padding: 7px 0;
   }
 
@@ -684,7 +752,7 @@
   }
 
   .footerLabel {
-    font-size: 11px;
+    font-size: 10px;
   }
 
   .footerValue,
