@@ -779,7 +779,7 @@
   flex-direction: column;
   flex: 1;
   min-height: 0;
-  overflow-y: auto;
+  overflow: hidden;  /* blockCard가 flex:1로 꽉 채우므로 scroll 불필요, 애니메이션 진입 시 스크롤바 깜빡임 방지 */
   background: #f4f6fa;
   padding: 10px;
 }
