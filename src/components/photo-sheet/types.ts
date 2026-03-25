@@ -1,3 +1,9 @@
+export type PhotoLayout =
+  | "auto"
+  | "2a" | "2b"
+  | "3a" | "3b" | "3c"
+  | "4a" | "4b" | "4c";
+
 export type BlockPhoto = {
   id:           string;
   block_id:     string;
@@ -17,16 +23,21 @@ export type PhotoBlock = {
   right_date:   string;
   left_label:   string;
   right_label:  string;
+  left_layout:  PhotoLayout;
+  right_layout: PhotoLayout;
   sort_order:   number;
   photos:       BlockPhoto[];
 };
 
-// 슬롯 클릭 콜백 (편집 모드)
-export type OnSlotClick = (blockId: string, side: "left" | "right", slotIndex: number) => void;
+export type OnSlotClick   = (blockId: string, side: "left" | "right", slotIndex: number) => void;
 export type OnPhotoDelete = (photoId: string, blockId: string, side: "left" | "right", slotIndex: number) => void;
 
-// 블록 메타데이터 수정 콜백 (날짜 / 항목 라벨)
 export type OnMetaUpdate = (
   blockId: string,
-  fields: Partial<Pick<PhotoBlock, "left_date" | "right_date" | "left_label" | "right_label" | "right_header">>
+  fields: Partial<Pick<PhotoBlock,
+    | "left_date" | "right_date"
+    | "left_label" | "right_label"
+    | "right_header"
+    | "left_layout" | "right_layout"
+  >>
 ) => void;

@@ -8,7 +8,7 @@
   overflow: hidden;
   background: #f0f2f5;
   color: #111827;
-  font-family: "Apple SD Gothic Neo", -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: "Pretendard", "Apple SD Gothic Neo", -apple-system, BlinkMacSystemFont, sans-serif;
   -webkit-font-smoothing: antialiased;
   color-scheme: light;
   padding-top: env(safe-area-inset-top);
@@ -25,8 +25,8 @@
   align-items: center;
   gap: 8px;
   padding: 7px 12px;
-  background: #fff;
-  border-bottom: 1px solid #e5e7eb;
+  background: #1e293b;
+  border-bottom: 1px solid #334155;
   flex-shrink: 0;
 }
 
@@ -40,7 +40,7 @@
   box-sizing: border-box;
   border-radius: 10px;
   background: transparent;
-  color: #6b7280;
+  color: #94a3b8;
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
@@ -57,7 +57,7 @@
   touch-action: manipulation;
 }
 .uploadBtn:active {
-  background: #f1f5f9;
+  background: rgba(255, 255, 255, 0.08);
   transform: translateY(0);
   box-shadow: none;
 }
@@ -80,7 +80,7 @@
 .fileName {
   font-size: 13px;
   font-weight: 500;
-  color: #374151;
+  color: #e2e8f0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -88,7 +88,7 @@
 
 .filePlaceholder {
   font-size: 13px;
-  color: #9ca3af;
+  color: #475569;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -115,8 +115,9 @@
   min-height: 44px;
   box-sizing: border-box;
   border-radius: 10px;
-  border: 1px solid #e5e7eb;
-  color: #111827;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.07);
+  color: #cbd5e1;
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
@@ -140,9 +141,9 @@
   min-height: 44px;
   box-sizing: border-box;
   border-radius: 10px;
-  border: 1px solid #e5e7eb;
-  background: #fff;
-  color: #6b7280;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.05);
+  color: #94a3b8;
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
@@ -157,30 +158,26 @@
   touch-action: manipulation;
 }
 .clearRestoreBtn:active {
-  background: #f1f5f9;
+  background: rgba(255, 255, 255, 0.12);
   transform: translateY(0);
   box-shadow: none;
 }
 .clearRestoreBtn:focus-visible {
   outline: none;
-  border-color: #93c5fd;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
-}
-.printBtn,
-.downloadBtn {
-  background: #fff;
+  border-color: rgba(147, 197, 253, 0.4);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
 }
 .printBtn:active,
 .downloadBtn:active {
-  background: #f1f5f9;
+  background: rgba(255, 255, 255, 0.12);
   transform: translateY(0);
   box-shadow: none;
 }
 .printBtn:focus-visible,
 .downloadBtn:focus-visible {
   outline: none;
-  border-color: #93c5fd;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+  border-color: rgba(147, 197, 253, 0.4);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
 }
 .printBtn:disabled,
 .downloadBtn:disabled {
@@ -680,6 +677,11 @@
   border-color: #93c5fd;
   background: #eff6ff;
 }
+/* 상태 바: 좌측 컬러 라인 */
+.photoTriListItemEmpty   { border-left: 3px solid #d1d5db; }
+.photoTriListItemPartial { border-left: 3px solid #f59e0b; }
+.photoTriListItemDone    { border-left: 3px solid #10b981; }
+
 .photoTriListTop {
   display: flex;
   justify-content: space-between;
@@ -702,6 +704,46 @@
   font-weight: 500;
   line-height: 1.35;
   word-break: keep-all;
+}
+
+/* 완료 뱃지 */
+.photoTriDoneBadge {
+  font-size: 10px;
+  font-weight: 700;
+  color: #059669;
+  background: #d1fae5;
+  border: 1px solid #6ee7b7;
+  padding: 2px 6px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+/* 슬롯 상태 dot */
+.photoTriDotRow {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 5px;
+}
+.photoTriDotGroup {
+  display: flex;
+  gap: 3px;
+}
+.photoTriDotDivider {
+  font-size: 10px;
+  color: #d1d5db;
+  line-height: 1;
+}
+.photoTriDot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #e5e7eb;
+  transition: background 0.15s;
+}
+.photoTriDotFilled {
+  background: #3b82f6;
 }
 
 .photoTriPreviewScroll {
@@ -1682,78 +1724,109 @@
   transform: scale(0.98);
 }
 
-/* ── 모바일: 상단바 줄바꿈 · 터치 영역 ───────────────────────────── */
+/* ── 모바일 컴팩트 헤더 (대기업 앱 스타일) ─────────────────────── */
 
 @media (max-width: 768px) {
+  /* TopBar: 아이콘 버튼 + 중앙 파일명, 단일 44px 행 */
   .topBar {
-    /* 모바일: 상단 높이 최소화(대기업 앱 톤) → 단일 행 + 가로 스크롤 */
     flex-wrap: nowrap;
     align-items: center;
-    row-gap: 0;
-    column-gap: 6px;
-    padding: 6px max(8px, env(safe-area-inset-left)) 6px max(8px, env(safe-area-inset-right));
-    overflow-x: auto;
-    overflow-y: hidden;
-    scrollbar-width: none;
-    -webkit-overflow-scrolling: touch;
+    gap: 2px;
+    padding: 0 max(8px, env(safe-area-inset-right)) 0 max(8px, env(safe-area-inset-left));
+    min-height: 44px;
+    overflow-x: visible;
+    overflow-y: visible;
   }
-  .topBar::-webkit-scrollbar { display: none; }
+
+  /* 파일명: flex:1 중앙 채움 */
   .fileArea {
-    /* 파일명은 탭 영역 아래 메타로 충분 → 상단에서 제거해 높이 절약 */
-    display: none;
-  }
-  .uploadBtn {
-    order: 1;
-  }
-  .pwaBtn {
+    display: flex;
+    flex: 1;
+    min-width: 0;
     order: 2;
+    gap: 4px;
   }
-  .clearRestoreBtn {
-    order: 3;
-  }
+  .fileName        { font-size: 12px; font-weight: 600; }
+  .filePlaceholder { font-size: 11px; }
+  .editBadge       { display: none; }
+
+  /* 복원해제·렌더 메타: 모바일 숨김 */
+  .clearRestoreBtn { display: none; }
+  .tabsMeta        { display: none; }
+
+  /* 버튼 순서: [↑] [파일명...] [💾][🖨️][⬇️] [앱↓] */
+  .uploadBtn                        { order: 1; }
+  .saveBtn, .printBtn, .downloadBtn { order: 3; }
+  .pwaBtn                           { order: 4; }
+
+  /* 아이콘 전용 34×34 버튼 */
+  .uploadBtn,
   .saveBtn,
   .printBtn,
   .downloadBtn {
-    order: 4;
+    min-height:      34px;
+    min-width:       34px;
+    padding:         0;
+    justify-content: center;
+    border-radius:   8px;
+    gap:             0;
+    line-height:     1;
   }
-}
+  /* 텍스트 숨김 */
+  .uploadBtn   span,
+  .printBtn    span,
+  .downloadBtn span { display: none; }
+  /* saveBtn: 스피너(.saveBtnSpinner)는 유지, 텍스트 span만 숨김 */
+  .saveBtn > span:not([class]) { display: none; }
 
-/* ── 모바일 미세 조정 ──────────────────────────────────────────── */
-
-@media (max-width: 480px) {
-  .topBar {
-    padding: 4px max(6px, env(safe-area-inset-left)) 4px max(6px, env(safe-area-inset-right));
-    gap: 6px;
+  /* pwaBtn: 아이콘 전용 + 다크 topBar 색상 */
+  .pwaBtn {
+    min-height:      34px;
+    min-width:       34px;
+    padding:         0;
+    justify-content: center;
+    border-radius:   8px;
+    gap:             0;
+    color:           #94a3b8;
   }
-  .uploadBtn  { padding: 6px 10px; font-size: 11px; min-height: 32px; }
-  .printBtn   { padding: 6px 10px; font-size: 11px; min-width: 38px; min-height: 32px; }
-  .downloadBtn{ padding: 6px 10px; font-size: 11px; min-width: 38px; min-height: 32px; }
-  .clearRestoreBtn { padding: 6px 9px; font-size: 10px; min-height: 32px; }
-  .saveBtn { padding: 6px 10px; font-size: 11px; min-height: 32px; }
-  .viewport   { padding: 10px max(10px, env(safe-area-inset-left)) 14px max(10px, env(safe-area-inset-right)); }
+  .pwaBtn span { display: none; }
+
+  /* 시트 탭: 슬림 34px */
+  .tab {
+    padding:    8px 12px;
+    min-height: 34px;
+    font-size:  12px;
+  }
+
+  /* 진행률: 3px 라인만, 텍스트·패딩 제거 */
+  .photoProgressWrap {
+    height:        3px;
+    padding:       0;
+    gap:           0;
+    border-bottom: none;
+    background:    transparent;
+    animation:     none;
+    overflow:      hidden;
+  }
+  .photoProgressTrack {
+    height:        3px;
+    border-radius: 0;
+    background:    rgba(0, 0, 0, 0.08);
+  }
+  .photoProgressFill { border-radius: 0; }
+  .photoProgressText { display: none; }
+
+  /* Viewport 패딩 */
+  .viewport      { padding: 10px max(10px, env(safe-area-inset-left)) 14px max(10px, env(safe-area-inset-right)); }
   .viewportPhoto { padding: 12px max(10px, env(safe-area-inset-left)) max(16px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-right)); }
-  .editBadge { font-size: 10px; padding: 2px 6px; }
 }
 
-/* 좁은 화면: 인쇄·다운로드는 아이콘만 (레이블 숨김) */
-@media (max-width: 400px) {
-  .printBtn > span,
-  .downloadBtn > span {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    white-space: nowrap;
-    border: 0;
+@media (max-width: 380px) {
+  .uploadBtn, .saveBtn, .printBtn, .downloadBtn, .pwaBtn {
+    min-height: 32px;
+    min-width:  32px;
   }
-  .printBtn,
-  .downloadBtn {
-    position: relative;
-    padding: 10px 12px;
-  }
+  .tab { padding: 6px 10px; font-size: 11px; }
 }
 
 /* ── PWA 설치 안내 버튼 ────────────────────────────────────────── */

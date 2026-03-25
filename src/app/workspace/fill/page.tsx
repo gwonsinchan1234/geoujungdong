@@ -340,6 +340,8 @@ function parsePhotoBlocksFromRaw(rawBuf: ArrayBuffer, sheetNames: string[]): Rec
       right_date:   d.date,
       left_label:   d.label,
       right_label:  d.label,
+      left_layout:  "auto",
+      right_layout: "auto",
       sort_order:   order,
       photos:       [],
     });
@@ -758,6 +760,8 @@ function buildPhotoBlocksFromItems(
       right_date:   item.usageDate,
       left_label:   label,
       right_label:  label,
+      left_layout:  "auto",
+      right_layout: "auto",
       sort_order:   result[sheetName].length,
       photos:       [],
     });
