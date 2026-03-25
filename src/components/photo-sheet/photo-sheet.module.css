@@ -45,6 +45,9 @@
     0 4px 14px rgba(0, 0, 0, 0.07),
     0 0 0 1px rgba(255, 255, 255, 0.6) inset;
   transition: box-shadow 0.2s ease, transform 0.2s ease;
+  /* 편집 패널 내에서 높이 꽉 채움 */
+  display: flex;
+  flex-direction: column;
 }
 
 @media (hover: hover) {
@@ -65,6 +68,7 @@
   align-items: center;
   justify-content: space-between;
   min-height: 40px;
+  flex-shrink: 0;
 }
 
 .blockNo {
@@ -86,6 +90,7 @@
   grid-template-columns: 1fr 1px 1fr;
   border-bottom: 1px solid #eaecf0;
   background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+  flex-shrink: 0;
 }
 
 .sectionHeader {
@@ -103,6 +108,7 @@
   display: grid;
   grid-template-columns: 1fr 1px 1fr;
   min-height: 240px;
+  flex: 1;          /* blockCard가 flex column일 때 남은 높이 채움 */
 }
 
 .gridWrap {
@@ -203,6 +209,7 @@
 .grid4c .emptySlot:nth-child(1) { grid-column: 1 / -1; }
 
 /* ── 레이아웃 선택기 ─────────────────────────────────────────── */
+/* layoutPickerRow는 flex-shrink:0이 필요 (blockCard flex column 안에서 줄어들면 안됨) */
 .layoutPickerRow {
   display: flex;
   align-items: center;
@@ -210,6 +217,7 @@
   padding: 8px 12px;
   background: linear-gradient(180deg, #eef2f7 0%, #e8edf3 100%);
   border-bottom: 1px solid #dde3ec;
+  flex-shrink: 0;
 }
 .layoutPickerSide {
   flex: 1;
@@ -399,6 +407,7 @@
   grid-template-columns: 1fr 1px 1fr;
   border-top: 1px solid #eaecf0;
   background: linear-gradient(180deg, #f8fafc 0%, #f3f6fa 100%);
+  flex-shrink: 0;
 }
 
 .footerSide {
@@ -652,6 +661,7 @@
   min-height: unset;
   overflow: hidden;
   grid-template-rows: 200px;
+  flex: none;   /* blockCard flex:column 안에서 고정 높이 유지 */
 }
 
 .a4Block .gridWrap {
