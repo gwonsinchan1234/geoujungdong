@@ -1208,12 +1208,7 @@ export default function FillPage() {
     let pId  = "";    // pending photo id (밖에서 finally가 접근 가능하게)
     let pUrl = "";    // local object URL
     try {
-      // ① 로컬 미리보기: 원본 File로 즉시 blob URL 생성
-      //    compressImage 결과 blob이 아닌 원본을 사용 → 모바일에서 100% 안전
-      //    (canvas.toBlob 결과물은 일부 iOS에서 createObjectURL이 실패할 수 있음)
-      pUrl = URL.createObjectURL(file);
-
-      // 업로드용 JPEG 변환: 동적 프로필(파일 크기/네트워크) + 1회 폴백
+      // ① 업로드용 JPEG 변환: 동적 프로필(파일 크기/네트워크) + 1회 폴백
       // - 기본은 화질 우선
       // - 느린 네트워크/큰 원본에서만 전송량을 조금 더 줄임
       let compressed: Blob;
@@ -1226,6 +1221,15 @@ export default function FillPage() {
       } catch {
         compressed = file;
       }
+
+      // ② 로컬 미리보기: 압축된 JPEG blob으로 URL 생성
+      //    원본 file 대신 compressed를 사용하는 이유:
+      //    - 갤러리 사진은 HEIC 포맷이거나 iCloud 지연 다운로드 상태일 수 있어
+      //      createObjectURL(file)의 img 렌더가 실패함 (카메라 촬영본은 즉시 JPEG이라 문제없음)
+      //    - compressImage가 canvas 경유 JPEG 변환을 완료한 blob → 항상 렌더 가능
+      //    - setPhotoBlocks는 어차피 압축 await 이후이므로 타이밍 차이 없음
+      pUrl = URL.createObjectURL(compressed);
+
       pId  = `pending_${Date.now()}`;
       const pendingPhoto: BlockPhoto = { id: pId, block_id: blockId, side, slot_index: slotIndex, storage_path: "", url: pUrl };
       setPhotoBlocks(prev => {
