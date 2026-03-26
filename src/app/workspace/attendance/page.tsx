@@ -318,23 +318,38 @@ export default function AttendancePage() {
         {tab === "list" && (
           <>
             {/* 업로드 영역 */}
-            <div className={styles.uploadArea} onClick={() => !uploading && selectedProjId && fileInputRef.current?.click()}>
-              <label className={styles.uploadLabel}>
-                {uploading ? (
-                  <><div className={styles.spinner} /><span className={styles.uploadText}>업로드 중...</span></>
-                ) : (
-                  <>
-                    <svg className={styles.uploadIcon} width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                      <polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" />
-                    </svg>
-                    <span className={styles.uploadText}>{selectedProjId ? "CSV 또는 xlsx 업로드" : "프로젝트를 먼저 선택하세요"}</span>
-                    <span className={styles.uploadSub}>근무일자 / 출근시간 / 퇴근시간 / 사번 / 성명 / 회사</span>
-                  </>
-                )}
-                <input ref={fileInputRef} type="file" accept=".csv,.xlsx,.xls,text/csv" className={styles.hiddenInput} onChange={handleFile} disabled={!selectedProjId || uploading} />
-              </label>
-            </div>
+            <label className={styles.uploadArea} style={{ cursor: uploading ? "not-allowed" : "pointer" }}>
+              {uploading ? (
+                <div className={styles.uploadLabel}>
+                  <div className={styles.spinner} />
+                  <span className={styles.uploadText}>업로드 중...</span>
+                </div>
+              ) : (
+                <div className={styles.uploadLabel}>
+                  <svg className={styles.uploadIcon} width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" />
+                  </svg>
+                  <span className={styles.uploadText}>CSV 또는 xlsx 업로드</span>
+                  <span className={styles.uploadSub}>근무일자 / 출근시간 / 퇴근시간 / 사번 / 성명 / 회사</span>
+                </div>
+              )}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".csv,.xlsx,.xls,text/csv"
+                className={styles.hiddenInput}
+                onChange={(e) => {
+                  if (!selectedProjId) {
+                    setUploadMsg({ ok: false, text: "프로젝트를 먼저 선택해주세요." });
+                    e.target.value = "";
+                    return;
+                  }
+                  handleFile(e);
+                }}
+                disabled={uploading}
+              />
+            </label>
 
             {/* 배치 목록 */}
             {dataLoading ? (
