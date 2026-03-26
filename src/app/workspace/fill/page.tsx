@@ -685,10 +685,11 @@ function parseItemsFromRaw(rawBuf: ArrayBuffer): ItemData[] {
     const amountStr    = xlsxCellStr(ws, r, 5);
     const evidenceStr  = xlsxCellStr(ws, r, 6);
 
-    // 단가·금액이 없으면 데이터 행이 아님
+    // 단가·금액이 없거나 둘 다 0이면 데이터 행이 아님 (서브헤더 행 제외)
     const unitPrice = parseItemNum(unitPriceStr);
     const amount    = parseItemNum(amountStr);
     if (!unitPriceStr.trim() && !amountStr.trim()) continue;
+    if (unitPrice === 0 && amount === 0) continue;
     if (!name.trim()) continue;
 
     // 증빙번호: NO.X 형태 or 자동 부여
