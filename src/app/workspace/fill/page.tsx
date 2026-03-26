@@ -669,6 +669,7 @@ function parseItemsFromRaw(rawBuf: ArrayBuffer): ItemData[] {
     const catMatch = col0.replace(/\s/g, "").match(/^(\d+)\./);
     if (catMatch) {
       currentCategory = parseInt(catMatch[1]);
+      console.log(`[PARSE] row${r} → 카테고리=${currentCategory} (col0="${col0}")`);
       continue;
     }
     if (currentCategory === 0) continue;
@@ -688,12 +689,14 @@ function parseItemsFromRaw(rawBuf: ArrayBuffer): ItemData[] {
     // 단가·금액이 없거나 둘 다 0이면 데이터 행이 아님 (서브헤더 행 제외)
     const unitPrice = parseItemNum(unitPriceStr);
     const amount    = parseItemNum(amountStr);
-    if (!unitPriceStr.trim() && !amountStr.trim()) continue;
-    if (unitPrice === 0 && amount === 0) continue;
-    if (!name.trim()) continue;
+    console.log(`[PARSE] row${r} cat${currentCategory} | name="${name}" date="${usageDate}" unitPrice=${unitPrice} amount=${amount} evidence="${evidenceStr}"`);
+    if (!unitPriceStr.trim() && !amountStr.trim()) { console.log(`  → SKIP: 단가·금액 빈값`); continue; }
+    if (unitPrice === 0 && amount === 0) { console.log(`  → SKIP: 단가·금액 모두 0`); continue; }
+    if (!name.trim()) { console.log(`  → SKIP: name 없음`); continue; }
     // 소계·합계·이월 등 집계 행 제외
     const flatName = name.replace(/\s/g, "");
-    if (/^(소계|합계|소합계|계|총계|이월|전월이월|전원이월)$/.test(flatName)) continue;
+    if (/^(소계|합계|소합계|계|총계|이월|전월이월|전원이월)$/.test(flatName)) { console.log(`  → SKIP: 집계행 "${name}"`); continue; }
+    console.log(`  → 항목 추가: "${name}"`);
 
     // 증빙번호: NO.X 형태 or 자동 부여
     let evidenceNo = "";
