@@ -1,23 +1,32 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
+import { getSupabaseWithToken } from "@/lib/supabaseAdmin";
 
 export const runtime = "nodejs";
+
+// ── 토큰 추출 헬퍼 ────────────────────────────────────────────────
+function getToken(req: NextRequest): string {
+  return req.headers.get("Authorization")?.replace("Bearer ", "") ?? "";
+}
 
 // GET /api/attendance/list?projectId=UUID&userId=UUID
 // Returns: batches (업로드 이력), daily (일자별 출결), summary (인원별 집계)
 export async function GET(req: NextRequest) {
   try {
+    const token = getToken(req);
+    if (!token) return NextResponse.json({ ok: false, error: "인증 토큰이 없습니다." }, { status: 401 });
+
+    const db = getSupabaseWithToken(token);
+    const { data: { user } } = await db.auth.getUser();
+    if (!user) return NextResponse.json({ ok: false, error: "인증 실패" }, { status: 401 });
+    const userId = user.id;
+
     const { searchParams } = new URL(req.url);
     const projectId = searchParams.get("projectId")?.trim() ?? "";
-    const userId    = searchParams.get("userId")?.trim() ?? "";
 
     if (!projectId) return NextResponse.json({ ok: false, error: "projectId 필요" }, { status: 400 });
-    if (!userId)    return NextResponse.json({ ok: false, error: "userId 필요" },    { status: 400 });
-
-    const admin = getSupabaseAdmin();
 
     // ── 업로드 배치 목록 (source_file_name 기준)
-    const { data: rawData, error: rawErr } = await admin
+    const { data: rawData, error: rawErr } = await db
       .from("attendance_raw")
       .select("source_file_name, work_date, created_at")
       .eq("project_id", projectId)
@@ -41,7 +50,7 @@ export async function GET(req: NextRequest) {
     const batches = Array.from(batchMap.values());
 
     // ── 일자별 출결
-    const { data: daily, error: dailyErr } = await admin
+    const { data: daily, error: dailyErr } = await db
       .from("attendance_daily")
       .select("id, person_name, employee_id, company, work_date, check_in, check_out, total_minutes, labor_units, labor_status, log_count, updated_at")
       .eq("project_id", projectId)
@@ -52,7 +61,7 @@ export async function GET(req: NextRequest) {
     if (dailyErr) return NextResponse.json({ ok: false, error: dailyErr.message }, { status: 500 });
 
     // ── 인원별 집계
-    const { data: summary, error: sumErr } = await admin
+    const { data: summary, error: sumErr } = await db
       .from("labor_summary")
       .select("person_name, employee_id, company, total_labor_units, work_days, updated_at")
       .eq("project_id", projectId)
@@ -71,18 +80,23 @@ export async function GET(req: NextRequest) {
 // 특정 파일 배치 삭제 → daily/summary 재계산
 export async function DELETE(req: NextRequest) {
   try {
+    const token = getToken(req);
+    if (!token) return NextResponse.json({ ok: false, error: "인증 토큰이 없습니다." }, { status: 401 });
+
+    const db = getSupabaseWithToken(token);
+    const { data: { user } } = await db.auth.getUser();
+    if (!user) return NextResponse.json({ ok: false, error: "인증 실패" }, { status: 401 });
+    const userId = user.id;
+
     const { searchParams } = new URL(req.url);
     const projectId = searchParams.get("projectId")?.trim() ?? "";
-    const userId    = searchParams.get("userId")?.trim()    ?? "";
     const fileName  = searchParams.get("fileName")?.trim()  ?? "";
 
-    if (!projectId || !userId || !fileName)
-      return NextResponse.json({ ok: false, error: "projectId, userId, fileName 필요" }, { status: 400 });
-
-    const admin = getSupabaseAdmin();
+    if (!projectId || !fileName)
+      return NextResponse.json({ ok: false, error: "projectId, fileName 필요" }, { status: 400 });
 
     // 해당 파일의 원본 로그 삭제
-    const { error: delErr } = await admin.from("attendance_raw")
+    const { error: delErr } = await db.from("attendance_raw")
       .delete()
       .eq("project_id", projectId)
       .eq("user_id", userId)
@@ -90,7 +104,7 @@ export async function DELETE(req: NextRequest) {
     if (delErr) return NextResponse.json({ ok: false, error: delErr.message }, { status: 500 });
 
     // daily / summary 재계산
-    const { data: allRaw } = await admin.from("attendance_raw")
+    const { data: allRaw } = await db.from("attendance_raw")
       .select("person_name, employee_id, company, work_date, check_in, check_out")
       .eq("project_id", projectId);
 
@@ -135,8 +149,8 @@ export async function DELETE(req: NextRequest) {
       return { project_id: projectId, user_id: userId, employee_id: v.employee_id, person_name, company: v.company, work_date, check_in: checkIn, check_out: checkOut, total_minutes, labor_units, labor_status, log_count: v.count };
     });
 
-    await admin.from("attendance_daily").delete().eq("project_id", projectId);
-    if (dailyRows.length > 0) await admin.from("attendance_daily").insert(dailyRows);
+    await db.from("attendance_daily").delete().eq("project_id", projectId);
+    if (dailyRows.length > 0) await db.from("attendance_daily").insert(dailyRows);
 
     const summaryMap = new Map<string, { employee_id: string; company: string; units: number; days: number }>();
     for (const d of dailyRows) {
@@ -146,8 +160,8 @@ export async function DELETE(req: NextRequest) {
     }
     const summaryRows = Array.from(summaryMap.entries()).map(([person_name, v]) => ({ project_id: projectId, user_id: userId, employee_id: v.employee_id, person_name, company: v.company, total_labor_units: v.units, work_days: v.days }));
 
-    await admin.from("labor_summary").delete().eq("project_id", projectId);
-    if (summaryRows.length > 0) await admin.from("labor_summary").insert(summaryRows);
+    await db.from("labor_summary").delete().eq("project_id", projectId);
+    if (summaryRows.length > 0) await db.from("labor_summary").insert(summaryRows);
 
     return NextResponse.json({ ok: true, msg: `${fileName} 삭제 완료, 재집계 완료` });
   } catch (e) {

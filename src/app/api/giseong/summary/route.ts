@@ -1,23 +1,32 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
+import { getSupabaseWithToken } from "@/lib/supabaseAdmin";
 
 export const runtime = "nodejs";
+
+// ── 토큰 추출 헬퍼 ────────────────────────────────────────────────
+function getToken(req: NextRequest): string {
+  return req.headers.get("Authorization")?.replace("Bearer ", "") ?? "";
+}
 
 // GET /api/giseong/summary?projectId=UUID&userId=UUID
 // 노무 집계 (labor_summary) 반환
 // 자재 집계는 추후 확장: material_total 필드로 placeholder 제공
 export async function GET(req: NextRequest) {
   try {
+    const token = getToken(req);
+    if (!token) return NextResponse.json({ ok: false, error: "인증 토큰이 없습니다." }, { status: 401 });
+
+    const db = getSupabaseWithToken(token);
+    const { data: { user } } = await db.auth.getUser();
+    if (!user) return NextResponse.json({ ok: false, error: "인증 실패" }, { status: 401 });
+    const userId = user.id;
+
     const { searchParams } = new URL(req.url);
     const projectId = searchParams.get("projectId")?.trim() ?? "";
-    const userId    = searchParams.get("userId")?.trim()    ?? "";
 
     if (!projectId) return NextResponse.json({ ok: false, error: "projectId 필요" }, { status: 400 });
-    if (!userId)    return NextResponse.json({ ok: false, error: "userId 필요" },    { status: 400 });
 
-    const admin = getSupabaseAdmin();
-
-    const { data: labor, error: laborErr } = await admin
+    const { data: labor, error: laborErr } = await db
       .from("labor_summary")
       .select("person_name, employee_id, company, total_labor_units, work_days, updated_at")
       .eq("project_id", projectId)

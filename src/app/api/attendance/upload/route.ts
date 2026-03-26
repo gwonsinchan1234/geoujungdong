@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import * as XLSX from "xlsx";
-import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
+import { getSupabaseWithToken } from "@/lib/supabaseAdmin";
 
 export const runtime = "nodejs";
+
+// ── 토큰 추출 헬퍼 ────────────────────────────────────────────────
+function getToken(req: NextRequest): string {
+  return req.headers.get("Authorization")?.replace("Bearer ", "") ?? "";
+}
 
 // ── CSV 파서 (UTF-8 BOM 처리, 따옴표 필드 지원) ────────────────────
 function parseCSV(text: string): string[][] {
@@ -155,14 +160,24 @@ function calcLabor(
 // ── 메인 핸들러 ───────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
   try {
+    // 토큰 추출: Authorization 헤더 우선, FormData "authToken" fallback
+    let token = getToken(req);
     const formData = await req.formData();
+    if (!token) {
+      token = String(formData.get("authToken") ?? "").trim();
+    }
+
     const file = formData.get("file") as File | null;
     const projectId = String(formData.get("projectId") ?? "").trim();
-    const userId = String(formData.get("userId") ?? "").trim();
 
     if (!file) return NextResponse.json({ ok: false, error: "file이 없습니다." }, { status: 400 });
     if (!projectId) return NextResponse.json({ ok: false, error: "projectId가 필요합니다." }, { status: 400 });
-    if (!userId) return NextResponse.json({ ok: false, error: "userId가 필요합니다." }, { status: 400 });
+    if (!token) return NextResponse.json({ ok: false, error: "인증 토큰이 없습니다." }, { status: 401 });
+
+    const db = getSupabaseWithToken(token);
+    const { data: { user } } = await db.auth.getUser();
+    if (!user) return NextResponse.json({ ok: false, error: "인증 실패: 유효하지 않은 토큰입니다." }, { status: 401 });
+    const userId = user.id;
 
     // ── 파일 파싱
     type RawRow = { employee_id: string; person_name: string; company: string; work_date: string; check_in: string | null; check_out: string | null; };
@@ -237,10 +252,8 @@ export async function POST(req: NextRequest) {
 
     if (rawRows.length === 0) return NextResponse.json({ ok: false, error: "저장할 출결 데이터가 0건입니다.", skipped: skipped.slice(0, 50) }, { status: 400 });
 
-    const admin = getSupabaseAdmin();
-
     // ── 동일 파일 이전 기록 삭제 (재업로드 중복 방지)
-    await admin.from("attendance_raw").delete().eq("project_id", projectId).eq("source_file_name", file.name);
+    await db.from("attendance_raw").delete().eq("project_id", projectId).eq("source_file_name", file.name);
 
     // ── attendance_raw upsert
     const rawInsert = rawRows.map((r, idx) => ({
@@ -250,11 +263,11 @@ export async function POST(req: NextRequest) {
       source_row_index: idx,
       ...r,
     }));
-    const { error: rawErr } = await admin.from("attendance_raw").insert(rawInsert);
+    const { error: rawErr } = await db.from("attendance_raw").insert(rawInsert);
     if (rawErr) return NextResponse.json({ ok: false, error: rawErr.message }, { status: 500 });
 
     // ── 이 프로젝트의 전체 attendance_raw 재집계
-    const { data: allRaw, error: fetchErr } = await admin
+    const { data: allRaw, error: fetchErr } = await db
       .from("attendance_raw")
       .select("person_name, employee_id, company, work_date, check_in, check_out")
       .eq("project_id", projectId);
@@ -298,9 +311,9 @@ export async function POST(req: NextRequest) {
     });
 
     // attendance_daily: 이 프로젝트 전체 재upsert
-    await admin.from("attendance_daily").delete().eq("project_id", projectId);
+    await db.from("attendance_daily").delete().eq("project_id", projectId);
     if (dailyRows.length > 0) {
-      const { error: dailyErr } = await admin.from("attendance_daily").insert(dailyRows);
+      const { error: dailyErr } = await db.from("attendance_daily").insert(dailyRows);
       if (dailyErr) return NextResponse.json({ ok: false, error: dailyErr.message }, { status: 500 });
     }
 
@@ -325,9 +338,9 @@ export async function POST(req: NextRequest) {
       work_days:          v.days,
     }));
 
-    await admin.from("labor_summary").delete().eq("project_id", projectId);
+    await db.from("labor_summary").delete().eq("project_id", projectId);
     if (summaryRows.length > 0) {
-      await admin.from("labor_summary").insert(summaryRows);
+      await db.from("labor_summary").insert(summaryRows);
     }
 
     return NextResponse.json({
