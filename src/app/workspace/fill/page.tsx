@@ -691,6 +691,9 @@ function parseItemsFromRaw(rawBuf: ArrayBuffer): ItemData[] {
     if (!unitPriceStr.trim() && !amountStr.trim()) continue;
     if (unitPrice === 0 && amount === 0) continue;
     if (!name.trim()) continue;
+    // 소계·합계·이월 등 집계 행 제외
+    const flatName = name.replace(/\s/g, "");
+    if (/^(소계|합계|소합계|계|총계|이월|전월이월|전원이월)$/.test(flatName)) continue;
 
     // 증빙번호: NO.X 형태 or 자동 부여
     let evidenceNo = "";
