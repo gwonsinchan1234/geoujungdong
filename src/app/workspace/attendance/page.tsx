@@ -121,7 +121,7 @@ function MonthMatrix({
 
   function cellMark(r?: DailyRow) {
     if (!r) return "";
-    if (r.labor_status === "full") return "1";
+    if (r.labor_status === "full") return "○";
     if (r.labor_status === "half") return "1/2";
     if (r.labor_status === "ongoing") return "…";
     return "";
