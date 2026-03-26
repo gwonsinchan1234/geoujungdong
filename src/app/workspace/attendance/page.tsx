@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
+import * as XLSX from "xlsx";
 import styles from "./page.module.css";
 
 // ── 타입 ──────────────────────────────────────────────────────────
@@ -40,6 +41,20 @@ function parseMoney(v: string): number {
 function fmtMoney(n: number) {
   if (!Number.isFinite(n) || n === 0) return "";
   return n.toLocaleString("ko-KR");
+}
+
+function downloadXlsx(fileName: string, aoa: (string | number | null)[][]) {
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "월체크표");
+  const out = XLSX.write(wb, { type: "array", bookType: "xlsx" });
+  const blob = new Blob([out], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = fileName;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 // ── 미리보기 체크표 ───────────────────────────────────────────────
@@ -231,6 +246,51 @@ export default function AttendancePage() {
   const setMatrixRate = useCallback((person: string, next: string) => {
     setMatrixRates((p) => ({ ...p, [person]: next }));
   }, []);
+
+  const handleDownloadMonthMatrix = useCallback(() => {
+    if (!daily.length) return;
+    const monthKey = daily[0]?.work_date?.slice(0, 7) ?? "";
+    if (!monthKey) return;
+    const monthRows = daily.filter((r) => r.work_date.startsWith(monthKey));
+
+    const [y, m] = monthKey.split("-").map(Number);
+    const daysInMonth = new Date(y, m, 0).getDate();
+
+    const persons = Array.from(new Set(monthRows.map((r) => r.person_name))).sort((a, b) => a.localeCompare(b, "ko"));
+    const cellMap = new Map(monthRows.map((r) => [`${r.person_name}__${r.work_date}`, r] as const));
+
+    const cellText = (r?: DailyRow) => {
+      if (!r) return "";
+      if (r.labor_status === "full") return "○";
+      if (r.labor_status === "half") return "1/2";
+      if (r.labor_status === "ongoing") return "…";
+      return "";
+    };
+    const units = (r?: DailyRow) => (r ? Number(r.labor_units ?? 0) : 0);
+
+    const header: (string | number)[] = ["이름", "단가", ...Array.from({ length: daysInMonth }, (_, i) => i + 1), "공수", "총합"];
+    const rows: (string | number | null)[][] = [header];
+
+    for (const p of persons) {
+      const rateRaw = (matrixRates[p] ?? "").trim();
+      const effectiveRate = rateRaw ? rateRaw : "100000";
+      const rate = parseMoney(effectiveRate);
+
+      let totalUnits = 0;
+      const dayCells: (string | number)[] = [];
+      for (let i = 0; i < daysInMonth; i++) {
+        const d = String(i + 1).padStart(2, "0");
+        const wd = `${monthKey}-${d}`;
+        const r = cellMap.get(`${p}__${wd}`);
+        totalUnits += units(r);
+        dayCells.push(cellText(r));
+      }
+      const totalAmt = totalUnits > 0 && rate > 0 ? totalUnits * rate : 0;
+      rows.push([p, rate, ...dayCells, totalUnits || "", totalAmt ? totalAmt : ""]);
+    }
+
+    downloadXlsx(`월체크표_${monthKey}.xlsx`, rows);
+  }, [daily, matrixRates]);
 
   // ── 기본 프로젝트 자동 생성/조회
   async function ensureProject(token: string): Promise<string | null> {
@@ -543,7 +603,14 @@ export default function AttendancePage() {
                   요약 체크표
                 </button>
               </div>
-              <button className={`${styles.btnSm} ${styles.btnPrimary}`} onClick={() => window.print()}>인쇄</button>
+              <div style={{ display: "flex", gap: 8 }}>
+                {previewMode === "matrix" && (
+                  <button type="button" className={`${styles.btnSm} ${styles.btnSuccess}`} onClick={handleDownloadMonthMatrix}>
+                    엑셀 다운로드
+                  </button>
+                )}
+                <button className={`${styles.btnSm} ${styles.btnPrimary}`} onClick={() => window.print()}>인쇄</button>
+              </div>
             </div>
             {dataLoading ? (
               <div className={styles.loading}><div className={styles.spinner} />로딩 중...</div>
