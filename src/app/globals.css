@@ -21,4 +21,5 @@ body {
   line-height: var(--text-base--line);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  scrollbar-gutter: stable;
 }

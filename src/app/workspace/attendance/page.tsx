@@ -6,22 +6,15 @@ import { supabase } from "@/lib/supabaseClient";
 import styles from "./page.module.css";
 
 // ── 타입 ──────────────────────────────────────────────────────────
-type Project = { id: string; name: string; description: string; created_at: string };
 type BatchInfo = { source_file_name: string; count: number; first_date: string; last_date: string; uploaded_at: string };
 type DailyRow  = { id: string; person_name: string; employee_id: string; company: string; work_date: string; check_in: string|null; check_out: string|null; total_minutes: number; labor_units: number; labor_status: string; log_count: number };
-type SummaryRow = { person_name: string; employee_id: string; company: string; total_labor_units: number; work_days: number };
 
 type Tab = "list" | "summary" | "preview";
 
 // ── 유틸 ──────────────────────────────────────────────────────────
-function fmtTime(t: string | null): string {
-  if (!t) return "-";
-  return t.slice(0, 5);
-}
-function fmtDate(d: string): string {
-  return d ? d.slice(5).replace("-", "/") : "-"; // "MM/DD"
-}
-function fmtMins(m: number): string {
+function fmtTime(t: string | null) { return t ? t.slice(0, 5) : "-"; }
+function fmtDate(d: string) { return d ? d.slice(5).replace("-", "/") : "-"; }
+function fmtMins(m: number) {
   if (!m) return "-";
   const h = Math.floor(m / 60), mi = m % 60;
   return `${h}h${mi > 0 ? mi + "m" : ""}`;
@@ -29,9 +22,9 @@ function fmtMins(m: number): string {
 
 function BadgeStatus({ status }: { status: string }) {
   const map: Record<string, { label: string; cls: string }> = {
-    full:    { label: "1공",   cls: styles.badgeFull },
-    half:    { label: "0.5공", cls: styles.badgeHalf },
-    missing: { label: "!",     cls: styles.badgeMissing },
+    full:    { label: "1공",    cls: styles.badgeFull },
+    half:    { label: "0.5공",  cls: styles.badgeHalf },
+    missing: { label: "!",      cls: styles.badgeMissing },
     ongoing: { label: "진행중", cls: styles.badgeOngoing },
   };
   const cfg = map[status] ?? { label: status, cls: styles.badgeMissing };
@@ -42,25 +35,17 @@ function BadgeStatus({ status }: { status: string }) {
 function CheckTable({ daily }: { daily: DailyRow[] }) {
   if (!daily.length) return <div className={styles.emptyState}><div className={styles.emptyText}>출결 데이터가 없습니다.</div></div>;
 
-  const dates = Array.from(new Set(daily.map((r) => r.work_date))).sort();
+  const dates   = Array.from(new Set(daily.map((r) => r.work_date))).sort();
   const persons = Array.from(new Set(daily.map((r) => r.person_name))).sort();
+  const cellMap = new Map(daily.map((r) => [`${r.person_name}__${r.work_date}`, r]));
 
-  const cellMap = new Map<string, DailyRow>();
-  for (const r of daily) cellMap.set(`${r.person_name}__${r.work_date}`, r);
-
-  function cellStyle(row: DailyRow | undefined) {
-    if (!row) return styles.checkCellNone;
-    if (row.labor_status === "full")    return styles.checkCell1;
-    if (row.labor_status === "half")    return styles.checkCell05;
-    if (row.labor_status === "ongoing") return styles.checkCellOng;
-    return styles.checkCellMiss;
+  function cellCls(r: DailyRow | undefined) {
+    if (!r) return styles.checkCellNone;
+    return r.labor_status === "full" ? styles.checkCell1 : r.labor_status === "half" ? styles.checkCell05 : r.labor_status === "ongoing" ? styles.checkCellOng : styles.checkCellMiss;
   }
-  function cellLabel(row: DailyRow | undefined) {
-    if (!row) return "";
-    if (row.labor_status === "full")    return "✓";
-    if (row.labor_status === "half")    return "½";
-    if (row.labor_status === "ongoing") return "▶";
-    return "!";
+  function cellLbl(r: DailyRow | undefined) {
+    if (!r) return "";
+    return r.labor_status === "full" ? "✓" : r.labor_status === "half" ? "½" : r.labor_status === "ongoing" ? "▶" : "!";
   }
 
   return (
@@ -75,36 +60,23 @@ function CheckTable({ daily }: { daily: DailyRow[] }) {
         </thead>
         <tbody>
           {persons.map((person) => {
-            const total = dates.reduce((s, d) => {
-              const r = cellMap.get(`${person}__${d}`);
-              return s + (r ? Number(r.labor_units) : 0);
-            }, 0);
+            const total = dates.reduce((s, d) => s + (cellMap.get(`${person}__${d}`)?.labor_units ?? 0), 0);
             return (
               <tr key={person}>
                 <td className={styles.nameCell}>{person}</td>
-                {dates.map((d) => {
-                  const row = cellMap.get(`${person}__${d}`);
-                  return <td key={d} className={cellStyle(row)}>{cellLabel(row)}</td>;
-                })}
+                {dates.map((d) => { const r = cellMap.get(`${person}__${d}`); return <td key={d} className={cellCls(r)}>{cellLbl(r)}</td>; })}
                 <td className={styles.sumCell}>{total > 0 ? total : "-"}</td>
               </tr>
             );
           })}
-          {/* 날짜별 합계 행 */}
           <tr>
             <td className={styles.nameCell} style={{ fontWeight: 700 }}>합계</td>
             {dates.map((d) => {
-              const sum = persons.reduce((s, p) => {
-                const r = cellMap.get(`${p}__${d}`);
-                return s + (r ? Number(r.labor_units) : 0);
-              }, 0);
+              const sum = persons.reduce((s, p) => s + (cellMap.get(`${p}__${d}`)?.labor_units ?? 0), 0);
               return <td key={d} className={styles.sumCell}>{sum > 0 ? sum : ""}</td>;
             })}
             <td className={styles.sumCell}>
-              {persons.reduce((s, p) => s + dates.reduce((s2, d) => {
-                const r = cellMap.get(`${p}__${d}`);
-                return s2 + (r ? Number(r.labor_units) : 0);
-              }, 0), 0)}
+              {persons.reduce((s, p) => s + dates.reduce((s2, d) => s2 + (cellMap.get(`${p}__${d}`)?.labor_units ?? 0), 0), 0)}
             </td>
           </tr>
         </tbody>
@@ -115,70 +87,63 @@ function CheckTable({ daily }: { daily: DailyRow[] }) {
 
 // ── 메인 페이지 ───────────────────────────────────────────────────
 export default function AttendancePage() {
-  const [userId, setUserId] = useState<string | null>(null);
-  const [authToken, setAuthToken] = useState<string>("");
-  const tokenRef = useRef<string>("");          // 클로저 stale 방지용
-  const [tab, setTab] = useState<Tab>("list");
-
-  // 프로젝트
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [selectedProjId, setSelectedProjId] = useState("");
-  const [newProjName, setNewProjName] = useState("");
-  const [showNewProj, setShowNewProj] = useState(false);
-  const [projLoading, setProjLoading] = useState(false);
-
-  // 데이터
-  const [batches, setBatches] = useState<BatchInfo[]>([]);
-  const [daily, setDaily] = useState<DailyRow[]>([]);
-  const [, setSummary] = useState<SummaryRow[]>([]);
+  const tokenRef   = useRef<string>("");
+  const projIdRef  = useRef<string>("");   // 자동 생성된 프로젝트 ID
+  const [ready, setReady]         = useState(false);   // 프로젝트 준비 완료
+  const [tab, setTab]             = useState<Tab>("list");
+  const [batches, setBatches]     = useState<BatchInfo[]>([]);
+  const [daily, setDaily]         = useState<DailyRow[]>([]);
   const [dataLoading, setDataLoading] = useState(false);
-
-  // 필터
-  const [search, setSearch] = useState("");
+  const [search, setSearch]       = useState("");
   const [filterStatus, setFilterStatus] = useState("");
   const [filterCompany, setFilterCompany] = useState("");
-
-  // 업로드
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef  = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadMsg, setUploadMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
-  // ── auth + 초기 프로젝트 로드 (토큰 확보 후 즉시 호출)
+  // ── 기본 프로젝트 자동 생성/조회
+  async function ensureProject(token: string): Promise<string | null> {
+    // 기존 프로젝트 조회
+    const listRes = await fetch("/api/attendance/projects", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const listJson = await listRes.json();
+    if (listJson.ok && listJson.projects.length > 0) {
+      return listJson.projects[0].id as string;
+    }
+    // 없으면 "기본" 프로젝트 생성
+    const createRes = await fetch("/api/attendance/projects", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ name: "기본" }),
+    });
+    const createJson = await createRes.json();
+    if (createJson.ok) return createJson.project.id as string;
+    return null;
+  }
+
+  // ── auth + 프로젝트 준비
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      const uid   = data.session?.user?.id      ?? null;
-      const token = data.session?.access_token  ?? "";
+    supabase.auth.getSession().then(async ({ data }) => {
+      const token = data.session?.access_token ?? "";
       tokenRef.current = token;
-      setUserId(uid);
-      setAuthToken(token);
-      if (uid && token) fetchProjects(token);
+      if (!token) return;
+      const projId = await ensureProject(token);
+      if (projId) {
+        projIdRef.current = projId;
+        setReady(true);
+      }
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ── 프로젝트 목록 로드 (토큰을 파라미터로 받아 클로저 문제 제거)
-  async function fetchProjects(token: string) {
-    setProjLoading(true);
-    const res = await fetch("/api/attendance/projects", {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    const json = await res.json();
-    setProjLoading(false);
-    if (json.ok) {
-      setProjects(json.projects);
-      if (json.projects.length > 0) setSelectedProjId((prev) => prev || json.projects[0].id);
-    }
-  }
-
-  const loadProjects = useCallback(() => fetchProjects(tokenRef.current), []);
-
   // ── 데이터 로드
   const loadData = useCallback(async () => {
-    if (!selectedProjId) return;
-    const token = tokenRef.current;
-    if (!token) return;
+    const projId = projIdRef.current;
+    const token  = tokenRef.current;
+    if (!projId || !token) return;
     setDataLoading(true);
-    const res = await fetch(`/api/attendance/list?projectId=${selectedProjId}`, {
+    const res = await fetch(`/api/attendance/list?projectId=${projId}`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     const json = await res.json();
@@ -186,45 +151,25 @@ export default function AttendancePage() {
     if (json.ok) {
       setBatches(json.batches ?? []);
       setDaily(json.daily ?? []);
-      setSummary(json.summary ?? []);
     }
-  }, [selectedProjId]);
+  }, []);
 
-  useEffect(() => { loadData(); }, [loadData]);
-
-  // ── 프로젝트 생성
-  async function handleCreateProject() {
-    if (!newProjName.trim()) return;
-    const token = tokenRef.current;
-    if (!token) return;
-    setProjLoading(true);
-    const res = await fetch("/api/attendance/projects", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ name: newProjName.trim() }),
-    });
-    const json = await res.json();
-    setProjLoading(false);
-    if (json.ok) {
-      setNewProjName("");
-      setShowNewProj(false);
-      await fetchProjects(token);
-      setSelectedProjId(json.project.id);
-    }
-  }
+  useEffect(() => { if (ready) loadData(); }, [ready, loadData]);
 
   // ── 파일 업로드
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
-    if (!file || !selectedProjId || !userId) return;
+    if (!file) return;
     e.target.value = "";
+    const token  = tokenRef.current;
+    const projId = projIdRef.current;
+    if (!token || !projId) return;
 
     setUploading(true);
     setUploadMsg(null);
     const fd = new FormData();
     fd.append("file", file);
-    fd.append("projectId", selectedProjId);
-    const token = tokenRef.current;
+    fd.append("projectId", projId);
     fd.append("authToken", token);
 
     const res = await fetch("/api/attendance/upload", {
@@ -234,40 +179,32 @@ export default function AttendancePage() {
     });
     const json = await res.json();
     setUploading(false);
-
-    if (json.ok) {
-      setUploadMsg({ ok: true, text: json.msg });
-      await loadData();
-    } else {
-      setUploadMsg({ ok: false, text: json.error ?? "업로드 실패" });
-    }
+    setUploadMsg({ ok: json.ok, text: json.ok ? json.msg : (json.error ?? "업로드 실패") });
+    if (json.ok) await loadData();
   }
 
   // ── 배치 삭제
   async function handleDeleteBatch(fileName: string) {
-    if (!selectedProjId || !userId) return;
     if (!confirm(`"${fileName}" 데이터를 삭제할까요?`)) return;
-    await fetch(`/api/attendance/list?projectId=${selectedProjId}&fileName=${encodeURIComponent(fileName)}`, {
+    await fetch(`/api/attendance/list?projectId=${projIdRef.current}&fileName=${encodeURIComponent(fileName)}`, {
       method: "DELETE",
       headers: { Authorization: `Bearer ${tokenRef.current}` },
     });
     await loadData();
   }
 
-  // ── 필터된 daily
-  const filteredDaily = daily.filter((r) => {
+  const filteredDaily  = daily.filter((r) => {
     if (search && !r.person_name.includes(search) && !r.company.includes(search)) return false;
     if (filterStatus && r.labor_status !== filterStatus) return false;
     if (filterCompany && r.company !== filterCompany) return false;
     return true;
   });
-
   const companies = Array.from(new Set(daily.map((r) => r.company).filter(Boolean))).sort();
 
-  if (!userId) {
+  if (!ready) {
     return (
       <div className={styles.page}>
-        <div className={styles.loading}><div className={styles.spinner} /> 로그인 확인 중...</div>
+        <div className={styles.loading}><div className={styles.spinner} /> 초기화 중...</div>
       </div>
     );
   }
@@ -290,41 +227,6 @@ export default function AttendancePage() {
         </div>
       </div>
 
-      {/* 프로젝트 선택 */}
-      <div className={styles.projectBar}>
-        <span className={styles.projectLabel}>프로젝트</span>
-        {projLoading ? (
-          <div className={styles.spinner} style={{ width: 14, height: 14 }} />
-        ) : (
-          <>
-            <select
-              className={styles.projectSelect}
-              value={selectedProjId}
-              onChange={(e) => setSelectedProjId(e.target.value)}
-            >
-              {projects.length === 0 && <option value="">— 프로젝트 없음 —</option>}
-              {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
-            {!showNewProj ? (
-              <button className={styles.btnSm} onClick={() => setShowNewProj(true)}>+ 신규</button>
-            ) : (
-              <>
-                <input
-                  className={styles.projectNewInput}
-                  placeholder="프로젝트 이름"
-                  value={newProjName}
-                  onChange={(e) => setNewProjName(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleCreateProject()}
-                  autoFocus
-                />
-                <button className={`${styles.btnSm} ${styles.btnPrimary}`} onClick={handleCreateProject} disabled={projLoading}>생성</button>
-                <button className={styles.btnSm} onClick={() => { setShowNewProj(false); setNewProjName(""); }}>취소</button>
-              </>
-            )}
-          </>
-        )}
-      </div>
-
       {/* 탭 */}
       <div className={styles.tabs}>
         {(["list", "summary", "preview"] as Tab[]).map((t) => (
@@ -343,12 +245,10 @@ export default function AttendancePage() {
         {/* 목록 탭 */}
         {tab === "list" && (
           <>
-            {/* 업로드 영역 */}
-            <label className={styles.uploadArea} style={{ cursor: uploading ? "not-allowed" : "pointer" }}>
+            <label className={styles.uploadArea}>
               {uploading ? (
                 <div className={styles.uploadLabel}>
-                  <div className={styles.spinner} />
-                  <span className={styles.uploadText}>업로드 중...</span>
+                  <div className={styles.spinner} /><span className={styles.uploadText}>업로드 중...</span>
                 </div>
               ) : (
                 <div className={styles.uploadLabel}>
@@ -360,24 +260,10 @@ export default function AttendancePage() {
                   <span className={styles.uploadSub}>근무일자 / 출근시간 / 퇴근시간 / 사번 / 성명 / 회사</span>
                 </div>
               )}
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".csv,.xlsx,.xls,text/csv"
-                className={styles.hiddenInput}
-                onChange={(e) => {
-                  if (!selectedProjId) {
-                    setUploadMsg({ ok: false, text: "프로젝트를 먼저 선택해주세요." });
-                    e.target.value = "";
-                    return;
-                  }
-                  handleFile(e);
-                }}
-                disabled={uploading}
-              />
+              <input ref={fileInputRef} type="file" accept=".csv,.xlsx,.xls,text/csv"
+                className={styles.hiddenInput} onChange={handleFile} disabled={uploading} />
             </label>
 
-            {/* 배치 목록 */}
             {dataLoading ? (
               <div className={styles.loading}><div className={styles.spinner} />로딩 중...</div>
             ) : batches.length === 0 ? (
@@ -426,28 +312,15 @@ export default function AttendancePage() {
               )}
               <span style={{ fontSize: 12, color: "var(--at-muted)", marginLeft: "auto" }}>{filteredDaily.length}건</span>
             </div>
-
             {dataLoading ? (
               <div className={styles.loading}><div className={styles.spinner} />로딩 중...</div>
             ) : filteredDaily.length === 0 ? (
-              <div className={styles.emptyState}>
-                <div className={styles.emptyIcon}>📋</div>
-                <div className={styles.emptyText}>출결 데이터가 없습니다.</div>
-              </div>
+              <div className={styles.emptyState}><div className={styles.emptyIcon}>📋</div><div className={styles.emptyText}>출결 데이터가 없습니다.</div></div>
             ) : (
               <div className={styles.tableWrap}>
                 <table className={styles.table}>
                   <thead>
-                    <tr>
-                      <th>날짜</th>
-                      <th>성명</th>
-                      <th>회사</th>
-                      <th>출근</th>
-                      <th>퇴근</th>
-                      <th>근무시간</th>
-                      <th>공수</th>
-                      <th>상태</th>
-                    </tr>
+                    <tr><th>날짜</th><th>성명</th><th>회사</th><th>출근</th><th>퇴근</th><th>근무시간</th><th>공수</th><th>상태</th></tr>
                   </thead>
                   <tbody>
                     {filteredDaily.map((r) => (
