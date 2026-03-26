@@ -1,0 +1,107 @@
+/* giseong/page.module.css — 기성관리 (attendance CSS 디자인 재사용) */
+
+.page {
+  min-height: 100dvh;
+  background: #f8f9fb;
+  display: flex;
+  flex-direction: column;
+  font-family: -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  color: #1a1f36;
+}
+
+.topBar {
+  position: sticky; top: 0; z-index: 100;
+  background: #fff; border-bottom: 1px solid #e8ecf1;
+  display: flex; align-items: center; gap: 8px; padding: 0 16px; height: 52px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.05);
+}
+.backBtn {
+  display: flex; align-items: center; gap: 4px; padding: 6px 10px;
+  border: 1px solid #e8ecf1; border-radius: 6px; background: transparent;
+  color: #5e6278; font-size: 13px; cursor: pointer; text-decoration: none;
+  transition: background .15s; white-space: nowrap; flex-shrink: 0;
+}
+.backBtn:hover { background: #f8f9fb; color: #1a1f36; }
+.pageTitle { font-size: 15px; font-weight: 700; color: #1a1f36; white-space: nowrap; margin-right: 4px; }
+.navLinks { display: flex; align-items: center; gap: 4px; margin-left: auto; }
+.navLink {
+  padding: 5px 10px; border-radius: 6px; font-size: 12px; font-weight: 600;
+  color: #5e6278; background: transparent; border: 1px solid #e8ecf1;
+  cursor: pointer; text-decoration: none; transition: all .15s; white-space: nowrap;
+}
+.navLink:hover { background: #f8f9fb; color: #1a1f36; }
+.navLinkActive { background: #2563eb; color: #fff; border-color: #2563eb; }
+.navLinkActive:hover { background: #1d4ed8; }
+
+.projectBar {
+  background: #fff; border-bottom: 1px solid #e8ecf1;
+  padding: 10px 16px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+}
+.projectLabel { font-size: 12px; font-weight: 600; color: #5e6278; white-space: nowrap; }
+.projectSelect {
+  flex: 1; min-width: 160px; max-width: 300px; padding: 6px 10px;
+  border: 1px solid #e8ecf1; border-radius: 6px; font-size: 13px;
+  background: #f8f9fb; color: #1a1f36; cursor: pointer; appearance: none;
+}
+.projectSelect:focus { outline: none; border-color: #2563eb; }
+
+.content { flex: 1; padding: 16px; display: flex; flex-direction: column; gap: 16px; animation: fadeUp .3s cubic-bezier(.16,1,.3,1); }
+@keyframes fadeUp { from { opacity:0; transform:translateY(8px);} to {opacity:1;transform:translateY(0);} }
+
+/* ─── 섹션 카드 ─ */
+.section {
+  background: #fff; border: 1px solid #e8ecf1; border-radius: 10px; overflow: hidden;
+}
+.sectionHeader {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 16px; border-bottom: 1px solid #e8ecf1; background: #f8f9fb;
+}
+.sectionTitle { font-size: 14px; font-weight: 700; color: #1a1f36; }
+.sectionMeta  { font-size: 12px; color: #99a1b7; }
+
+/* ─── 집계 카드 행 ─ */
+.statCards { display: flex; gap: 12px; padding: 16px; flex-wrap: wrap; }
+.statCard {
+  flex: 1; min-width: 120px;
+  background: #f8f9fb; border: 1px solid #e8ecf1; border-radius: 8px;
+  padding: 12px 16px; display: flex; flex-direction: column; gap: 4px;
+}
+.statLabel { font-size: 11px; font-weight: 600; color: #99a1b7; text-transform: uppercase; }
+.statValue { font-size: 22px; font-weight: 800; color: #1a1f36; }
+.statUnit  { font-size: 11px; color: #5e6278; }
+
+/* ─── 테이블 ─ */
+.tableWrap { overflow-x: auto; }
+.table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.table th {
+  padding: 8px 12px; text-align: center; font-size: 11px; font-weight: 700;
+  color: #5e6278; background: #f8f9fb; border-bottom: 1px solid #e8ecf1; white-space: nowrap;
+}
+.table td { padding: 8px 12px; text-align: center; border-bottom: 1px solid #f0f2f6; white-space: nowrap; }
+.table tr:last-child td { border-bottom: none; }
+.table tr:hover td { background: #f7f9ff; }
+.table .nameCell { text-align: left; font-weight: 600; }
+.table .sumRow td { background: #f0f4ff; font-weight: 700; border-top: 2px solid #c7d2fe; }
+
+/* ─── 협력사 차트 (간단 바) ─ */
+.companyList { display: flex; flex-direction: column; gap: 8px; padding: 12px 16px; }
+.companyRow { display: flex; align-items: center; gap: 10px; }
+.companyName { width: 80px; font-size: 12px; font-weight: 600; color: #1a1f36; flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.companyBar  { flex: 1; height: 8px; background: #e8ecf1; border-radius: 4px; overflow: hidden; }
+.companyFill { height: 100%; background: #2563eb; border-radius: 4px; transition: width .5s cubic-bezier(.16,1,.3,1); }
+.companyVal  { width: 50px; text-align: right; font-size: 12px; font-weight: 700; color: #2563eb; flex-shrink: 0; }
+
+/* ─── 상태 ─ */
+.loading { display: flex; align-items: center; justify-content: center; padding: 40px; color: #99a1b7; font-size: 13px; gap: 8px; }
+.spinner { width: 16px; height: 16px; border: 2px solid #e8ecf1; border-top-color: #2563eb; border-radius: 50%; animation: spin .7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.emptyState { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px; color: #99a1b7; gap: 8px; text-align: center; }
+.emptyIcon { font-size: 32px; }
+.emptyText { font-size: 14px; font-weight: 600; color: #5e6278; }
+
+@media (max-width: 640px) {
+  .topBar { padding: 0 12px; }
+  .content { padding: 12px; }
+  .navLinks { display: none; }
+  .statCards { flex-direction: column; }
+}
