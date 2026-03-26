@@ -184,6 +184,27 @@ function MonthMatrix({
   );
 }
 
+function rowDesc(r: DailyRow): string {
+  if (r.labor_status === "full")    return "정상(1공)";
+  if (r.labor_status === "half")    return "반일(0.5공)";
+  if (r.labor_status === "ongoing") return "진행중(퇴근 미입력)";
+  if (r.labor_status === "missing") {
+    if (!r.check_in && !r.check_out) return "누락(출근/퇴근)";
+    if (!r.check_in) return "누락(출근)";
+    if (!r.check_out) return "누락(퇴근)";
+    return "누락";
+  }
+  return r.labor_status || "";
+}
+
+function dateCellCls(r: DailyRow): string | undefined {
+  if (r.labor_status === "missing") return styles.dateCellMissing;
+  if (r.labor_status === "ongoing") return styles.dateCellOngoing;
+  if (r.labor_status === "half") return styles.dateCellHalf;
+  if (r.labor_status === "full") return styles.dateCellFull;
+  return undefined;
+}
+
 // ── 메인 페이지 ───────────────────────────────────────────────────
 export default function AttendancePage() {
   const tokenRef   = useRef<string>("");
@@ -197,6 +218,8 @@ export default function AttendancePage() {
   const [search, setSearch]       = useState("");
   const [filterStatus, setFilterStatus] = useState("");
   const [filterCompany, setFilterCompany] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const fileInputRef  = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadMsg, setUploadMsg] = useState<{ ok: boolean; text: string } | null>(null);
@@ -318,9 +341,12 @@ export default function AttendancePage() {
   }
 
   const filteredDaily  = daily.filter((r) => {
-    if (search && !r.person_name.includes(search) && !r.company.includes(search)) return false;
+    const desc = rowDesc(r);
+    if (search && !r.person_name.includes(search) && !r.company.includes(search) && !desc.includes(search)) return false;
     if (filterStatus && r.labor_status !== filterStatus) return false;
     if (filterCompany && r.company !== filterCompany) return false;
+    if (dateFrom && r.work_date < dateFrom) return false;
+    if (dateTo && r.work_date > dateTo) return false;
     return true;
   });
   const companies = Array.from(new Set(daily.map((r) => r.company).filter(Boolean))).sort();
@@ -421,6 +447,9 @@ export default function AttendancePage() {
           <>
             <div className={styles.filterBar}>
               <input className={styles.searchInput} placeholder="이름/회사 검색" value={search} onChange={(e) => setSearch(e.target.value)} />
+              <input className={styles.dateInput} type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+              <span style={{ fontSize: 12, color: "var(--at-muted)" }}>~</span>
+              <input className={styles.dateInput} type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
               <select className={styles.filterSelect} value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
                 <option value="">전체 상태</option>
                 <option value="full">1공</option>
@@ -444,12 +473,13 @@ export default function AttendancePage() {
               <div className={styles.tableWrap}>
                 <table className={styles.table}>
                   <thead>
-                    <tr><th>날짜</th><th>성명</th><th>회사</th><th>출근</th><th>퇴근</th><th>근무시간</th><th>공수</th><th>상태</th></tr>
+                    <tr><th>날짜</th><th>설명</th><th>성명</th><th>회사</th><th>출근</th><th>퇴근</th><th>근무시간</th><th>공수</th><th>상태</th></tr>
                   </thead>
                   <tbody>
                     {filteredDaily.map((r) => (
                       <tr key={r.id}>
-                        <td>{fmtDate(r.work_date)}</td>
+                        <td className={dateCellCls(r)}>{fmtDate(r.work_date)}</td>
+                        <td style={{ textAlign: "left" }}>{rowDesc(r)}</td>
                         <td style={{ fontWeight: 600, textAlign: "left" }}>{r.person_name}</td>
                         <td style={{ textAlign: "left" }}>{r.company || "-"}</td>
                         <td>{fmtTime(r.check_in)}</td>

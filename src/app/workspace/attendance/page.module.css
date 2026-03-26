@@ -293,6 +293,15 @@
 }
 .filterSelect:focus { outline: none; border-color: var(--at-accent); }
 
+.dateInput {
+  padding: 6px 10px;
+  border: 1px solid var(--at-border);
+  border-radius: 6px;
+  font-size: 13px;
+  background: var(--at-surface);
+}
+.dateInput:focus { outline: none; border-color: var(--at-accent); }
+
 .tableWrap {
   overflow-x: auto;
   border-radius: var(--at-radius);
@@ -329,6 +338,12 @@
 .badgeHalf    { display:inline-block; padding:2px 7px; border-radius:12px; font-size:11px; font-weight:700; background:#fef3c7; color:#92400e; }
 .badgeMissing { display:inline-block; padding:2px 7px; border-radius:12px; font-size:11px; font-weight:700; background:#fee2e2; color:#991b1b; }
 .badgeOngoing { display:inline-block; padding:2px 7px; border-radius:12px; font-size:11px; font-weight:700; background:#ede9fe; color:#5b21b6; }
+
+/* 정리 탭 날짜 조건부 서식 */
+.dateCellFull    { background: #f0fdf4; }
+.dateCellHalf    { background: #fffbeb; }
+.dateCellMissing { background: #fef2f2; }
+.dateCellOngoing { background: #f5f3ff; }
 
 /* ─── 미리보기 탭 (체크표) ──────────────────────── */
 .previewWrap {
