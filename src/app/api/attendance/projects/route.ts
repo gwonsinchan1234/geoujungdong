@@ -1,20 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
+import { getSupabaseWithToken } from "@/lib/supabaseAdmin";
 
 export const runtime = "nodejs";
 
-// GET /api/attendance/projects?userId=UUID
+function getToken(req: NextRequest): string {
+  return req.headers.get("Authorization")?.replace("Bearer ", "") ?? "";
+}
+
+// GET /api/attendance/projects
 export async function GET(req: NextRequest) {
   try {
-    const { searchParams } = new URL(req.url);
-    const userId = searchParams.get("userId")?.trim() ?? "";
-    if (!userId) return NextResponse.json({ ok: false, error: "userId 필요" }, { status: 400 });
+    const token = getToken(req);
+    if (!token) return NextResponse.json({ ok: false, error: "인증 필요" }, { status: 401 });
 
-    const admin = getSupabaseAdmin();
-    const { data, error } = await admin
+    const db = getSupabaseWithToken(token);
+    const { data, error } = await db
       .from("attendance_projects")
       .select("id, name, description, created_at")
-      .eq("user_id", userId)
       .order("created_at", { ascending: false });
 
     if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
@@ -24,21 +26,26 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// POST /api/attendance/projects  { userId, name, description? }
+// POST /api/attendance/projects  { name, description? }
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json().catch(() => ({}));
-    const userId = String(body?.userId ?? "").trim();
-    const name = String(body?.name ?? "").trim();
-    const description = String(body?.description ?? "").trim();
+    const token = getToken(req);
+    if (!token) return NextResponse.json({ ok: false, error: "인증 필요" }, { status: 401 });
 
-    if (!userId) return NextResponse.json({ ok: false, error: "userId 필요" }, { status: 400 });
+    const body = await req.json().catch(() => ({}));
+    const name        = String(body?.name        ?? "").trim();
+    const description = String(body?.description ?? "").trim();
     if (!name) return NextResponse.json({ ok: false, error: "프로젝트 이름 필요" }, { status: 400 });
 
-    const admin = getSupabaseAdmin();
-    const { data, error } = await admin
+    const db = getSupabaseWithToken(token);
+
+    // auth.uid() 확인
+    const { data: { user } } = await db.auth.getUser();
+    if (!user) return NextResponse.json({ ok: false, error: "인증 실패" }, { status: 401 });
+
+    const { data, error } = await db
       .from("attendance_projects")
-      .upsert({ user_id: userId, name, description }, { onConflict: "user_id,name" })
+      .upsert({ user_id: user.id, name, description }, { onConflict: "user_id,name" })
       .select("id, name, description, created_at")
       .single();
 
@@ -49,20 +56,18 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// DELETE /api/attendance/projects?id=UUID&userId=UUID
+// DELETE /api/attendance/projects?id=UUID
 export async function DELETE(req: NextRequest) {
   try {
+    const token = getToken(req);
+    if (!token) return NextResponse.json({ ok: false, error: "인증 필요" }, { status: 401 });
+
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id")?.trim() ?? "";
-    const userId = searchParams.get("userId")?.trim() ?? "";
-    if (!id || !userId) return NextResponse.json({ ok: false, error: "id, userId 필요" }, { status: 400 });
+    if (!id) return NextResponse.json({ ok: false, error: "id 필요" }, { status: 400 });
 
-    const admin = getSupabaseAdmin();
-    const { error } = await admin
-      .from("attendance_projects")
-      .delete()
-      .eq("id", id)
-      .eq("user_id", userId);
+    const db = getSupabaseWithToken(token);
+    const { error } = await db.from("attendance_projects").delete().eq("id", id);
 
     if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
     return NextResponse.json({ ok: true });
