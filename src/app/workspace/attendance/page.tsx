@@ -42,6 +42,15 @@ function fmtMoney(n: number) {
   return n.toLocaleString("ko-KR");
 }
 
+function splitNameAndEmpId(personName: string, employeeId?: string) {
+  const emp = String(employeeId ?? "").trim();
+  const raw = String(personName ?? "").trim();
+  if (emp) return { name: raw.replace(/\s*\([^)]*\)\s*$/, "").trim() || raw, empId: emp };
+  const m = raw.match(/^(.*)\s*\(([^()]+)\)\s*$/);
+  if (m) return { name: m[1].trim(), empId: m[2].trim() };
+  return { name: raw, empId: "" };
+}
+
 async function downloadMonthMatrixExcelStyled(args: {
   fileName: string;
   monthKey: string;
@@ -50,14 +59,16 @@ async function downloadMonthMatrixExcelStyled(args: {
   matrixRates: Record<string, string>;
   cellText: (person: string, workDate: string) => string;
   totalUnitsByPerson: (person: string) => number;
+  personMeta: Map<string, { name: string; empId: string }>;
 }) {
   const ExcelJS = (await import("exceljs")).default;
   const wb = new ExcelJS.Workbook();
-  const ws = wb.addWorksheet("월체크표", { views: [{ state: "frozen", xSplit: 2, ySplit: 1 }] });
+  const ws = wb.addWorksheet("월체크표", { views: [{ state: "frozen", xSplit: 3, ySplit: 1 }] });
 
   // ── 컬럼 정의 (폭: 엑셀 느낌에 맞게)
   const cols: { header: string; key: string; width: number }[] = [
     { header: "이름", key: "name", width: 14 },
+    { header: "사번", key: "emp", width: 10 },
     { header: "단가", key: "rate", width: 12 },
     ...Array.from({ length: args.daysInMonth }, (_, i) => ({ header: String(i + 1), key: `d${i + 1}`, width: 4 })),
     { header: "공수", key: "units", width: 7 },
@@ -85,6 +96,7 @@ async function downloadMonthMatrixExcelStyled(args: {
   let rIdx = 2;
   for (const person of args.persons) {
     const row = ws.getRow(rIdx);
+    const meta = args.personMeta.get(person) ?? splitNameAndEmpId(person);
     const rateRaw = (args.matrixRates[person] ?? "").trim();
     const effectiveRate = rateRaw ? rateRaw : "100000";
     const rate = parseMoney(effectiveRate);
@@ -92,14 +104,15 @@ async function downloadMonthMatrixExcelStyled(args: {
     const amount = totalUnits > 0 && rate > 0 ? totalUnits * rate : 0;
 
     const values: (string | number)[] = [];
-    values[1] = person;
-    values[2] = rate;
+    values[1] = meta.name;
+    values[2] = meta.empId;
+    values[3] = rate;
     for (let d = 1; d <= args.daysInMonth; d++) {
       const dd = String(d).padStart(2, "0");
-      values[2 + d] = args.cellText(person, `${args.monthKey}-${dd}`);
+      values[3 + d] = args.cellText(person, `${args.monthKey}-${dd}`);
     }
-    values[2 + args.daysInMonth + 1] = totalUnits || "";
-    values[2 + args.daysInMonth + 2] = amount || "";
+    values[3 + args.daysInMonth + 1] = totalUnits || "";
+    values[3 + args.daysInMonth + 2] = amount || "";
     row.values = values;
     row.height = 18;
 
@@ -110,7 +123,7 @@ async function downloadMonthMatrixExcelStyled(args: {
       cell.font = { size: 10.5, color: { argb: "FF111827" } };
     }
     // 숫자 서식 (단가/총합)
-    row.getCell(2).numFmt = "#,##0";
+    row.getCell(3).numFmt = "#,##0";
     row.getCell(cols.length).numFmt = "#,##0";
     rIdx++;
   }
@@ -132,6 +145,10 @@ function CheckTable({ daily }: { daily: DailyRow[] }) {
   const dates   = Array.from(new Set(daily.map((r) => r.work_date))).sort();
   const persons = Array.from(new Set(daily.map((r) => r.person_name))).sort();
   const cellMap = new Map(daily.map((r) => [`${r.person_name}__${r.work_date}`, r]));
+  const personMeta = new Map<string, { name: string; empId: string }>();
+  for (const r of daily) {
+    if (!personMeta.has(r.person_name)) personMeta.set(r.person_name, splitNameAndEmpId(r.person_name, r.employee_id));
+  }
 
   function cellCls(r: DailyRow | undefined) {
     if (!r) return styles.checkCellNone;
@@ -148,16 +165,19 @@ function CheckTable({ daily }: { daily: DailyRow[] }) {
         <thead>
           <tr>
             <th className={styles.nameCell}>성명</th>
+            <th className={styles.empCell}>사번</th>
             {dates.map((d) => <th key={d}>{fmtDate(d)}</th>)}
             <th className={styles.sumCell}>합계</th>
           </tr>
         </thead>
         <tbody>
           {persons.map((person) => {
+            const meta = personMeta.get(person) ?? splitNameAndEmpId(person);
             const total = dates.reduce((s, d) => s + (cellMap.get(`${person}__${d}`)?.labor_units ?? 0), 0);
             return (
               <tr key={person}>
-                <td className={styles.nameCell}>{person}</td>
+                <td className={styles.nameCell}>{meta.name}</td>
+                <td className={styles.empCell}>{meta.empId || "-"}</td>
                 {dates.map((d) => { const r = cellMap.get(`${person}__${d}`); return <td key={d} className={cellCls(r)}>{cellLbl(r)}</td>; })}
                 <td className={styles.sumCell}>{total > 0 ? total : "-"}</td>
               </tr>
@@ -165,6 +185,7 @@ function CheckTable({ daily }: { daily: DailyRow[] }) {
           })}
           <tr>
             <td className={styles.nameCell} style={{ fontWeight: 700 }}>합계</td>
+            <td className={styles.empCell} />
             {dates.map((d) => {
               const sum = persons.reduce((s, p) => s + (cellMap.get(`${p}__${d}`)?.labor_units ?? 0), 0);
               return <td key={d} className={styles.sumCell}>{sum > 0 ? sum : ""}</td>;
@@ -201,6 +222,10 @@ function MonthMatrix({
 
   const persons = Array.from(new Set(monthRows.map((r) => r.person_name))).sort((a, b) => a.localeCompare(b, "ko"));
   const cellMap = new Map(monthRows.map((r) => [`${r.person_name}__${r.work_date}`, r] as const));
+  const personMeta = new Map<string, { name: string; empId: string }>();
+  for (const r of monthRows) {
+    if (!personMeta.has(r.person_name)) personMeta.set(r.person_name, splitNameAndEmpId(r.person_name, r.employee_id));
+  }
 
   function cellMark(r?: DailyRow) {
     if (!r) return "";
@@ -220,6 +245,7 @@ function MonthMatrix({
         <thead>
           <tr>
             <th className={styles.nameCell}>이름</th>
+            <th className={styles.empCell}>사번</th>
             <th className={styles.rateCell}>단가</th>
             {Array.from({ length: daysInMonth }, (_, i) => (
               <th key={i} className={styles.dayCell}>{i + 1}</th>
@@ -230,13 +256,15 @@ function MonthMatrix({
         </thead>
         <tbody>
           {persons.map((p) => {
+            const meta = personMeta.get(p) ?? splitNameAndEmpId(p);
             let totalUnits = 0;
             const rateRaw = (rates[p] ?? "").trim();
             const effectiveRate = rateRaw ? rateRaw : "100000";
             const rate = parseMoney(effectiveRate);
             return (
               <tr key={p}>
-                <td className={styles.nameCell}>{p}</td>
+                <td className={styles.nameCell}>{meta.name}</td>
+                <td className={styles.empCell}>{meta.empId || "-"}</td>
                 <td className={styles.rateCell}>
                   <div className={styles.rateField}>
                     <input
@@ -327,6 +355,10 @@ export default function AttendancePage() {
 
       const persons = Array.from(new Set(monthRows.map((r) => r.person_name))).sort((a, b) => a.localeCompare(b, "ko"));
       const cellMap = new Map(monthRows.map((r) => [`${r.person_name}__${r.work_date}`, r] as const));
+      const personMeta = new Map<string, { name: string; empId: string }>();
+      for (const r of monthRows) {
+        if (!personMeta.has(r.person_name)) personMeta.set(r.person_name, splitNameAndEmpId(r.person_name, r.employee_id));
+      }
 
       const cellText = (person: string, wd: string) => {
         const r = cellMap.get(`${person}__${wd}`);
@@ -355,6 +387,7 @@ export default function AttendancePage() {
         matrixRates,
         cellText,
         totalUnitsByPerson,
+        personMeta,
       });
     })();
   }, [daily, matrixRates]);
@@ -627,22 +660,26 @@ export default function AttendancePage() {
               <div className={styles.tableWrap}>
                 <table className={styles.table}>
                   <thead>
-                    <tr><th>날짜</th><th>설명</th><th>성명</th><th>회사</th><th>출근</th><th>퇴근</th><th>근무시간</th><th>공수</th><th>상태</th></tr>
+                    <tr><th>날짜</th><th>설명</th><th>성명</th><th>사번</th><th>회사</th><th>출근</th><th>퇴근</th><th>근무시간</th><th>공수</th><th>상태</th></tr>
                   </thead>
                   <tbody>
-                    {sortedFilteredDaily.map((r) => (
-                      <tr key={r.id}>
-                        <td className={dateCellCls(r)}>{fmtDate(r.work_date)}</td>
-                        <td style={{ textAlign: "left" }}>{rowDesc(r)}</td>
-                        <td style={{ fontWeight: 600, textAlign: "left" }}>{r.person_name}</td>
-                        <td style={{ textAlign: "left" }}>{r.company || "-"}</td>
-                        <td>{fmtTime(r.check_in)}</td>
-                        <td>{fmtTime(r.check_out)}</td>
-                        <td>{fmtMins(r.total_minutes)}</td>
-                        <td style={{ fontWeight: 700 }}>{r.labor_units > 0 ? r.labor_units : "-"}</td>
-                        <td><BadgeStatus status={r.labor_status} /></td>
-                      </tr>
-                    ))}
+                    {sortedFilteredDaily.map((r) => {
+                      const meta = splitNameAndEmpId(r.person_name, r.employee_id);
+                      return (
+                        <tr key={r.id}>
+                          <td className={dateCellCls(r)}>{fmtDate(r.work_date)}</td>
+                          <td style={{ textAlign: "left" }}>{rowDesc(r)}</td>
+                          <td style={{ fontWeight: 600, textAlign: "left" }}>{meta.name}</td>
+                          <td style={{ textAlign: "left" }}>{meta.empId || "-"}</td>
+                          <td style={{ textAlign: "left" }}>{r.company || "-"}</td>
+                          <td>{fmtTime(r.check_in)}</td>
+                          <td>{fmtTime(r.check_out)}</td>
+                          <td>{fmtMins(r.total_minutes)}</td>
+                          <td style={{ fontWeight: 700 }}>{r.labor_units > 0 ? r.labor_units : "-"}</td>
+                          <td><BadgeStatus status={r.labor_status} /></td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

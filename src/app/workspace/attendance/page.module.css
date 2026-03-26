@@ -384,6 +384,13 @@
   left: 0;
   z-index: 1;
 }
+.checkTable .empCell {
+  background: #f7f7f7;
+  min-width: 56px;
+  position: sticky;
+  left: 80px;
+  z-index: 1;
+}
 .checkTable .sumCell {
   background: #f2f2f2;
   font-weight: 700;
@@ -424,12 +431,20 @@
   left: 0;
   z-index: 2;
 }
+.matrixTable .empCell {
+  background: #f7f7f7;
+  width: 56px;
+  min-width: 56px;
+  position: sticky;
+  left: 72px;
+  z-index: 2;
+}
 .rateCell {
   background: #f7f7f7;
   width: 72px;
   min-width: 72px;
   position: sticky;
-  left: 72px;
+  left: 128px;
   z-index: 2;
 }
 .dayCell { width: 26px; }
