@@ -1,20 +1,31 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import styles from "./page.module.css";
 
-type Project  = { id: string; name: string };
 type LaborRow = { person_name: string; employee_id: string; company: string; total_labor_units: number; work_days: number };
 type ByCompany= { company: string; persons: number; labor_units: number; work_days: number };
 
+async function ensureProject(token: string): Promise<string | null> {
+  const listRes = await fetch("/api/attendance/projects", {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const listJson = await listRes.json();
+  if (listJson.ok && listJson.projects.length > 0) return listJson.projects[0].id as string;
+  const createRes = await fetch("/api/attendance/projects", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ name: "기본" }),
+  });
+  const createJson = await createRes.json();
+  return createJson.ok ? createJson.project.id as string : null;
+}
 export default function GiseongPage() {
-  const [userId, setUserId] = useState<string | null>(null);
-
-  // 프로젝트
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [selectedProjId, setSelectedProjId] = useState("");
+  const tokenRef  = useRef<string>("");
+  const projIdRef = useRef<string>("");
+  const [ready, setReady] = useState(false);
 
   // 데이터
   const [labor, setLabor] = useState<LaborRow[]>([]);
@@ -23,28 +34,30 @@ export default function GiseongPage() {
   const [totalWorkDays, setTotalWorkDays] = useState(0);
   const [loading, setLoading] = useState(false);
 
-  // ── auth
+  // ── auth + 프로젝트 준비
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id ?? null));
+    supabase.auth.getSession().then(async ({ data }) => {
+      const token = data.session?.access_token ?? "";
+      tokenRef.current = token;
+      if (!token) return;
+      const projId = await ensureProject(token);
+      if (projId) {
+        projIdRef.current = projId;
+        setReady(true);
+      }
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  // ── 프로젝트 목록
-  const loadProjects = useCallback(async (uid: string) => {
-    const res = await fetch(`/api/attendance/projects?userId=${uid}`);
-    const json = await res.json();
-    if (json.ok) {
-      setProjects(json.projects);
-      if (json.projects.length > 0) setSelectedProjId((p) => p || json.projects[0].id);
-    }
-  }, []);
-
-  useEffect(() => { if (userId) loadProjects(userId); }, [userId, loadProjects]);
 
   // ── 기성 집계 로드
   const loadSummary = useCallback(async () => {
-    if (!selectedProjId || !userId) return;
+    const projId = projIdRef.current;
+    const token  = tokenRef.current;
+    if (!projId || !token) return;
     setLoading(true);
-    const res = await fetch(`/api/giseong/summary?projectId=${selectedProjId}&userId=${userId}`);
+    const res = await fetch(`/api/giseong/summary?projectId=${projId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
     const json = await res.json();
     setLoading(false);
     if (json.ok) {
@@ -53,14 +66,13 @@ export default function GiseongPage() {
       setTotalLaborUnits(Number(json.total_labor_units ?? 0));
       setTotalWorkDays(Number(json.total_work_days ?? 0));
     }
-  }, [selectedProjId, userId]);
+  }, []);
 
-  useEffect(() => { loadSummary(); }, [loadSummary]);
+  useEffect(() => { if (ready) loadSummary(); }, [ready, loadSummary]);
 
   const maxUnits = Math.max(...byCompany.map((c) => c.labor_units), 1);
 
-  if (!userId) return <div className={styles.page}><div className={styles.loading}><div className={styles.spinner} />로그인 확인 중...</div></div>;
-
+  if (!ready) return <div className={styles.page}><div className={styles.loading}><div className={styles.spinner} />초기화 중...</div></div>;
   return (
     <div className={styles.page}>
       {/* 상단 바 */}
@@ -78,16 +90,6 @@ export default function GiseongPage() {
           <Link href="/workspace/output" className={styles.navLink}>출력</Link>
         </div>
       </div>
-
-      {/* 프로젝트 선택 */}
-      <div className={styles.projectBar}>
-        <span className={styles.projectLabel}>프로젝트</span>
-        <select className={styles.projectSelect} value={selectedProjId} onChange={(e) => setSelectedProjId(e.target.value)}>
-          {projects.length === 0 && <option value="">— 프로젝트 없음 —</option>}
-          {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-        </select>
-      </div>
-
       {/* 콘텐츠 */}
       <div className={styles.content}>
         {loading ? (
@@ -117,8 +119,6 @@ export default function GiseongPage() {
                 </div>
               </div>
             </div>
-
-            {/* 협력사별 집계 */}
             {byCompany.length > 0 && (
               <div className={styles.section}>
                 <div className={styles.sectionHeader}>
@@ -137,10 +137,7 @@ export default function GiseongPage() {
                   ))}
                 </div>
               </div>
-            )}
-
-            {/* 인원별 상세 */}
-            {labor.length > 0 ? (
+            )}            {labor.length > 0 ? (
               <div className={styles.section}>
                 <div className={styles.sectionHeader}>
                   <span className={styles.sectionTitle}>인원별 노무 기성</span>

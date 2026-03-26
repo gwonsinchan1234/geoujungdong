@@ -1,11 +1,10 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import styles from "./page.module.css";
 
-type Project  = { id: string; name: string };
 type DailyRow = { person_name: string; company: string; work_date: string; check_in: string|null; check_out: string|null; total_minutes: number; labor_units: number; labor_status: string };
 type LaborRow = { person_name: string; employee_id: string; company: string; total_labor_units: number; work_days: number };
 type ByCompany= { company: string; persons: number; labor_units: number; work_days: number };
@@ -14,7 +13,7 @@ type PrintMode = null | "attendance" | "labor" | "giseong";
 
 function fmtDate(d: string) { return d ? d.slice(5).replace("-", "/") : "-"; }
 
-// ── 출결 체크표 ───────────────────────────────────────────────────
+// ── 출결 체크표 ────────────────────────────────────
 function AttendanceCheckTable({ daily }: { daily: DailyRow[] }) {
   if (!daily.length) return <p style={{ color: "#99a1b7", textAlign: "center", padding: 24 }}>데이터 없음</p>;
   const dates   = Array.from(new Set(daily.map((r) => r.work_date))).sort();
@@ -64,8 +63,7 @@ function AttendanceCheckTable({ daily }: { daily: DailyRow[] }) {
     </div>
   );
 }
-
-// ── 공수 집계 테이블 ──────────────────────────────────────────────
+// ── 공수 집계 테이블 ────────────────────────────────────
 function LaborSummaryTable({ labor }: { labor: LaborRow[] }) {
   if (!labor.length) return <p style={{ color: "#99a1b7", textAlign: "center", padding: 24 }}>데이터 없음</p>;
   const total_units = labor.reduce((s, r) => s + Number(r.total_labor_units), 0);
@@ -95,7 +93,7 @@ function LaborSummaryTable({ labor }: { labor: LaborRow[] }) {
   );
 }
 
-// ── 기성 집계 테이블 ──────────────────────────────────────────────
+// ── 기성 집계 테이블 ────────────────────────────────────
 function GiseongTable({ labor, byCompany }: { labor: LaborRow[]; byCompany: ByCompany[] }) {
   if (!labor.length) return <p style={{ color: "#99a1b7", textAlign: "center", padding: 24 }}>데이터 없음</p>;
   const totalUnits = labor.reduce((s, r) => s + Number(r.total_labor_units), 0);
@@ -126,46 +124,64 @@ function GiseongTable({ labor, byCompany }: { labor: LaborRow[]; byCompany: ByCo
     </>
   );
 }
-
-// ── 메인 ─────────────────────────────────────────────────────────
+// ── 메인 ─────────────────────────────────────────────
 export default function OutputPage() {
-  const [userId, setUserId] = useState<string | null>(null);
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [selectedProjId, setSelectedProjId] = useState("");
+  const tokenRef  = useRef<string>("");
+  const projIdRef = useRef<string>("");
+  const [ready, setReady] = useState(false);
   const [daily, setDaily] = useState<DailyRow[]>([]);
   const [labor, setLabor] = useState<LaborRow[]>([]);
   const [byCompany, setByCompany] = useState<ByCompany[]>([]);
   const [loading, setLoading] = useState(false);
   const [printMode, setPrintMode] = useState<PrintMode>(null);
 
-  useEffect(() => { supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id ?? null)); }, []);
+  async function ensureProject(token: string): Promise<string | null> {
+    const listRes = await fetch("/api/attendance/projects", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const listJson = await listRes.json();
+    if (listJson.ok && listJson.projects.length > 0) return listJson.projects[0].id as string;
+    const createRes = await fetch("/api/attendance/projects", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ name: "기본" }),
+    });
+    const createJson = await createRes.json();
+    return createJson.ok ? createJson.project.id as string : null;
+  }
 
-  const loadProjects = useCallback(async (uid: string) => {
-    const res = await fetch(`/api/attendance/projects?userId=${uid}`);
-    const json = await res.json();
-    if (json.ok) { setProjects(json.projects); if (json.projects.length > 0) setSelectedProjId((p) => p || json.projects[0].id); }
+  useEffect(() => {
+    supabase.auth.getSession().then(async ({ data }) => {
+      const token = data.session?.access_token ?? "";
+      tokenRef.current = token;
+      if (!token) return;
+      const projId = await ensureProject(token);
+      if (projId) {
+        projIdRef.current = projId;
+        setReady(true);
+      }
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => { if (userId) loadProjects(userId); }, [userId, loadProjects]);
-
   const loadData = useCallback(async () => {
-    if (!selectedProjId || !userId) return;
+    const projId = projIdRef.current;
+    const token  = tokenRef.current;
+    if (!projId || !token) return;
     setLoading(true);
     const [listRes, giseongRes] = await Promise.all([
-      fetch(`/api/attendance/list?projectId=${selectedProjId}&userId=${userId}`),
-      fetch(`/api/giseong/summary?projectId=${selectedProjId}&userId=${userId}`),
+      fetch(`/api/attendance/list?projectId=${projId}`, { headers: { Authorization: `Bearer ${token}` } }),
+      fetch(`/api/giseong/summary?projectId=${projId}`, { headers: { Authorization: `Bearer ${token}` } }),
     ]);
     const [listJson, giseongJson] = await Promise.all([listRes.json(), giseongRes.json()]);
     setLoading(false);
-    if (listJson.ok)   setDaily(listJson.daily ?? []);
+    if (listJson.ok)    setDaily(listJson.daily ?? []);
     if (giseongJson.ok) { setLabor(giseongJson.labor ?? []); setByCompany(giseongJson.by_company ?? []); }
-  }, [selectedProjId, userId]);
+  }, []);
 
-  useEffect(() => { loadData(); }, [loadData]);
+  useEffect(() => { if (ready) loadData(); }, [ready, loadData]);
 
-  function openPrint(mode: PrintMode) {
-    setPrintMode(mode);
-  }
+  function openPrint(mode: PrintMode) { setPrintMode(mode); }
   function doPrint() { window.print(); }
 
   const modalTitle: Record<Exclude<PrintMode, null>, string> = {
@@ -174,8 +190,7 @@ export default function OutputPage() {
     giseong:    "기성 집계표",
   };
 
-  if (!userId) return <div className={styles.page}><div className={styles.loading}><div className={styles.spinner} />로그인 확인 중...</div></div>;
-
+  if (!ready) return <div className={styles.page}><div className={styles.loading}><div className={styles.spinner} />초기화 중...</div></div>;
   return (
     <div className={styles.page}>
       {/* 상단 바 */}
@@ -192,15 +207,6 @@ export default function OutputPage() {
           <Link href="/workspace/giseong" className={styles.navLink}>기성관리</Link>
           <Link href="/workspace/output" className={`${styles.navLink} ${styles.navLinkActive}`}>출력</Link>
         </div>
-      </div>
-
-      {/* 프로젝트 */}
-      <div className={styles.projectBar}>
-        <span className={styles.projectLabel}>프로젝트</span>
-        <select className={styles.projectSelect} value={selectedProjId} onChange={(e) => setSelectedProjId(e.target.value)}>
-          {projects.length === 0 && <option value="">— 프로젝트 없음 —</option>}
-          {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-        </select>
       </div>
 
       {/* 출력 카드 그리드 */}
@@ -231,7 +237,7 @@ export default function OutputPage() {
           <div className={styles.printCard}>
             <div className={styles.printCardIcon}>📋</div>
             <div className={styles.printCardTitle}>공수 집계</div>
-            <div className={styles.printCardDesc}>인원별 총 공수를 집계한 표를 출력합니다.</div>
+            <div className={styles.printCardDesc}>인원별 전체 공수를 집계한 표를 출력합니다.</div>
             <div className={styles.printCardBtnRow}>
               <button className={styles.printBtn} onClick={() => openPrint("labor")} disabled={!labor.length}>미리보기</button>
             </div>
