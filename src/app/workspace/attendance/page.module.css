@@ -382,10 +382,10 @@
   font-weight: 700;
   font-size: 12px;
 }
-.checkCell1   { background: #111; color: #fff; font-weight: 700; }
-.checkCell05  { background: #e8e8e8; color: #333; font-weight: 700; }
+.checkCell1   { background: #d6d6d6; color: #111; font-weight: 700; }
+.checkCell05  { background: #f0f0f0; color: #555; font-weight: 700; }
 .checkCellMiss{ background: #fff; color: #bbb; font-weight: 700; }
-.checkCellOng { background: #f0f0f0; color: #666; font-weight: 700; }
+.checkCellOng { background: #f7f7f7; color: #888; font-weight: 700; }
 .checkCellNone{ color: var(--at-muted); }
 
 /* ─── 미리보기 탭 (월 체크표: 1~31) ───────────────────── */
