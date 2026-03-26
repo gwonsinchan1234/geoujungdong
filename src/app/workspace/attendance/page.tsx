@@ -219,7 +219,7 @@ export default function AttendancePage() {
   const [filterStatus, setFilterStatus] = useState("");
   const [filterCompany, setFilterCompany] = useState("");
   const [filterPerson, setFilterPerson] = useState("");
-  const [filterDay, setFilterDay] = useState(""); // "1".."31"
+  const [filterWorkDate, setFilterWorkDate] = useState(""); // "YYYY-MM-DD"
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const fileInputRef  = useRef<HTMLInputElement>(null);
@@ -348,16 +348,23 @@ export default function AttendancePage() {
     if (filterStatus && r.labor_status !== filterStatus) return false;
     if (filterCompany && r.company !== filterCompany) return false;
     if (filterPerson && r.person_name !== filterPerson) return false;
-    if (filterDay) {
-      const d = Number(r.work_date?.slice(8, 10) ?? "");
-      if (String(d) !== String(filterDay)) return false;
-    }
+    if (filterWorkDate && r.work_date !== filterWorkDate) return false;
     if (dateFrom && r.work_date < dateFrom) return false;
     if (dateTo && r.work_date > dateTo) return false;
     return true;
   });
   const companies = Array.from(new Set(daily.map((r) => r.company).filter(Boolean))).sort();
   const persons = Array.from(new Set(daily.map((r) => r.person_name).filter(Boolean))).sort((a, b) => a.localeCompare(b, "ko"));
+
+  const workDates = Array.from(new Set(daily.map((r) => r.work_date).filter(Boolean)))
+    .filter((d) => (!dateFrom || d >= dateFrom) && (!dateTo || d <= dateTo))
+    .sort(); // YYYY-MM-DD asc
+
+  const sortedFilteredDaily = [...filteredDaily].sort((a, b) => {
+    const d = a.work_date.localeCompare(b.work_date);
+    if (d !== 0) return d; // 날짜 오름차순: 3/1 → 3/31
+    return a.person_name.localeCompare(b.person_name, "ko");
+  });
 
   if (!ready) {
     return (
@@ -459,11 +466,13 @@ export default function AttendancePage() {
                 <option value="">전체 성명</option>
                 {persons.map((p) => <option key={p} value={p}>{p}</option>)}
               </select>
-              <select className={styles.filterSelect} value={filterDay} onChange={(e) => setFilterDay(e.target.value)}>
-                <option value="">전체 일자</option>
-                {Array.from({ length: 31 }, (_, i) => String(i + 1)).map((d) => (
-                  <option key={d} value={d}>{d}일</option>
-                ))}
+              <select className={styles.filterSelect} value={filterWorkDate} onChange={(e) => setFilterWorkDate(e.target.value)}>
+                <option value="">전체 날짜</option>
+                {workDates.map((d) => {
+                  const mm = String(Number(d.slice(5, 7)));
+                  const dd = String(Number(d.slice(8, 10)));
+                  return <option key={d} value={d}>{`${mm}/${dd}`}</option>;
+                })}
               </select>
               <input className={styles.dateInput} type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
               <span style={{ fontSize: 12, color: "var(--at-muted)" }}>~</span>
@@ -481,11 +490,11 @@ export default function AttendancePage() {
                   {companies.map((c) => <option key={c} value={c}>{c}</option>)}
                 </select>
               )}
-              <span style={{ fontSize: 12, color: "var(--at-muted)", marginLeft: "auto" }}>{filteredDaily.length}건</span>
+              <span style={{ fontSize: 12, color: "var(--at-muted)", marginLeft: "auto" }}>{sortedFilteredDaily.length}건</span>
             </div>
             {dataLoading ? (
               <div className={styles.loading}><div className={styles.spinner} />로딩 중...</div>
-            ) : filteredDaily.length === 0 ? (
+            ) : sortedFilteredDaily.length === 0 ? (
               <div className={styles.emptyState}><div className={styles.emptyIcon}>📋</div><div className={styles.emptyText}>출결 데이터가 없습니다.</div></div>
             ) : (
               <div className={styles.tableWrap}>
@@ -494,7 +503,7 @@ export default function AttendancePage() {
                     <tr><th>날짜</th><th>설명</th><th>성명</th><th>회사</th><th>출근</th><th>퇴근</th><th>근무시간</th><th>공수</th><th>상태</th></tr>
                   </thead>
                   <tbody>
-                    {filteredDaily.map((r) => (
+                    {sortedFilteredDaily.map((r) => (
                       <tr key={r.id}>
                         <td className={dateCellCls(r)}>{fmtDate(r.work_date)}</td>
                         <td style={{ textAlign: "left" }}>{rowDesc(r)}</td>
