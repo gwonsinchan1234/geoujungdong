@@ -121,9 +121,9 @@ function MonthMatrix({
 
   function cellMark(r?: DailyRow) {
     if (!r) return "";
-    if (r.labor_status === "full") return "○";
-    if (r.labor_status === "half") return "◐";
-    if (r.labor_status === "ongoing") return "△";
+    if (r.labor_status === "full") return "1";
+    if (r.labor_status === "half") return "1/2";
+    if (r.labor_status === "ongoing") return "…";
     return "";
   }
 
@@ -148,18 +148,23 @@ function MonthMatrix({
         <tbody>
           {persons.map((p) => {
             let totalUnits = 0;
-            const rate = parseMoney(rates[p] ?? "");
+            const rateRaw = (rates[p] ?? "").trim();
+            const effectiveRate = rateRaw ? rateRaw : "100000";
+            const rate = parseMoney(effectiveRate);
             return (
               <tr key={p}>
                 <td className={styles.nameCell}>{p}</td>
                 <td className={styles.rateCell}>
-                  <input
-                    className={styles.rateInput}
-                    inputMode="numeric"
-                    placeholder="0"
-                    value={rates[p] ?? ""}
-                    onChange={(e) => setRate(p, e.target.value)}
-                  />
+                  <div className={styles.rateField}>
+                    <input
+                      className={styles.rateInput}
+                      inputMode="numeric"
+                      placeholder="100000"
+                      value={rates[p] ?? ""}
+                      onChange={(e) => setRate(p, e.target.value)}
+                    />
+                    <span className={styles.rateSuffix}>원</span>
+                  </div>
                 </td>
                 {Array.from({ length: daysInMonth }, (_, i) => {
                   const d = String(i + 1).padStart(2, "0");
