@@ -375,6 +375,44 @@
 .checkCellOng { background: #ede9fe; color: #5b21b6; font-weight: 700; }
 .checkCellNone{ color: var(--at-muted); }
 
+/* ─── 미리보기 탭 (월 체크표: 1~31) ───────────────────── */
+.matrixTable {
+  border-collapse: collapse;
+  font-size: 12px;
+  min-width: 100%;
+  table-layout: fixed;
+}
+.matrixTable th, .matrixTable td {
+  border: 1px solid var(--at-border);
+  padding: 4px 6px;
+  text-align: center;
+  white-space: nowrap;
+}
+.matrixTable thead th {
+  background: #f0f4ff;
+  font-weight: 700;
+  font-size: 11px;
+  color: var(--at-sub);
+}
+.matrixTable .nameCell {
+  text-align: left;
+  font-weight: 600;
+  background: var(--at-bg);
+  min-width: 90px;
+  position: sticky;
+  left: 0;
+  z-index: 2;
+}
+.rateCell {
+  background: var(--at-bg);
+  min-width: 60px;
+  position: sticky;
+  left: 90px;
+  z-index: 2;
+}
+.dayCell { width: 26px; }
+.matrixCell { font-size: 14px; line-height: 1; }
+
 /* ─── 빈 상태 ────────────────────────────────────── */
 .emptyState {
   display: flex;
@@ -436,4 +474,5 @@
   .topBar, .projectBar, .tabs, .filterBar, .batchList, .uploadArea, .btnSm { display: none !important; }
   .tabContent { padding: 0; }
   .checkTable { font-size: 10px; }
+  .matrixTable { font-size: 10px; }
 }

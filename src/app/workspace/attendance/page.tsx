@@ -10,6 +10,7 @@ type BatchInfo = { source_file_name: string; count: number; first_date: string; 
 type DailyRow  = { id: string; person_name: string; employee_id: string; company: string; work_date: string; check_in: string|null; check_out: string|null; total_minutes: number; labor_units: number; labor_status: string; log_count: number };
 
 type Tab = "list" | "summary" | "preview";
+type PreviewMode = "matrix" | "compact";
 
 // ── 유틸 ──────────────────────────────────────────────────────────
 function fmtTime(t: string | null) { return t ? t.slice(0, 5) : "-"; }
@@ -85,6 +86,70 @@ function CheckTable({ daily }: { daily: DailyRow[] }) {
   );
 }
 
+function MonthMatrix({ daily }: { daily: DailyRow[] }) {
+  if (!daily.length) return <div className={styles.emptyState}><div className={styles.emptyText}>출결 데이터가 없습니다.</div></div>;
+
+  const monthKey = daily[0]?.work_date?.slice(0, 7) ?? "";
+  const monthRows = daily.filter((r) => r.work_date.startsWith(monthKey));
+
+  const daysInMonth = (() => {
+    if (!monthKey) return 31;
+    const [y, m] = monthKey.split("-").map(Number);
+    return new Date(y, m, 0).getDate();
+  })();
+
+  const persons = Array.from(new Set(monthRows.map((r) => r.person_name))).sort((a, b) => a.localeCompare(b, "ko"));
+  const cellMap = new Map(monthRows.map((r) => [`${r.person_name}__${r.work_date}`, r] as const));
+
+  function cellMark(r?: DailyRow) {
+    if (!r) return "";
+    if (r.labor_status === "full") return "○";
+    if (r.labor_status === "half") return "◐";
+    if (r.labor_status === "ongoing") return "△";
+    return "";
+  }
+
+  function units(r?: DailyRow) {
+    return r ? Number(r.labor_units ?? 0) : 0;
+  }
+
+  return (
+    <div className={styles.previewWrap}>
+      <table className={styles.matrixTable}>
+        <thead>
+          <tr>
+            <th className={styles.nameCell}>이름</th>
+            <th className={styles.rateCell}>단가</th>
+            {Array.from({ length: daysInMonth }, (_, i) => (
+              <th key={i} className={styles.dayCell}>{i + 1}</th>
+            ))}
+            <th className={styles.sumCell}>합계</th>
+          </tr>
+        </thead>
+        <tbody>
+          {persons.map((p) => {
+            let total = 0;
+            return (
+              <tr key={p}>
+                <td className={styles.nameCell}>{p}</td>
+                <td className={styles.rateCell}>-</td>
+                {Array.from({ length: daysInMonth }, (_, i) => {
+                  const d = String(i + 1).padStart(2, "0");
+                  const wd = `${monthKey}-${d}`;
+                  const r = cellMap.get(`${p}__${wd}`);
+                  total += units(r);
+                  return <td key={wd} className={styles.matrixCell}>{cellMark(r)}</td>;
+                })}
+                <td className={styles.sumCell}>{total > 0 ? total : ""}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 // ── 메인 페이지 ───────────────────────────────────────────────────
 export default function AttendancePage() {
   const tokenRef   = useRef<string>("");
@@ -101,6 +166,7 @@ export default function AttendancePage() {
   const fileInputRef  = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadMsg, setUploadMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [previewMode, setPreviewMode] = useState<PreviewMode>("matrix");
 
   // ── 기본 프로젝트 자동 생성/조회
   async function ensureProject(token: string): Promise<string | null> {
@@ -364,13 +430,29 @@ export default function AttendancePage() {
         {/* 미리보기 탭 */}
         {tab === "preview" && (
           <>
-            <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 10 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10, gap: 8, flexWrap: "wrap" }}>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button
+                  type="button"
+                  className={`${styles.btnSm} ${previewMode === "matrix" ? styles.btnPrimary : ""}`}
+                  onClick={() => setPreviewMode("matrix")}
+                >
+                  월 체크표
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.btnSm} ${previewMode === "compact" ? styles.btnPrimary : ""}`}
+                  onClick={() => setPreviewMode("compact")}
+                >
+                  요약 체크표
+                </button>
+              </div>
               <button className={`${styles.btnSm} ${styles.btnPrimary}`} onClick={() => window.print()}>인쇄</button>
             </div>
             {dataLoading ? (
               <div className={styles.loading}><div className={styles.spinner} />로딩 중...</div>
             ) : (
-              <CheckTable daily={daily} />
+              previewMode === "matrix" ? <MonthMatrix daily={daily} /> : <CheckTable daily={daily} />
             )}
           </>
         )}
