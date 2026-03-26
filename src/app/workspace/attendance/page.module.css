@@ -398,20 +398,46 @@
   text-align: left;
   font-weight: 600;
   background: var(--at-bg);
-  min-width: 90px;
+  width: 72px;
+  min-width: 72px;
   position: sticky;
   left: 0;
   z-index: 2;
 }
 .rateCell {
   background: var(--at-bg);
-  min-width: 60px;
+  width: 72px;
+  min-width: 72px;
   position: sticky;
-  left: 90px;
+  left: 72px;
   z-index: 2;
 }
 .dayCell { width: 26px; }
 .matrixCell { font-size: 14px; line-height: 1; }
+
+.rateInput {
+  width: 100%;
+  height: 26px;
+  border: 1px solid var(--at-border);
+  border-radius: 6px;
+  padding: 0 6px;
+  font-size: 11px;
+  background: #fff;
+  text-align: right;
+}
+.rateInput:focus {
+  outline: none;
+  border-color: var(--at-accent);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.12);
+}
+
+.amountCell {
+  background: #f0f4ff;
+  font-weight: 700;
+  font-size: 12px;
+  text-align: right;
+  padding-right: 8px !important;
+}
 
 /* ─── 빈 상태 ────────────────────────────────────── */
 .emptyState {

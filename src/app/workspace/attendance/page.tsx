@@ -32,6 +32,16 @@ function BadgeStatus({ status }: { status: string }) {
   return <span className={cfg.cls}>{cfg.label}</span>;
 }
 
+function parseMoney(v: string): number {
+  const n = Number(String(v ?? "").replace(/[^\d.-]/g, ""));
+  return Number.isFinite(n) ? n : 0;
+}
+
+function fmtMoney(n: number) {
+  if (!Number.isFinite(n) || n === 0) return "";
+  return n.toLocaleString("ko-KR");
+}
+
 // ── 미리보기 체크표 ───────────────────────────────────────────────
 function CheckTable({ daily }: { daily: DailyRow[] }) {
   if (!daily.length) return <div className={styles.emptyState}><div className={styles.emptyText}>출결 데이터가 없습니다.</div></div>;
@@ -86,7 +96,15 @@ function CheckTable({ daily }: { daily: DailyRow[] }) {
   );
 }
 
-function MonthMatrix({ daily }: { daily: DailyRow[] }) {
+function MonthMatrix({
+  daily,
+  rates,
+  setRate,
+}: {
+  daily: DailyRow[];
+  rates: Record<string, string>;
+  setRate: (person: string, next: string) => void;
+}) {
   if (!daily.length) return <div className={styles.emptyState}><div className={styles.emptyText}>출결 데이터가 없습니다.</div></div>;
 
   const monthKey = daily[0]?.work_date?.slice(0, 7) ?? "";
@@ -123,24 +141,35 @@ function MonthMatrix({ daily }: { daily: DailyRow[] }) {
             {Array.from({ length: daysInMonth }, (_, i) => (
               <th key={i} className={styles.dayCell}>{i + 1}</th>
             ))}
-            <th className={styles.sumCell}>합계</th>
+            <th className={styles.sumCell}>공수</th>
+            <th className={styles.amountCell}>총합</th>
           </tr>
         </thead>
         <tbody>
           {persons.map((p) => {
-            let total = 0;
+            let totalUnits = 0;
+            const rate = parseMoney(rates[p] ?? "");
             return (
               <tr key={p}>
                 <td className={styles.nameCell}>{p}</td>
-                <td className={styles.rateCell}>-</td>
+                <td className={styles.rateCell}>
+                  <input
+                    className={styles.rateInput}
+                    inputMode="numeric"
+                    placeholder="0"
+                    value={rates[p] ?? ""}
+                    onChange={(e) => setRate(p, e.target.value)}
+                  />
+                </td>
                 {Array.from({ length: daysInMonth }, (_, i) => {
                   const d = String(i + 1).padStart(2, "0");
                   const wd = `${monthKey}-${d}`;
                   const r = cellMap.get(`${p}__${wd}`);
-                  total += units(r);
+                  totalUnits += units(r);
                   return <td key={wd} className={styles.matrixCell}>{cellMark(r)}</td>;
                 })}
-                <td className={styles.sumCell}>{total > 0 ? total : ""}</td>
+                <td className={styles.sumCell}>{totalUnits > 0 ? totalUnits : ""}</td>
+                <td className={styles.amountCell}>{totalUnits > 0 && rate > 0 ? fmtMoney(totalUnits * rate) : ""}</td>
               </tr>
             );
           })}
@@ -167,6 +196,11 @@ export default function AttendancePage() {
   const [uploading, setUploading] = useState(false);
   const [uploadMsg, setUploadMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [previewMode, setPreviewMode] = useState<PreviewMode>("matrix");
+  const [matrixRates, setMatrixRates] = useState<Record<string, string>>({});
+
+  const setMatrixRate = useCallback((person: string, next: string) => {
+    setMatrixRates((p) => ({ ...p, [person]: next }));
+  }, []);
 
   // ── 기본 프로젝트 자동 생성/조회
   async function ensureProject(token: string): Promise<string | null> {
@@ -452,7 +486,9 @@ export default function AttendancePage() {
             {dataLoading ? (
               <div className={styles.loading}><div className={styles.spinner} />로딩 중...</div>
             ) : (
-              previewMode === "matrix" ? <MonthMatrix daily={daily} /> : <CheckTable daily={daily} />
+              previewMode === "matrix"
+                ? <MonthMatrix daily={daily} rates={matrixRates} setRate={setMatrixRate} />
+                : <CheckTable daily={daily} />
             )}
           </>
         )}
