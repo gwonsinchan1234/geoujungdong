@@ -461,8 +461,8 @@ type ParsedGabji = {
   data: GabjiData;
   /** 필드명 → 셀 ref (예: "gongsamyeong" → "B5") */
   cellRefs: Record<string, string>;
-  /** 항목 9개 각각의 계획금액·사용금액 셀 ref */
-  itemRefs: Array<{ planRef: string; useRef: string }>;
+  /** 항목 9개 각각의 계획금액·전원누계·금월·누계 셀 ref */
+  itemRefs: Array<{ planRef: string; prevRef: string; useRef: string; cumRef: string }>;
   /** ref → Excel 원본 셀 스타일 (fontSize 등 참조용) */
   cellStyles: Record<string, React.CSSProperties>;
 };
@@ -531,7 +531,7 @@ function parseGabjiFromSheet(sheet: ParsedSheet): ParsedGabji {
     "위험성평가",   // 9 위험성평가 등에 따른 소요비용 등
   ];
 
-  const found = new Map<number, { plan: string; use: string; planRef: string; useRef: string }>();
+  const found = new Map<number, { plan: string; prev: string; cur: string; cum: string; planRef: string; prevRef: string; useRef: string; cumRef: string }>();
 
   for (let ri = 0; ri < sheet.rows.length; ri++) {
     const row = sheet.rows[ri];
@@ -542,7 +542,7 @@ function parseGabjiFromSheet(sheet: ParsedSheet): ParsedGabji {
       const idx = ITEM_KW.findIndex(k => text.includes(k.replace(/\s/g, "")));
       if (idx === -1 || found.has(idx)) continue;
       const numHits: Array<{ v: string; ref: string; style: React.CSSProperties }> = [];
-      for (let nc = ci + 1; nc < Math.min(ci + 12, row.cells.length) && numHits.length < 2; nc++) {
+      for (let nc = ci + 1; nc < Math.min(ci + 12, row.cells.length) && numHits.length < 4; nc++) {
         const vc = row.cells[nc];
         if (!vc || vc.skip) continue;
         const v = toCellDisplayString(vc.value).trim();
@@ -553,21 +553,25 @@ function parseGabjiFromSheet(sheet: ParsedSheet): ParsedGabji {
       if (numHits[0]) cellStyles[numHits[0].ref] = numHits[0].style;
       if (numHits[1]) cellStyles[numHits[1].ref] = numHits[1].style;
       found.set(idx, {
-        plan: numHits[0]?.v ?? "", use: numHits[1]?.v ?? "",
-        planRef: numHits[0]?.ref ?? "", useRef: numHits[1]?.ref ?? "",
+        plan: numHits[0]?.v ?? "", prev: numHits[1]?.v ?? "",
+        cur:  numHits[2]?.v ?? "", cum:  numHits[3]?.v ?? "",
+        planRef: numHits[0]?.ref ?? "", prevRef: numHits[1]?.ref ?? "",
+        useRef:  numHits[2]?.ref ?? "", cumRef:  numHits[3]?.ref ?? "",
       });
     }
   }
 
-  const itemRefs: Array<{ planRef: string; useRef: string }> = DEFAULT_ITEMS.map((_, idx) => {
+  const itemRefs: Array<{ planRef: string; prevRef: string; useRef: string; cumRef: string }> = DEFAULT_ITEMS.map((_, idx) => {
     const hit = found.get(idx);
-    return hit ? { planRef: hit.planRef, useRef: hit.useRef } : { planRef: "", useRef: "" };
+    return hit
+      ? { planRef: hit.planRef, prevRef: hit.prevRef, useRef: hit.useRef, cumRef: hit.cumRef }
+      : { planRef: "", prevRef: "", useRef: "", cumRef: "" };
   });
 
   if (found.size > 0) {
     d.items = DEFAULT_ITEMS.map((def, idx) => {
       const hit = found.get(idx);
-      return hit ? { ...def, planAmount: hit.plan, useAmount: hit.use } : { ...def };
+      return hit ? { ...def, planAmount: hit.plan, prevAmount: hit.prev, useAmount: hit.cur } : { ...def };
     });
   }
 
@@ -606,7 +610,7 @@ function parseGabjiFromSheet(sheet: ParsedSheet): ParsedGabji {
 // → 키워드 불일치·재스캔 없이 정확한 셀에 값+스타일 반영
 function gabjiPrintOverrides(
   cellRefs: Record<string, string>,
-  itemRefs: Array<{ planRef: string; useRef: string }>,
+  itemRefs: Array<{ planRef: string; prevRef: string; useRef: string; cumRef: string }>,
   excelCellStyles: Record<string, React.CSSProperties>,
   sheetIdx: number,
   data: GabjiData,
@@ -629,26 +633,20 @@ function gabjiPrintOverrides(
     }
   }
 
-  // 항목 9개 계획금액·사용금액
+  // 항목 9개 계획금액·전원누계·금월·누계
   data.items.forEach((item, idx) => {
     const ref = itemRefs[idx];
     if (!ref) return;
-    if (ref.planRef && item.planAmount) {
-      overrides[`${sheetIdx}__${ref.planRef}`]  = item.planAmount;
-      formStyles[`${sheetIdx}__${ref.planRef}`] = {
-        ...excelCellStyles[ref.planRef],
-        textAlign: "center",
-        fontWeight: "bold",
-      };
-    }
-    if (ref.useRef && item.useAmount) {
-      overrides[`${sheetIdx}__${ref.useRef}`]  = item.useAmount;
-      formStyles[`${sheetIdx}__${ref.useRef}`] = {
-        ...excelCellStyles[ref.useRef],
-        textAlign: "center",
-        fontWeight: "bold",
-      };
-    }
+    const applyOverride = (r: string, v: string) => {
+      if (!r || !v) return;
+      overrides[`${sheetIdx}__${r}`]  = v;
+      formStyles[`${sheetIdx}__${r}`] = { ...excelCellStyles[r], textAlign: "center", fontWeight: "bold" };
+    };
+    applyOverride(ref.planRef, item.planAmount);
+    applyOverride(ref.prevRef, item.prevAmount);
+    applyOverride(ref.useRef,  item.useAmount);
+    const cum = parseItemNum(item.prevAmount) + parseItemNum(item.useAmount);
+    if (cum > 0) applyOverride(ref.cumRef, fmtNum(cum));
   });
 
   return { overrides, formStyles };
@@ -892,7 +890,7 @@ export default function FillPage() {
     formValues: Record<string, string>;
     gabjiData: GabjiData;
     gabjiCellRefs: Record<string, string>;
-    gabjiItemRefs: Array<{ planRef: string; useRef: string }>;
+    gabjiItemRefs: Array<{ planRef: string; prevRef: string; useRef: string; cumRef: string }>;
     gabjiCellStyles: Record<string, React.CSSProperties>;
     items: ItemData[];
     photoBlocks: Record<string, PhotoBlock[]>;
@@ -2164,13 +2162,15 @@ img{image-rendering:high-quality;display:block}
 
   const gabjiEditorItems = useMemo((): GNewItem[] =>
     gabjiData.items.map(gi => {
-      const amt = itemAmountsForGabji[gi.no] ?? 0;
+      const prev       = parseItemNum(gi.prevAmount ?? "");
+      const fromItems  = itemAmountsForGabji[gi.no] ?? 0;
+      const current    = fromItems > 0 ? fromItems : parseItemNum(gi.useAmount ?? "");
       return {
         item_code:      gi.no,
         item_name:      gi.label,
-        prev_amount:    0,
-        current_amount: amt,
-        total_amount:   amt,
+        prev_amount:    prev,
+        current_amount: current,
+        total_amount:   prev + current,
         sort_order:     gi.no,
       };
     }),
