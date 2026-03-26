@@ -218,6 +218,8 @@ export default function AttendancePage() {
   const [search, setSearch]       = useState("");
   const [filterStatus, setFilterStatus] = useState("");
   const [filterCompany, setFilterCompany] = useState("");
+  const [filterPerson, setFilterPerson] = useState("");
+  const [filterDay, setFilterDay] = useState(""); // "1".."31"
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const fileInputRef  = useRef<HTMLInputElement>(null);
@@ -345,11 +347,17 @@ export default function AttendancePage() {
     if (search && !r.person_name.includes(search) && !r.company.includes(search) && !desc.includes(search)) return false;
     if (filterStatus && r.labor_status !== filterStatus) return false;
     if (filterCompany && r.company !== filterCompany) return false;
+    if (filterPerson && r.person_name !== filterPerson) return false;
+    if (filterDay) {
+      const d = Number(r.work_date?.slice(8, 10) ?? "");
+      if (String(d) !== String(filterDay)) return false;
+    }
     if (dateFrom && r.work_date < dateFrom) return false;
     if (dateTo && r.work_date > dateTo) return false;
     return true;
   });
   const companies = Array.from(new Set(daily.map((r) => r.company).filter(Boolean))).sort();
+  const persons = Array.from(new Set(daily.map((r) => r.person_name).filter(Boolean))).sort((a, b) => a.localeCompare(b, "ko"));
 
   if (!ready) {
     return (
@@ -447,6 +455,16 @@ export default function AttendancePage() {
           <>
             <div className={styles.filterBar}>
               <input className={styles.searchInput} placeholder="이름/회사 검색" value={search} onChange={(e) => setSearch(e.target.value)} />
+              <select className={styles.filterSelect} value={filterPerson} onChange={(e) => setFilterPerson(e.target.value)}>
+                <option value="">전체 성명</option>
+                {persons.map((p) => <option key={p} value={p}>{p}</option>)}
+              </select>
+              <select className={styles.filterSelect} value={filterDay} onChange={(e) => setFilterDay(e.target.value)}>
+                <option value="">전체 일자</option>
+                {Array.from({ length: 31 }, (_, i) => String(i + 1)).map((d) => (
+                  <option key={d} value={d}>{d}일</option>
+                ))}
+              </select>
               <input className={styles.dateInput} type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
               <span style={{ fontSize: 12, color: "var(--at-muted)" }}>~</span>
               <input className={styles.dateInput} type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
