@@ -117,6 +117,7 @@ function CheckTable({ daily }: { daily: DailyRow[] }) {
 export default function AttendancePage() {
   const [userId, setUserId] = useState<string | null>(null);
   const [authToken, setAuthToken] = useState<string>("");
+  const tokenRef = useRef<string>("");          // 클로저 stale 방지용
   const [tab, setTab] = useState<Tab>("list");
 
   // 프로젝트
@@ -142,36 +143,43 @@ export default function AttendancePage() {
   const [uploading, setUploading] = useState(false);
   const [uploadMsg, setUploadMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
-  // ── auth
+  // ── auth + 초기 프로젝트 로드 (토큰 확보 후 즉시 호출)
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
-      setUserId(data.session?.user?.id ?? null);
-      setAuthToken(data.session?.access_token ?? "");
+      const uid   = data.session?.user?.id      ?? null;
+      const token = data.session?.access_token  ?? "";
+      tokenRef.current = token;
+      setUserId(uid);
+      setAuthToken(token);
+      if (uid && token) fetchProjects(token);
     });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ── 프로젝트 목록 로드
-  const loadProjects = useCallback(async (uid: string) => {
+  // ── 프로젝트 목록 로드 (토큰을 파라미터로 받아 클로저 문제 제거)
+  async function fetchProjects(token: string) {
     setProjLoading(true);
-    const res = await fetch(`/api/attendance/projects?userId=${uid}`, {
-      headers: { Authorization: `Bearer ${authToken}` },
+    const res = await fetch("/api/attendance/projects", {
+      headers: { Authorization: `Bearer ${token}` },
     });
     const json = await res.json();
     setProjLoading(false);
     if (json.ok) {
       setProjects(json.projects);
-      if (!selectedProjId && json.projects.length > 0) setSelectedProjId(json.projects[0].id);
+      if (json.projects.length > 0) setSelectedProjId((prev) => prev || json.projects[0].id);
     }
-  }, [selectedProjId]);
+  }
 
-  useEffect(() => { if (userId) loadProjects(userId); }, [userId, loadProjects]);
+  const loadProjects = useCallback(() => fetchProjects(tokenRef.current), []);
 
   // ── 데이터 로드
   const loadData = useCallback(async () => {
-    if (!selectedProjId || !userId) return;
+    if (!selectedProjId) return;
+    const token = tokenRef.current;
+    if (!token) return;
     setDataLoading(true);
     const res = await fetch(`/api/attendance/list?projectId=${selectedProjId}`, {
-      headers: { Authorization: `Bearer ${authToken}` },
+      headers: { Authorization: `Bearer ${token}` },
     });
     const json = await res.json();
     setDataLoading(false);
@@ -180,25 +188,27 @@ export default function AttendancePage() {
       setDaily(json.daily ?? []);
       setSummary(json.summary ?? []);
     }
-  }, [selectedProjId, userId, authToken]);
+  }, [selectedProjId]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
   // ── 프로젝트 생성
   async function handleCreateProject() {
-    if (!userId || !newProjName.trim()) return;
+    if (!newProjName.trim()) return;
+    const token = tokenRef.current;
+    if (!token) return;
     setProjLoading(true);
     const res = await fetch("/api/attendance/projects", {
       method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${authToken}` },
-      body: JSON.stringify({ userId, name: newProjName.trim() }),
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ name: newProjName.trim() }),
     });
     const json = await res.json();
     setProjLoading(false);
     if (json.ok) {
       setNewProjName("");
       setShowNewProj(false);
-      await loadProjects(userId);
+      await fetchProjects(token);
       setSelectedProjId(json.project.id);
     }
   }
@@ -214,11 +224,12 @@ export default function AttendancePage() {
     const fd = new FormData();
     fd.append("file", file);
     fd.append("projectId", selectedProjId);
-    fd.append("authToken", authToken);
+    const token = tokenRef.current;
+    fd.append("authToken", token);
 
     const res = await fetch("/api/attendance/upload", {
       method: "POST",
-      headers: { Authorization: `Bearer ${authToken}` },
+      headers: { Authorization: `Bearer ${token}` },
       body: fd,
     });
     const json = await res.json();
@@ -238,7 +249,7 @@ export default function AttendancePage() {
     if (!confirm(`"${fileName}" 데이터를 삭제할까요?`)) return;
     await fetch(`/api/attendance/list?projectId=${selectedProjId}&fileName=${encodeURIComponent(fileName)}`, {
       method: "DELETE",
-      headers: { Authorization: `Bearer ${authToken}` },
+      headers: { Authorization: `Bearer ${tokenRef.current}` },
     });
     await loadData();
   }
