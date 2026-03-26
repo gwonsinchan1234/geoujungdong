@@ -8,6 +8,12 @@ function getToken(req: NextRequest): string {
   return req.headers.get("Authorization")?.replace("Bearer ", "") ?? "";
 }
 
+function stablePersonKey(personName: string, employeeId: string) {
+  const e = String(employeeId ?? "").trim();
+  const p = String(personName ?? "").trim();
+  return e ? `${p} (${e})` : p;
+}
+
 // GET /api/attendance/list?projectId=UUID&userId=UUID
 // Returns: batches (업로드 이력), daily (일자별 출결), summary (인원별 집계)
 export async function GET(req: NextRequest) {
@@ -129,7 +135,8 @@ export async function DELETE(req: NextRequest) {
 
     const dailyMap = new Map<string, { employee_id: string; company: string; inMin: number | null; outMin: number | null; count: number }>();
     for (const r of allRaw ?? []) {
-      const key = `${r.person_name}__${r.work_date}`;
+      const pk = stablePersonKey(String(r.person_name ?? ""), String(r.employee_id ?? ""));
+      const key = `${pk}__${r.work_date}`;
       const inM  = timeToMin(r.check_in);
       const outM = timeToMin(r.check_out);
       const cur  = dailyMap.get(key);

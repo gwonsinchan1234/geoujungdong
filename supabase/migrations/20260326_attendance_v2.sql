@@ -9,15 +9,66 @@
 -- ─────────────────────────────────────────────
 create table if not exists attendance_projects (
   id          uuid        primary key default gen_random_uuid(),
-  user_id     uuid        not null references auth.users(id) on delete cascade,
-  name        text        not null,
+  user_id     uuid,
+  name        text,
   description text        not null default '',
-  created_at  timestamptz not null default now(),
-  unique(user_id, name)
+  created_at  timestamptz not null default now()
 );
 
-create index if not exists idx_attendance_projects_user
-  on attendance_projects (user_id);
+-- 기존 테이블이 다른 스키마로 존재하는 경우를 위한 보정 (idempotent)
+alter table attendance_projects
+  add column if not exists user_id uuid,
+  add column if not exists name text,
+  add column if not exists description text not null default '',
+  add column if not exists created_at timestamptz not null default now();
+
+do $$
+begin
+  -- FK: attendance_projects.user_id -> auth.users(id)
+  if not exists (
+    select 1 from pg_constraint
+    where conname = 'attendance_projects_user_id_fkey'
+      and conrelid = 'attendance_projects'::regclass
+  ) then
+    alter table attendance_projects
+      add constraint attendance_projects_user_id_fkey
+      foreign key (user_id) references auth.users(id) on delete cascade;
+  end if;
+
+  -- UNIQUE(user_id, name)
+  if not exists (
+    select 1 from pg_constraint
+    where conname = 'attendance_projects_user_id_name_key'
+      and conrelid = 'attendance_projects'::regclass
+  ) then
+    alter table attendance_projects
+      add constraint attendance_projects_user_id_name_key unique (user_id, name);
+  end if;
+
+  -- NOT NULL은 기존 데이터가 있을 수 있어 조건부로 적용
+  if exists (select 1 from information_schema.columns where table_name='attendance_projects' and column_name='user_id') then
+    if not exists (select 1 from attendance_projects where user_id is null) then
+      alter table attendance_projects alter column user_id set not null;
+    end if;
+  end if;
+
+  if exists (select 1 from information_schema.columns where table_name='attendance_projects' and column_name='name') then
+    if not exists (select 1 from attendance_projects where name is null or btrim(name) = '') then
+      alter table attendance_projects alter column name set not null;
+    end if;
+  end if;
+end $$;
+
+do $$
+begin
+  if not exists (
+    select 1 from information_schema.columns
+    where table_schema='public' and table_name='attendance_projects' and column_name='user_id'
+  ) then
+    raise exception 'attendance_projects.user_id 컬럼이 없습니다. 기존 테이블 스키마를 확인하세요.';
+  end if;
+  execute 'create index if not exists idx_attendance_projects_user on attendance_projects (user_id)';
+end $$;
 
 alter table attendance_projects enable row level security;
 
@@ -43,6 +94,30 @@ create table if not exists attendance_raw (
   user_id          uuid        not null references auth.users(id) on delete cascade,
   created_at       timestamptz not null default now()
 );
+
+-- 기존 테이블 보정 (idempotent)
+alter table attendance_raw
+  add column if not exists project_id uuid,
+  add column if not exists employee_id text not null default '',
+  add column if not exists person_name text,
+  add column if not exists company text not null default '',
+  add column if not exists work_date date,
+  add column if not exists check_in time,
+  add column if not exists check_out time,
+  add column if not exists source_file_name text not null default '',
+  add column if not exists source_row_index integer,
+  add column if not exists user_id uuid,
+  add column if not exists created_at timestamptz not null default now();
+
+do $$
+begin
+  if not exists (
+    select 1 from information_schema.columns
+    where table_schema='public' and table_name='attendance_raw' and column_name='user_id'
+  ) then
+    raise exception 'attendance_raw.user_id 컬럼이 없습니다. 기존 테이블 스키마를 확인하세요.';
+  end if;
+end $$;
 
 create index if not exists idx_att_raw_project_date
   on attendance_raw (project_id, work_date desc);
@@ -80,6 +155,32 @@ create table if not exists attendance_daily (
   unique(project_id, person_name, work_date)
 );
 
+-- 기존 테이블 보정 (idempotent)
+alter table attendance_daily
+  add column if not exists project_id uuid,
+  add column if not exists employee_id text not null default '',
+  add column if not exists person_name text,
+  add column if not exists company text not null default '',
+  add column if not exists work_date date,
+  add column if not exists check_in time,
+  add column if not exists check_out time,
+  add column if not exists total_minutes integer not null default 0,
+  add column if not exists labor_units numeric(4,2) not null default 0,
+  add column if not exists labor_status text not null default 'unknown',
+  add column if not exists log_count integer not null default 0,
+  add column if not exists user_id uuid,
+  add column if not exists updated_at timestamptz not null default now();
+
+do $$
+begin
+  if not exists (
+    select 1 from information_schema.columns
+    where table_schema='public' and table_name='attendance_daily' and column_name='user_id'
+  ) then
+    raise exception 'attendance_daily.user_id 컬럼이 없습니다. 기존 테이블 스키마를 확인하세요.';
+  end if;
+end $$;
+
 create index if not exists idx_att_daily_project_date
   on attendance_daily (project_id, work_date desc);
 create index if not exists idx_att_daily_project_person
@@ -107,6 +208,27 @@ create table if not exists labor_summary (
   updated_at         timestamptz    not null default now(),
   unique(project_id, person_name)
 );
+
+-- 기존 테이블 보정 (idempotent)
+alter table labor_summary
+  add column if not exists project_id uuid,
+  add column if not exists employee_id text not null default '',
+  add column if not exists person_name text,
+  add column if not exists company text not null default '',
+  add column if not exists total_labor_units numeric(6,2) not null default 0,
+  add column if not exists work_days integer not null default 0,
+  add column if not exists user_id uuid,
+  add column if not exists updated_at timestamptz not null default now();
+
+do $$
+begin
+  if not exists (
+    select 1 from information_schema.columns
+    where table_schema='public' and table_name='labor_summary' and column_name='user_id'
+  ) then
+    raise exception 'labor_summary.user_id 컬럼이 없습니다. 기존 테이블 스키마를 확인하세요.';
+  end if;
+end $$;
 
 create index if not exists idx_labor_summary_project
   on labor_summary (project_id);

@@ -157,6 +157,13 @@ function calcLabor(
   return { labor_units, labor_status, total_minutes: total };
 }
 
+function stablePersonKey(personName: string, employeeId: string) {
+  const e = String(employeeId ?? "").trim();
+  const p = String(personName ?? "").trim();
+  // 동명이인 방지: 사번이 있으면 이름에 사번을 붙여 유니크 키로 사용
+  return e ? `${p} (${e})` : p;
+}
+
 // ── 메인 핸들러 ───────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
   try {
@@ -273,10 +280,11 @@ export async function POST(req: NextRequest) {
       .eq("project_id", projectId);
     if (fetchErr) return NextResponse.json({ ok: false, error: fetchErr.message }, { status: 500 });
 
-    // 집계: key = person_name + work_date
+    // 집계: key = (사번 있으면) person_name(사번) + work_date
     const dailyMap = new Map<string, { employee_id: string; company: string; inMin: number | null; outMin: number | null; count: number }>();
     for (const r of allRaw ?? []) {
-      const key = `${r.person_name}__${r.work_date}`;
+      const pk = stablePersonKey(String(r.person_name ?? ""), String(r.employee_id ?? ""));
+      const key = `${pk}__${r.work_date}`;
       const inM  = timeToMin(r.check_in);
       const outM = timeToMin(r.check_out);
       const cur  = dailyMap.get(key);
