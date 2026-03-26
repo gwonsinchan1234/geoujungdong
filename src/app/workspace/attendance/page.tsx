@@ -3,7 +3,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
-import * as XLSX from "xlsx";
 import styles from "./page.module.css";
 
 // ── 타입 ──────────────────────────────────────────────────────────
@@ -43,16 +42,85 @@ function fmtMoney(n: number) {
   return n.toLocaleString("ko-KR");
 }
 
-function downloadXlsx(fileName: string, aoa: (string | number | null)[][]) {
-  const ws = XLSX.utils.aoa_to_sheet(aoa);
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "월체크표");
-  const out = XLSX.write(wb, { type: "array", bookType: "xlsx" });
-  const blob = new Blob([out], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+async function downloadMonthMatrixExcelStyled(args: {
+  fileName: string;
+  monthKey: string;
+  daysInMonth: number;
+  persons: string[];
+  matrixRates: Record<string, string>;
+  cellText: (person: string, workDate: string) => string;
+  totalUnitsByPerson: (person: string) => number;
+}) {
+  const ExcelJS = (await import("exceljs")).default;
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet("월체크표", { views: [{ state: "frozen", xSplit: 2, ySplit: 1 }] });
+
+  // ── 컬럼 정의 (폭: 엑셀 느낌에 맞게)
+  const cols: { header: string; key: string; width: number }[] = [
+    { header: "이름", key: "name", width: 14 },
+    { header: "단가", key: "rate", width: 12 },
+    ...Array.from({ length: args.daysInMonth }, (_, i) => ({ header: String(i + 1), key: `d${i + 1}`, width: 4 })),
+    { header: "공수", key: "units", width: 7 },
+    { header: "총합", key: "amount", width: 14 },
+  ];
+  ws.columns = cols;
+
+  // ── 헤더 스타일
+  const headerRow = ws.getRow(1);
+  headerRow.values = cols.map((c) => c.header);
+  headerRow.height = 20;
+
+  const thin = { style: "thin", color: { argb: "FF111827" } } as const;
+  const border = { top: thin, left: thin, bottom: thin, right: thin } as const;
+
+  for (let c = 1; c <= cols.length; c++) {
+    const cell = headerRow.getCell(c);
+    cell.alignment = { vertical: "middle", horizontal: "center" };
+    cell.font = { bold: true, size: 11, color: { argb: "FF111827" } };
+    cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF0F4FF" } };
+    cell.border = border;
+  }
+
+  // ── 바디
+  let rIdx = 2;
+  for (const person of args.persons) {
+    const row = ws.getRow(rIdx);
+    const rateRaw = (args.matrixRates[person] ?? "").trim();
+    const effectiveRate = rateRaw ? rateRaw : "100000";
+    const rate = parseMoney(effectiveRate);
+    const totalUnits = args.totalUnitsByPerson(person);
+    const amount = totalUnits > 0 && rate > 0 ? totalUnits * rate : 0;
+
+    const values: (string | number)[] = [];
+    values[1] = person;
+    values[2] = rate;
+    for (let d = 1; d <= args.daysInMonth; d++) {
+      const dd = String(d).padStart(2, "0");
+      values[2 + d] = args.cellText(person, `${args.monthKey}-${dd}`);
+    }
+    values[2 + args.daysInMonth + 1] = totalUnits || "";
+    values[2 + args.daysInMonth + 2] = amount || "";
+    row.values = values;
+    row.height = 18;
+
+    for (let c = 1; c <= cols.length; c++) {
+      const cell = row.getCell(c);
+      cell.border = border;
+      cell.alignment = { vertical: "middle", horizontal: "center" };
+      cell.font = { size: 10.5, color: { argb: "FF111827" } };
+    }
+    // 숫자 서식 (단가/총합)
+    row.getCell(2).numFmt = "#,##0";
+    row.getCell(cols.length).numFmt = "#,##0";
+    rIdx++;
+  }
+
+  const buf = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = fileName;
+  a.download = args.fileName;
   a.click();
   URL.revokeObjectURL(url);
 }
@@ -248,48 +316,47 @@ export default function AttendancePage() {
   }, []);
 
   const handleDownloadMonthMatrix = useCallback(() => {
-    if (!daily.length) return;
-    const monthKey = daily[0]?.work_date?.slice(0, 7) ?? "";
-    if (!monthKey) return;
-    const monthRows = daily.filter((r) => r.work_date.startsWith(monthKey));
+    (async () => {
+      if (!daily.length) return;
+      const monthKey = daily[0]?.work_date?.slice(0, 7) ?? "";
+      if (!monthKey) return;
+      const monthRows = daily.filter((r) => r.work_date.startsWith(monthKey));
 
-    const [y, m] = monthKey.split("-").map(Number);
-    const daysInMonth = new Date(y, m, 0).getDate();
+      const [y, m] = monthKey.split("-").map(Number);
+      const daysInMonth = new Date(y, m, 0).getDate();
 
-    const persons = Array.from(new Set(monthRows.map((r) => r.person_name))).sort((a, b) => a.localeCompare(b, "ko"));
-    const cellMap = new Map(monthRows.map((r) => [`${r.person_name}__${r.work_date}`, r] as const));
+      const persons = Array.from(new Set(monthRows.map((r) => r.person_name))).sort((a, b) => a.localeCompare(b, "ko"));
+      const cellMap = new Map(monthRows.map((r) => [`${r.person_name}__${r.work_date}`, r] as const));
 
-    const cellText = (r?: DailyRow) => {
-      if (!r) return "";
-      if (r.labor_status === "full") return "○";
-      if (r.labor_status === "half") return "1/2";
-      if (r.labor_status === "ongoing") return "…";
-      return "";
-    };
-    const units = (r?: DailyRow) => (r ? Number(r.labor_units ?? 0) : 0);
+      const cellText = (person: string, wd: string) => {
+        const r = cellMap.get(`${person}__${wd}`);
+        if (!r) return "";
+        if (r.labor_status === "full") return "○";
+        if (r.labor_status === "half") return "1/2";
+        if (r.labor_status === "ongoing") return "…";
+        return "";
+      };
 
-    const header: (string | number)[] = ["이름", "단가", ...Array.from({ length: daysInMonth }, (_, i) => i + 1), "공수", "총합"];
-    const rows: (string | number | null)[][] = [header];
+      const totalUnitsByPerson = (person: string) => {
+        let total = 0;
+        for (let d = 1; d <= daysInMonth; d++) {
+          const dd = String(d).padStart(2, "0");
+          const r = cellMap.get(`${person}__${monthKey}-${dd}`);
+          total += r ? Number(r.labor_units ?? 0) : 0;
+        }
+        return total;
+      };
 
-    for (const p of persons) {
-      const rateRaw = (matrixRates[p] ?? "").trim();
-      const effectiveRate = rateRaw ? rateRaw : "100000";
-      const rate = parseMoney(effectiveRate);
-
-      let totalUnits = 0;
-      const dayCells: (string | number)[] = [];
-      for (let i = 0; i < daysInMonth; i++) {
-        const d = String(i + 1).padStart(2, "0");
-        const wd = `${monthKey}-${d}`;
-        const r = cellMap.get(`${p}__${wd}`);
-        totalUnits += units(r);
-        dayCells.push(cellText(r));
-      }
-      const totalAmt = totalUnits > 0 && rate > 0 ? totalUnits * rate : 0;
-      rows.push([p, rate, ...dayCells, totalUnits || "", totalAmt ? totalAmt : ""]);
-    }
-
-    downloadXlsx(`월체크표_${monthKey}.xlsx`, rows);
+      await downloadMonthMatrixExcelStyled({
+        fileName: `월체크표_${monthKey}.xlsx`,
+        monthKey,
+        daysInMonth,
+        persons,
+        matrixRates,
+        cellText,
+        totalUnitsByPerson,
+      });
+    })();
   }, [daily, matrixRates]);
 
   // ── 기본 프로젝트 자동 생성/조회
