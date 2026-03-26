@@ -214,6 +214,7 @@
 
 /* ─── 업로드 영역 (목록 탭) ─────────────────────── */
 .uploadArea {
+  display: block;
   border: 2px dashed var(--at-border);
   border-radius: var(--at-radius);
   padding: 24px;
@@ -222,8 +223,10 @@
   cursor: pointer;
   transition: border-color .2s, background .2s;
   margin-bottom: 16px;
+  outline: none;
 }
 .uploadArea:hover { border-color: var(--at-accent-lt); background: #eff6ff; }
+.uploadArea:focus { outline: none; }
 
 .uploadLabel {
   display: flex;
