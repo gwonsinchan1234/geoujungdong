@@ -14,9 +14,12 @@ export async function GET(req: NextRequest) {
     if (!token) return NextResponse.json({ ok: false, error: "인증 필요" }, { status: 401 });
 
     const db = getSupabaseWithToken(token);
+    const { data: { user } } = await db.auth.getUser();
+    if (!user) return NextResponse.json({ ok: false, error: "인증 실패" }, { status: 401 });
     const { data, error } = await db
       .from("attendance_projects")
       .select("id, name, description, created_at")
+      .eq("user_id", user.id)
       .order("created_at", { ascending: false });
 
     if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });

@@ -89,6 +89,7 @@ function CheckTable({ daily }: { daily: DailyRow[] }) {
 export default function AttendancePage() {
   const tokenRef   = useRef<string>("");
   const projIdRef  = useRef<string>("");   // 자동 생성된 프로젝트 ID
+  const didInitRef = useRef(false);
   const [ready, setReady]         = useState(false);   // 프로젝트 준비 완료
   const [tab, setTab]             = useState<Tab>("list");
   const [batches, setBatches]     = useState<BatchInfo[]>([]);
@@ -124,16 +125,34 @@ export default function AttendancePage() {
 
   // ── auth + 프로젝트 준비
   useEffect(() => {
-    supabase.auth.getSession().then(async ({ data }) => {
-      const token = data.session?.access_token ?? "";
+    let alive = true;
+
+    async function bootFromSession(session: { access_token: string } | null | undefined) {
+      const token = session?.access_token ?? "";
       tokenRef.current = token;
       if (!token) return;
+      // 이미 준비됐으면 중복 초기화 방지 (deps 없이도 안전)
+      if (didInitRef.current && projIdRef.current) return;
+
       const projId = await ensureProject(token);
+      if (!alive) return;
       if (projId) {
         projIdRef.current = projId;
+        didInitRef.current = true;
         setReady(true);
       }
+    }
+
+    supabase.auth.getSession().then(({ data }) => bootFromSession(data.session));
+    const { data: sub } = supabase.auth.onAuthStateChange((_evt, session) => {
+      // 토큰 갱신/복구 시에도 ref를 최신으로 유지 + 최초 준비 보장
+      bootFromSession(session as any);
     });
+
+    return () => {
+      alive = false;
+      sub.subscription.unsubscribe();
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
