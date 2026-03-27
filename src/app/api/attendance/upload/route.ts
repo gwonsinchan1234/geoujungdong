@@ -224,6 +224,7 @@ function timeToMin(t: string | null): number | null {
 }
 
 // ── 공수 계산 ─────────────────────────────────────────────────────
+/** 출근·퇴근 중 하나라도 있으면 1공 인정. 둘 다 있으면 근무시간으로 1/0.5 판정. */
 function calcLabor(
   checkIn: string | null,
   checkOut: string | null,
@@ -232,11 +233,11 @@ function calcLabor(
   const today = new Date().toISOString().slice(0, 10);
   if (!checkIn && !checkOut) return { labor_units: 0, labor_status: "missing", total_minutes: 0 };
   if (checkIn && !checkOut) {
-    // 당일 진행 중이면 'ongoing', 과거면 'missing'
-    const status = workDate >= today ? "ongoing" : "missing";
-    return { labor_units: 0, labor_status: status, total_minutes: 0 };
+    return workDate >= today
+      ? { labor_units: 1.0, labor_status: "ongoing", total_minutes: 0 }
+      : { labor_units: 1.0, labor_status: "full", total_minutes: 0 };
   }
-  if (!checkIn && checkOut) return { labor_units: 0, labor_status: "missing", total_minutes: 0 };
+  if (!checkIn && checkOut) return { labor_units: 1.0, labor_status: "full", total_minutes: 0 };
   const inMin = timeToMin(checkIn)!;
   const outMin = timeToMin(checkOut!);
   if (outMin === null) return { labor_units: 0, labor_status: "missing", total_minutes: 0 };

@@ -124,8 +124,12 @@ export async function DELETE(req: NextRequest) {
     const today = new Date().toISOString().slice(0, 10);
     function calcLabor(ci: string | null, co: string | null, wd: string) {
       if (!ci && !co) return { labor_units: 0, labor_status: "missing", total_minutes: 0 };
-      if (ci && !co)  return { labor_units: 0, labor_status: wd >= today ? "ongoing" : "missing", total_minutes: 0 };
-      if (!ci && co)  return { labor_units: 0, labor_status: "missing", total_minutes: 0 };
+      if (ci && !co) {
+        return wd >= today
+          ? { labor_units: 1.0, labor_status: "ongoing", total_minutes: 0 }
+          : { labor_units: 1.0, labor_status: "full", total_minutes: 0 };
+      }
+      if (!ci && co) return { labor_units: 1.0, labor_status: "full", total_minutes: 0 };
       const inM = timeToMin(ci)!, outM = timeToMin(co)!;
       const total = Math.max(0, outM - inM);
       return total >= 480 ? { labor_units: 1.0, labor_status: "full",  total_minutes: total }

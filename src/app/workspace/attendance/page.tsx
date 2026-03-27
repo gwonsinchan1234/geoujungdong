@@ -204,9 +204,10 @@ function SummaryPreviewTable({ daily }: { daily: DailyRow[] }) {
     const period = first === last ? fmtDate(first) : `${fmtDate(first)} ~ ${fmtDate(last)}`;
     let totalUnits = 0, fullDays = 0, halfDays = 0, missDays = 0, ongDays = 0;
     for (const r of list) {
-      totalUnits += Number(r.labor_units ?? 0);
-      if (r.labor_status === "full") fullDays++;
-      else if (r.labor_status === "half") halfDays++;
+      const u = Number(r.labor_units ?? 0);
+      totalUnits += u;
+      if (u >= 1) fullDays++;
+      else if (u >= 0.5) halfDays++;
       else if (r.labor_status === "missing") missDays++;
       else if (r.labor_status === "ongoing") ongDays++;
     }
@@ -305,8 +306,9 @@ function MonthMatrix({
 
   function cellMark(r?: DailyRow) {
     if (!r) return "";
-    if (r.labor_status === "full") return "○";
-    if (r.labor_status === "half") return "1/2";
+    const u = Number(r.labor_units ?? 0);
+    if (u >= 1) return "○";
+    if (u >= 0.5) return "1/2";
     if (r.labor_status === "ongoing") return "…";
     return "";
   }
@@ -372,6 +374,8 @@ function MonthMatrix({
 }
 
 function rowDesc(r: DailyRow): string {
+  const u = Number(r.labor_units ?? 0);
+  if (r.labor_status === "ongoing" && u >= 1) return "1공 인정(퇴근 미입력)";
   if (r.labor_status === "full")    return "정상(1공)";
   if (r.labor_status === "half")    return "반일(0.5공)";
   if (r.labor_status === "ongoing") return "진행중(퇴근 미입력)";
@@ -385,10 +389,11 @@ function rowDesc(r: DailyRow): string {
 }
 
 function dateCellCls(r: DailyRow): string | undefined {
-  if (r.labor_status === "missing") return styles.dateCellMissing;
+  const u = Number(r.labor_units ?? 0);
+  if (u >= 1) return styles.dateCellFull;
+  if (u >= 0.5) return styles.dateCellHalf;
   if (r.labor_status === "ongoing") return styles.dateCellOngoing;
-  if (r.labor_status === "half") return styles.dateCellHalf;
-  if (r.labor_status === "full") return styles.dateCellFull;
+  if (r.labor_status === "missing") return styles.dateCellMissing;
   return undefined;
 }
 
@@ -439,8 +444,9 @@ export default function AttendancePage() {
       const cellText = (person: string, wd: string) => {
         const r = cellMap.get(`${person}__${wd}`);
         if (!r) return "";
-        if (r.labor_status === "full") return "○";
-        if (r.labor_status === "half") return "1/2";
+        const u = Number(r.labor_units ?? 0);
+        if (u >= 1) return "○";
+        if (u >= 0.5) return "1/2";
         if (r.labor_status === "ongoing") return "…";
         return "";
       };
