@@ -581,8 +581,8 @@ export default function AttendancePage() {
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                     <polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" />
                   </svg>
-                  <span className={styles.uploadText}>CSV 또는 xlsx 업로드</span>
-                  <span className={styles.uploadSub}>근무일자 / 출근시간 / 퇴근시간 / 사번 / 성명 / 회사</span>
+                  <span className={styles.uploadText}>CSV · xlsx · xls 업로드</span>
+                  <span className={styles.uploadSub}>근무일자 · 출·퇴근 시간 · 성명(필수) · 사번 · 회사 — 형식은 업체마다 달라도 자동 인식</span>
                 </div>
               )}
               <input ref={fileInputRef} type="file" accept=".csv,.xlsx,.xls,text/csv"
@@ -595,7 +595,7 @@ export default function AttendancePage() {
               <div className={styles.emptyState}>
                 <div className={styles.emptyIcon}>📂</div>
                 <div className={styles.emptyText}>업로드된 파일이 없습니다.</div>
-                <div className={styles.emptyDesc}>CSV 또는 xlsx 파일을 업로드하면 출결 데이터를 자동으로 정리합니다.</div>
+                <div className={styles.emptyDesc}>CSV·xlsx·xls 파일을 업로드하면 출결 데이터를 자동으로 정리합니다.</div>
               </div>
             ) : (
               <div className={styles.batchList}>

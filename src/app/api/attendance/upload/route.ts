@@ -37,6 +37,15 @@ function parseCSV(text: string): string[][] {
   return rows;
 }
 
+// ── 전각 숫자·기호 → 반각 (타사 엑셀 호환) ────────────────────────────
+function toHalfWidthAscii(s: string): string {
+  return s
+    .replace(/[\uFF10-\uFF19]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xff10 + 0x30))
+    .replace(/：/g, ":")
+    .replace(/．/g, ".")
+    .replace(/／/g, "/");
+}
+
 // ── 헤더 정규화 ────────────────────────────────────────────────────
 function norm(v: unknown): string {
   return String(v ?? "").replace(/\s+/g, "").replace(/[\(\)\[\]\{\}\-_:\.\/]/g, "").toLowerCase();
@@ -54,14 +63,43 @@ function findColIdx(headerRow: unknown[], aliases: string[]): number {
   return -1;
 }
 
-function findHeaderRow(rows: unknown[][]): number {
-  const mustHave = ["이름", "성명", "날짜", "일자", "시간", "출근", "퇴근"].map(norm);
-  for (let i = 0; i < Math.min(rows.length, 40); i++) {
-    const cells = (rows[i] ?? []).map(norm).filter(Boolean);
-    if (cells.length === 0) continue;
-    if (mustHave.filter((k) => cells.some((c) => c.includes(k))).length >= 2) return i;
+function headerKeywordHits(cells: string[]): number {
+  const pool = [
+    "이름", "성명", "사원명", "작업자", "직원명", "근로자", "대상자", "인명", "인원",
+    "날짜", "일자", "근무일", "출입일", "근무일자", "작업일", "기준일", "일시",
+    "출근", "퇴근", "시간", "시각", "출입", "체크", "시작", "종료", "인증",
+    "사번", "date", "name", "time", "employee", "clock", "punch", "check",
+  ].map(norm);
+  let n = 0;
+  for (const k of pool) {
+    if (cells.some((c) => c.includes(k))) n++;
   }
-  return -1;
+  return n;
+}
+
+function rowHeaderScore(cells: string[]): number {
+  const hits = headerKeywordHits(cells);
+  const mustHave = ["이름", "성명", "날짜", "일자", "시간", "출근", "퇴근"].map(norm);
+  const legacy = mustHave.filter((k) => cells.some((c) => c.includes(k))).length;
+  if (legacy >= 2) return 1000 + hits;
+  if (hits >= 3) return 100 + hits;
+  return 0;
+}
+
+/** 성명·일자·시간 계열이 같이 있는 행을 헤더로 간주 (타사 포맷 대응) */
+function findHeaderRow(rows: unknown[][]): number {
+  let best = 0;
+  let bestIdx = -1;
+  for (let i = 0; i < Math.min(rows.length, 120); i++) {
+    const cells = (rows[i] ?? []).map(norm).filter(Boolean);
+    if (cells.length < 3) continue;
+    const s = rowHeaderScore(cells);
+    if (s > best) {
+      best = s;
+      bestIdx = i;
+    }
+  }
+  return best > 0 ? bestIdx : -1;
 }
 
 // ── 날짜 파싱 ─────────────────────────────────────────────────────
@@ -79,8 +117,55 @@ function toISODate(value: unknown): string | null {
       return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, "0")}-${String(dt.getUTCDate()).padStart(2, "0")}`;
     }
   }
-  const raw = String(value).trim();
+  let raw = String(value).trim();
   if (!raw) return null;
+  raw = toHalfWidthAscii(raw);
+  // ISO 날짜 앞부분만 (2026-03-13T09:00:00)
+  const isoD = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (isoD) {
+    const y = Number(isoD[1]), mo = Number(isoD[2]), d = Number(isoD[3]);
+    if (y >= 1900 && y <= 2100 && mo >= 1 && mo <= 12 && d >= 1 && d <= 31) {
+      const dt = new Date(Date.UTC(y, mo - 1, d));
+      if (dt.getUTCFullYear() === y && dt.getUTCMonth() === mo - 1 && dt.getUTCDate() === d) {
+        return `${y}-${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+      }
+    }
+  }
+  // 근태이력 등: 2026년 03월 13일 / 2026년03월13일
+  const km = raw.match(/(\d{4})\s*년\s*(\d{1,2})\s*월\s*(\d{1,2})\s*일?/);
+  if (km) {
+    const y = Number(km[1]);
+    const mo = Number(km[2]);
+    const d = Number(km[3]);
+    if (y >= 1900 && y <= 2100 && mo >= 1 && mo <= 12 && d >= 1 && d <= 31) {
+      const dt = new Date(Date.UTC(y, mo - 1, d));
+      if (dt.getUTCFullYear() === y && dt.getUTCMonth() === mo - 1 && dt.getUTCDate() === d) {
+        return `${y}-${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+      }
+    }
+  }
+  // 2026/03/13, 2026.3.13, 2026-03-13 (공백·전각 혼용)
+  const flex = raw.match(/^(\d{4})[.\/\-](\d{1,2})[.\/\-](\d{1,2})(?:\s|$|T)/);
+  if (flex) {
+    const y = Number(flex[1]), mo = Number(flex[2]), d = Number(flex[3]);
+    if (y >= 1900 && y <= 2100 && mo >= 1 && mo <= 12 && d >= 1 && d <= 31) {
+      const dt = new Date(Date.UTC(y, mo - 1, d));
+      if (dt.getUTCFullYear() === y && dt.getUTCMonth() === mo - 1 && dt.getUTCDate() === d) {
+        return `${y}-${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+      }
+    }
+  }
+  // 숫자만 8자리 20260313
+  const digits = raw.replace(/\D/g, "");
+  if (digits.length === 8) {
+    const y = Number(digits.slice(0, 4)), mo = Number(digits.slice(4, 6)), d = Number(digits.slice(6, 8));
+    if (y >= 1900 && y <= 2100 && mo >= 1 && mo <= 12 && d >= 1 && d <= 31) {
+      const dt = new Date(Date.UTC(y, mo - 1, d));
+      if (dt.getUTCFullYear() === y && dt.getUTCMonth() === mo - 1 && dt.getUTCDate() === d) {
+        return `${y}-${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+      }
+    }
+  }
   const cleaned = raw.replace(/[.\/]/g, "-").replace(/\s+/g, "");
   const parts = cleaned.split("-").filter(Boolean);
   if (parts.length !== 3) return null;
@@ -98,23 +183,37 @@ function toISODate(value: unknown): string | null {
 // ── 시간 파싱 ─────────────────────────────────────────────────────
 function p2(n: number) { return String(n).padStart(2, "0"); }
 
+function parseHmsFromMatch(raw: string, m: RegExpMatchArray): string | null {
+  let hh = Number(m[1]), mm = Number(m[2]), ss = m[3] != null ? Number(m[3]) : 0;
+  const tail = raw.slice((m.index ?? 0) + m[0].length).trim();
+  if (/^(pm|p\.m\.|오후)/i.test(tail) && hh < 12) hh += 12;
+  if (/^(am|a\.m\.|오전)/i.test(tail) && hh === 12) hh = 0;
+  if (hh > 23 || mm > 59 || ss > 59) return null;
+  return `${p2(hh)}:${p2(mm)}:${p2(ss)}`;
+}
+
 function toTimeStr(value: unknown): string | null {
   if (value == null) return null;
   if (typeof value === "number" && isFinite(value)) {
     const frac = value % 1;
+    if (frac === 0 && value >= 1 && value < 100000) return null;
     const secs = Math.round(frac * 86400);
     return `${p2(Math.floor(secs / 3600) % 24)}:${p2(Math.floor((secs % 3600) / 60))}:${p2(secs % 60)}`;
   }
   if (value instanceof Date && !isNaN(value.getTime())) {
     return `${p2(value.getHours())}:${p2(value.getMinutes())}:${p2(value.getSeconds())}`;
   }
-  const raw = String(value).trim();
+  let raw = toHalfWidthAscii(String(value).trim());
   if (!raw) return null;
-  const m = raw.match(/^(\d{1,2})[:.](\d{1,2})(?:[:.](\d{1,2}))?$/);
-  if (!m) return null;
-  const hh = Number(m[1]), mm = Number(m[2]), ss = m[3] != null ? Number(m[3]) : 0;
-  if (hh > 23 || mm > 59 || ss > 59) return null;
-  return `${p2(hh)}:${p2(mm)}:${p2(ss)}`;
+  raw = raw.replace(/\s*\([^)]*\)\s*$/, "").trim();
+  let m = raw.match(/^(\d{1,2})[:.](\d{1,2})(?:[:.](\d{1,2}))?/);
+  if (m) {
+    const t = parseHmsFromMatch(raw, m);
+    if (t) return t;
+  }
+  m = raw.match(/(\d{1,2})[:.](\d{1,2})(?:[:.](\d{1,2}))?/);
+  if (m) return parseHmsFromMatch(raw, m);
+  return null;
 }
 
 function timeToMin(t: string | null): number | null {
@@ -207,23 +306,41 @@ export async function POST(req: NextRequest) {
     } else {
       const ab = await file.arrayBuffer();
       const wb = XLSX.read(ab, { type: "array" });
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" }) as unknown[][];
-      headerRowIdx = findHeaderRow(rows);
-      if (headerRowIdx < 0) return NextResponse.json({ ok: false, error: "헤더 행을 찾지 못했습니다." }, { status: 400 });
+      let rows: unknown[][] = [];
+      for (const name of wb.SheetNames) {
+        const ws = wb.Sheets[name];
+        const candidate = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" }) as unknown[][];
+        const idx = findHeaderRow(candidate);
+        if (idx >= 0) {
+          rows = candidate;
+          headerRowIdx = idx;
+          break;
+        }
+      }
+      if (headerRowIdx < 0 || rows.length === 0) {
+        return NextResponse.json({ ok: false, error: "헤더 행을 찾지 못했습니다. (성명·일자·출근/퇴근 컬럼이 있는 시트 필요)" }, { status: 400 });
+      }
       headerRow = rows[headerRowIdx];
       dataRows = rows.slice(headerRowIdx + 1);
     }
 
-    const iName    = findColIdx(headerRow, ["성명", "이름", "사원명", "작업자"]);
-    const iDate    = findColIdx(headerRow, ["근무일자", "날짜", "일자", "출입일자"]);
-    const iIn      = findColIdx(headerRow, ["출근시간", "출근", "인정출근", "시작시간"]);
-    const iOut     = findColIdx(headerRow, ["퇴근시간", "퇴근", "인정퇴근", "종료시간"]);
-    const iEmpId   = findColIdx(headerRow, ["사번", "사원번호", "직원번호"]);
-    const iCompany = findColIdx(headerRow, ["회사", "소속", "업체"]);
+    const iName    = findColIdx(headerRow, [
+      "성명", "이름", "사원명", "작업자", "직원명", "근로자", "대상자", "인명", "성함", "name", "employee", "emplname",
+    ]);
+    const iDate    = findColIdx(headerRow, [
+      "근무일자", "날짜", "일자", "출입일자", "근무일", "작업일", "기준일", "일시", "date", "workdate", "근태일자",
+    ]);
+    const iIn      = findColIdx(headerRow, [
+      "출근시간", "출근", "인정출근", "시작시간", "출근일시", "입장", "출근시각", "clockin", "checkin", "timein",
+    ]);
+    const iOut     = findColIdx(headerRow, [
+      "퇴근시간", "퇴근", "인정퇴근", "종료시간", "퇴근일시", "퇴장", "퇴근시각", "clockout", "checkout", "timeout",
+    ]);
+    const iEmpId   = findColIdx(headerRow, ["사번", "사원번호", "직원번호", "직원코드", "사원코드", "empid", "employeeid", "empno"]);
+    const iCompany = findColIdx(headerRow, ["회사", "소속", "업체", "회사명", "업체명", "소속사", "company"]);
 
     // 단일 시간 컬럼 모드 (기존 swipe 방식 호환)
-    const iTime    = (iIn < 0 && iOut < 0) ? findColIdx(headerRow, ["시간", "출입시간", "시각"]) : -1;
+    const iTime    = (iIn < 0 && iOut < 0) ? findColIdx(headerRow, ["시간", "출입시간", "시각", "기록시간", "timestamp", "punch"]) : -1;
 
     const missing: string[] = [];
     if (iName < 0) missing.push("성명");
