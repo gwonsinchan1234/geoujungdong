@@ -51,6 +51,25 @@ function splitNameAndEmpId(personName: string, employeeId?: string) {
   return { name: raw, empId: "" };
 }
 
+/** 월체크표: 사번 숫자 오름차순(낮은 번호가 위), 사번 없음은 맨 아래, 동일 시 성명 키 */
+function sortPersonKeysByEmpIdAsc(
+  persons: string[],
+  personMeta: Map<string, { name: string; empId: string }>,
+): string[] {
+  return [...persons].sort((pA, pB) => {
+    const mA = personMeta.get(pA) ?? splitNameAndEmpId(pA);
+    const mB = personMeta.get(pB) ?? splitNameAndEmpId(pB);
+    const empA = mA.empId.trim();
+    const empB = mB.empId.trim();
+    if (!empA && !empB) return pA.localeCompare(pB, "ko");
+    if (!empA) return 1;
+    if (!empB) return -1;
+    const c = empA.localeCompare(empB, "ko", { numeric: true });
+    if (c !== 0) return c;
+    return pA.localeCompare(pB, "ko");
+  });
+}
+
 async function downloadMonthMatrixExcelStyled(args: {
   fileName: string;
   monthKey: string;
@@ -220,12 +239,12 @@ function MonthMatrix({
     return new Date(y, m, 0).getDate();
   })();
 
-  const persons = Array.from(new Set(monthRows.map((r) => r.person_name))).sort((a, b) => a.localeCompare(b, "ko"));
   const cellMap = new Map(monthRows.map((r) => [`${r.person_name}__${r.work_date}`, r] as const));
   const personMeta = new Map<string, { name: string; empId: string }>();
   for (const r of monthRows) {
     if (!personMeta.has(r.person_name)) personMeta.set(r.person_name, splitNameAndEmpId(r.person_name, r.employee_id));
   }
+  const persons = sortPersonKeysByEmpIdAsc(Array.from(new Set(monthRows.map((r) => r.person_name))), personMeta);
 
   function cellMark(r?: DailyRow) {
     if (!r) return "";
@@ -353,12 +372,12 @@ export default function AttendancePage() {
       const [y, m] = monthKey.split("-").map(Number);
       const daysInMonth = new Date(y, m, 0).getDate();
 
-      const persons = Array.from(new Set(monthRows.map((r) => r.person_name))).sort((a, b) => a.localeCompare(b, "ko"));
       const cellMap = new Map(monthRows.map((r) => [`${r.person_name}__${r.work_date}`, r] as const));
       const personMeta = new Map<string, { name: string; empId: string }>();
       for (const r of monthRows) {
         if (!personMeta.has(r.person_name)) personMeta.set(r.person_name, splitNameAndEmpId(r.person_name, r.employee_id));
       }
+      const persons = sortPersonKeysByEmpIdAsc(Array.from(new Set(monthRows.map((r) => r.person_name))), personMeta);
 
       const cellText = (person: string, wd: string) => {
         const r = cellMap.get(`${person}__${wd}`);
