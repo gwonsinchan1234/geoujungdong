@@ -157,63 +157,120 @@ async function downloadMonthMatrixExcelStyled(args: {
   URL.revokeObjectURL(url);
 }
 
-// ── 미리보기 체크표 ───────────────────────────────────────────────
-function CheckTable({ daily }: { daily: DailyRow[] }) {
+/** 동일 인원·일자 중복 시 공수 큰 행만 사용 */
+function dedupeDailyByPersonDate(rows: DailyRow[]): DailyRow[] {
+  const m = new Map<string, DailyRow>();
+  for (const r of rows) {
+    const k = `${r.person_name}__${r.work_date}`;
+    const prev = m.get(k);
+    if (!prev || Number(r.labor_units ?? 0) > Number(prev.labor_units ?? 0)) m.set(k, r);
+  }
+  return [...m.values()];
+}
+
+// ── 미리보기: 요약 체크표 (인원별 집계, 일자 열 없음) ───────────────
+function SummaryPreviewTable({ daily }: { daily: DailyRow[] }) {
   if (!daily.length) return <div className={styles.emptyState}><div className={styles.emptyText}>출결 데이터가 없습니다.</div></div>;
 
-  const dates   = Array.from(new Set(daily.map((r) => r.work_date))).sort();
-  const persons = Array.from(new Set(daily.map((r) => r.person_name))).sort();
-  const cellMap = new Map(daily.map((r) => [`${r.person_name}__${r.work_date}`, r]));
+  const clean = dedupeDailyByPersonDate(daily);
+  const byPerson = new Map<string, DailyRow[]>();
+  for (const r of clean) {
+    if (!byPerson.has(r.person_name)) byPerson.set(r.person_name, []);
+    byPerson.get(r.person_name)!.push(r);
+  }
   const personMeta = new Map<string, { name: string; empId: string }>();
   for (const r of daily) {
     if (!personMeta.has(r.person_name)) personMeta.set(r.person_name, splitNameAndEmpId(r.person_name, r.employee_id));
   }
+  const sorted = sortPersonKeysByEmpIdAsc([...byPerson.keys()], personMeta);
 
-  function cellCls(r: DailyRow | undefined) {
-    if (!r) return styles.checkCellNone;
-    return r.labor_status === "full" ? styles.checkCell1 : r.labor_status === "half" ? styles.checkCell05 : r.labor_status === "ongoing" ? styles.checkCellOng : styles.checkCellMiss;
-  }
-  function cellLbl(r: DailyRow | undefined) {
-    if (!r) return "";
-    return r.labor_status === "full" ? "✓" : r.labor_status === "half" ? "½" : r.labor_status === "ongoing" ? "▶" : "!";
-  }
+  type SumRow = {
+    key: string;
+    meta: { name: string; empId: string };
+    company: string;
+    period: string;
+    recordDays: number;
+    fullDays: number;
+    halfDays: number;
+    totalUnits: number;
+    missDays: number;
+    ongDays: number;
+  };
+
+  const rows: SumRow[] = sorted.map((person) => {
+    const list = byPerson.get(person)!.sort((a, b) => a.work_date.localeCompare(b.work_date));
+    const ds = list.map((x) => x.work_date);
+    const first = ds[0], last = ds[ds.length - 1];
+    const period = first === last ? fmtDate(first) : `${fmtDate(first)} ~ ${fmtDate(last)}`;
+    let totalUnits = 0, fullDays = 0, halfDays = 0, missDays = 0, ongDays = 0;
+    for (const r of list) {
+      totalUnits += Number(r.labor_units ?? 0);
+      if (r.labor_status === "full") fullDays++;
+      else if (r.labor_status === "half") halfDays++;
+      else if (r.labor_status === "missing") missDays++;
+      else if (r.labor_status === "ongoing") ongDays++;
+    }
+    const company = list.find((x) => String(x.company ?? "").trim())?.company?.trim() ?? "";
+    return {
+      key: person,
+      meta: personMeta.get(person) ?? splitNameAndEmpId(person),
+      company,
+      period,
+      recordDays: list.length,
+      fullDays,
+      halfDays,
+      totalUnits,
+      missDays,
+      ongDays,
+    };
+  });
+
+  const grandUnits = rows.reduce((s, x) => s + x.totalUnits, 0);
 
   return (
     <div className={styles.previewWrap}>
-      <table className={styles.checkTable}>
+      <p className={styles.summaryHint}>전체 기간 기준 인원별 합계입니다. 일자별 표는 「월 체크표」를 사용하세요.</p>
+      <table className={styles.summaryTable}>
         <thead>
           <tr>
-            <th className={styles.nameCell}>성명</th>
-            <th className={styles.empCell}>사번</th>
-            {dates.map((d) => <th key={d}>{fmtDate(d)}</th>)}
-            <th className={styles.sumCell}>합계</th>
+            <th className={styles.summaryStickyName}>성명</th>
+            <th className={styles.summaryStickyEmp}>사번</th>
+            <th className={styles.summaryLeft}>회사</th>
+            <th>기간</th>
+            <th>기록일수</th>
+            <th>1공(일)</th>
+            <th>0.5공(일)</th>
+            <th className={styles.summaryNum}>총 공수</th>
+            <th className={styles.summaryLeft}>비고</th>
           </tr>
         </thead>
         <tbody>
-          {persons.map((person) => {
-            const meta = personMeta.get(person) ?? splitNameAndEmpId(person);
-            const total = dates.reduce((s, d) => s + (cellMap.get(`${person}__${d}`)?.labor_units ?? 0), 0);
+          {rows.map((row) => {
+            const note: string[] = [];
+            if (row.missDays > 0) note.push(`누락 ${row.missDays}일`);
+            if (row.ongDays > 0) note.push(`진행 ${row.ongDays}일`);
             return (
-              <tr key={person}>
-                <td className={styles.nameCell}>{meta.name}</td>
-                <td className={styles.empCell}>{meta.empId || "-"}</td>
-                {dates.map((d) => { const r = cellMap.get(`${person}__${d}`); return <td key={d} className={cellCls(r)}>{cellLbl(r)}</td>; })}
-                <td className={styles.sumCell}>{total > 0 ? total : "-"}</td>
+              <tr key={row.key}>
+                <td className={styles.summaryStickyName}>{row.meta.name}</td>
+                <td className={styles.summaryStickyEmp}>{row.meta.empId || "-"}</td>
+                <td className={styles.summaryLeft}>{row.company || "-"}</td>
+                <td>{row.period}</td>
+                <td>{row.recordDays}</td>
+                <td>{row.fullDays > 0 ? row.fullDays : "-"}</td>
+                <td>{row.halfDays > 0 ? row.halfDays : "-"}</td>
+                <td className={styles.summaryNum}>{row.totalUnits > 0 ? row.totalUnits : "-"}</td>
+                <td className={styles.summaryLeft}>{note.length ? note.join(", ") : "-"}</td>
               </tr>
             );
           })}
-          <tr>
-            <td className={styles.nameCell} style={{ fontWeight: 700 }}>합계</td>
-            <td className={styles.empCell} />
-            {dates.map((d) => {
-              const sum = persons.reduce((s, p) => s + (cellMap.get(`${p}__${d}`)?.labor_units ?? 0), 0);
-              return <td key={d} className={styles.sumCell}>{sum > 0 ? sum : ""}</td>;
-            })}
-            <td className={styles.sumCell}>
-              {persons.reduce((s, p) => s + dates.reduce((s2, d) => s2 + (cellMap.get(`${p}__${d}`)?.labor_units ?? 0), 0), 0)}
-            </td>
-          </tr>
         </tbody>
+        <tfoot>
+          <tr>
+            <td className={styles.summaryStickyName} colSpan={7} style={{ fontWeight: 700, textAlign: "right", paddingRight: 12 }}>총계 (공수)</td>
+            <td className={`${styles.summaryNum} ${styles.summaryFootTotal}`}>{grandUnits > 0 ? grandUnits : "-"}</td>
+            <td />
+          </tr>
+        </tfoot>
       </table>
     </div>
   );
@@ -740,7 +797,7 @@ export default function AttendancePage() {
             ) : (
               previewMode === "matrix"
                 ? <MonthMatrix daily={daily} rates={matrixRates} setRate={setMatrixRate} />
-                : <CheckTable daily={daily} />
+                : <SummaryPreviewTable daily={daily} />
             )}
           </>
         )}

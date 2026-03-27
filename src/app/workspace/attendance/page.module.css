@@ -402,6 +402,64 @@
 .checkCellOng { background: #f7f7f7; color: #888; font-weight: 700; }
 .checkCellNone{ color: var(--at-muted); }
 
+.summaryHint {
+  margin: 0 0 10px;
+  padding: 8px 10px;
+  font-size: 12px;
+  color: var(--at-sub);
+  background: #fafafa;
+  border-bottom: 1px solid var(--at-border);
+  line-height: 1.45;
+}
+
+.summaryTable {
+  border-collapse: collapse;
+  font-size: 12px;
+  min-width: 100%;
+}
+.summaryTable th,
+.summaryTable td {
+  border: 1px solid #e8e8e8;
+  padding: 6px 8px;
+  text-align: center;
+  vertical-align: middle;
+}
+.summaryTable thead th {
+  background: #f7f7f7;
+  font-weight: 700;
+  font-size: 11px;
+  color: var(--at-sub);
+}
+.summaryStickyName {
+  text-align: left !important;
+  font-weight: 600;
+  background: #f7f7f7;
+  min-width: 72px;
+  position: sticky;
+  left: 0;
+  z-index: 1;
+}
+.summaryStickyEmp {
+  background: #f7f7f7;
+  min-width: 52px;
+  position: sticky;
+  left: 72px;
+  z-index: 1;
+}
+.summaryLeft {
+  text-align: left !important;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.summaryNum {
+  font-weight: 700;
+  background: #f5f5f5;
+}
+.summaryFootTotal {
+  font-size: 13px;
+}
+
 /* ─── 미리보기 탭 (월 체크표: 1~31) ───────────────────── */
 .matrixTable {
   border-collapse: collapse;
@@ -562,4 +620,6 @@
   .tabContent { padding: 0; }
   .checkTable { font-size: 10px; }
   .matrixTable { font-size: 10px; }
+  .summaryTable { font-size: 10px; }
+  .summaryHint { font-size: 10px; padding: 6px 8px; }
 }
