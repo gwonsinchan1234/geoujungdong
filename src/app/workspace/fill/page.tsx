@@ -138,6 +138,49 @@ function isKakaoInAppBrowser(): boolean {
   return /KAKAOTALK/i.test(navigator.userAgent);
 }
 
+function printHtmlViaIframe(html: string) {
+  // 새 창(about:blank) 없이 바로 인쇄 다이얼로그만 띄우기
+  // (브라우저/환경에 따라 실패할 수 있어, 실패 시 호출부에서 fallback 처리)
+  const iframe = document.createElement("iframe");
+  iframe.style.position = "fixed";
+  iframe.style.right = "0";
+  iframe.style.bottom = "0";
+  iframe.style.width = "0";
+  iframe.style.height = "0";
+  iframe.style.border = "0";
+  iframe.style.visibility = "hidden";
+  iframe.setAttribute("aria-hidden", "true");
+  document.body.appendChild(iframe);
+
+  const cleanup = () => {
+    try { document.body.removeChild(iframe); } catch { /* ignore */ }
+  };
+
+  const w = iframe.contentWindow;
+  const d = iframe.contentDocument || w?.document;
+  if (!w || !d) {
+    cleanup();
+    throw new Error("iframe print window unavailable");
+  }
+
+  // 인쇄 후 정리
+  const after = () => {
+    w.removeEventListener("afterprint", after);
+    setTimeout(cleanup, 0);
+  };
+  w.addEventListener("afterprint", after);
+
+  d.open();
+  d.write(html);
+  d.close();
+
+  // 폰트/이미지 로딩 여유 후 인쇄
+  w.focus();
+  w.requestAnimationFrame(() => {
+    w.setTimeout(() => w.print(), 40);
+  });
+}
+
 function buildItemListPrintHtml(items: ItemData[], fileName: string): string {
   const grouped = new Map<number, ItemData[]>();
   for (let n = 1; n <= 9; n++) grouped.set(n, []);
@@ -267,8 +310,19 @@ function parsePhotoBlocksFromRaw(rawBuf: ArrayBuffer, sheetNames: string[]): Rec
     const col6 = xlsxCellStr(detailWs, r, 6);     // 증빙번호
     const mNo = col6.replace(/\s/g, "").toUpperCase().match(/^NO\.?(\d+)$/);
     const no = mNo ? parseInt(mNo[1]) : undefined;
-    // 단가·금액에 값이 있으면 행으로 인식 → 증빙번호 자동 넘버링 대상
-    const hasContent = unitPrice.trim() !== "" && amount.trim() !== "";
+    // 행 인식 조건:
+    // - 실제 파일에서 NO.1이 "단가/금액 중 하나가 비어있거나 0"인 경우가 있어
+    //   단가+금액 동시 존재 조건을 쓰면 NO.1이 통째로 스킵되어 NO.2부터 파싱되는 문제가 발생할 수 있음
+    // - 따라서 (단가/금액/증빙번호) 중 하나라도 있으면 "행 후보"로 보고,
+    //   날짜/품명 중 하나는 있어야 유효 행으로 인정
+    const hasValueSignal =
+      unitPrice.trim() !== "" ||
+      amount.trim() !== "" ||
+      col6.trim() !== "";
+    const hasIdentitySignal =
+      date.trim() !== "" ||
+      name.trim() !== "";
+    const hasContent = hasValueSignal && hasIdentitySignal;
     if (!hasContent) continue;
 
     if (!rowsByItem.has(currentItem)) rowsByItem.set(currentItem, []);
@@ -670,7 +724,10 @@ function parseItemsFromRaw(rawBuf: ArrayBuffer): ItemData[] {
     if (catMatch) {
       currentCategory = parseInt(catMatch[1]);
       console.log(`[PARSE] row${r} → 카테고리=${currentCategory} (col0="${col0}")`);
-      continue;
+      // 일부 서식에서는 "2. 안전시설비 등" 같은 카테고리 라벨이 있는 같은 행에
+      // 첫 데이터(예: 위험테이프 / NO.1)가 같이 들어있음.
+      // 이 경우 continue로 행 전체를 스킵하면 NO.1이 누락되므로,
+      // 카테고리를 먼저 잡고 같은 행도 데이터 행으로 검사한다.
     }
     if (currentCategory === 0) continue;
 
@@ -1905,13 +1962,23 @@ img{image-rendering:high-quality;display:block}
 .fl{font-size:10px;font-weight:700;color:#6b7280}
 .fv{font-size:11px;color:#111827;font-weight:500}
 .fd{background:#d1d5db}
-</style></head><body>${pagesHtml}<script>window.onload=function(){window.focus();window.print();}<\/script></body></html>`;
-
-    const w = window.open("", "_blank");
-    if (!w) { alert("팝업이 차단되었습니다. 팝업 허용 후 다시 시도해주세요."); return; }
-    w.document.open();
-    w.document.write(html);
-    w.document.close();
+</style></head><body>${pagesHtml}</body></html>`;
+    // 새 창 없이 iframe 인쇄 (실패 시 기존 방식 fallback)
+    try {
+      printHtmlViaIframe(html);
+    } catch {
+      const w = window.open("", "_blank");
+      if (!w) { alert("팝업이 차단되었습니다. 팝업 허용 후 다시 시도해주세요."); return; }
+      w.document.open();
+      w.document.write(html);
+      w.document.close();
+      w.onload = () => {
+        w.focus();
+        w.requestAnimationFrame(() => {
+          w.setTimeout(() => w.print(), 40);
+        });
+      };
+    }
   }, [sheets, activeSheet, previewData]);
 
   // ── 항목별세부내역: react-pdf로 PDF 생성 후 새 탭 열기 (갑지와 동일 방식) ──
@@ -2055,18 +2122,22 @@ img{image-rendering:high-quality;display:block}
   }
 </style>
 </head><body>${sheetHtml}</body></html>`;
-
-    const w = window.open("", "_blank");
-    if (!w) { alert("팝업이 차단되었습니다. 팝업 허용 후 다시 시도해주세요."); return; }
-    w.document.open();
-    w.document.write(fullHtml);
-    w.document.close();
-    w.onload = () => {
-      w.focus();
-      w.requestAnimationFrame(() => {
-        w.setTimeout(() => w.print(), 40);
-      });
-    };
+    // 새 창 없이 iframe 인쇄 (실패 시 기존 방식 fallback)
+    try {
+      printHtmlViaIframe(fullHtml);
+    } catch {
+      const w = window.open("", "_blank");
+      if (!w) { alert("팝업이 차단되었습니다. 팝업 허용 후 다시 시도해주세요."); return; }
+      w.document.open();
+      w.document.write(fullHtml);
+      w.document.close();
+      w.onload = () => {
+        w.focus();
+        w.requestAnimationFrame(() => {
+          w.setTimeout(() => w.print(), 40);
+        });
+      };
+    }
   }, [sheet, activeSheet, previewData, handleItemPdfPrint]);
 
   const handleDownload = useCallback(() => {
@@ -2327,19 +2398,28 @@ img{image-rendering:high-quality;display:block}
                 : "저장"}
             </span>
           </button>
-          {/* 인쇄: 항상 미리보기 먼저 표시 (항목별 세부내역·사진대지 공통) */}
+          {/* 인쇄: 미리보기 없이 바로 인쇄 */}
           <button
             type="button"
             className={styles.printBtn}
             aria-label="인쇄"
-            onClick={() => {
+            disabled={pdfLoading}
+            onClick={async () => {
               if (isItemActive) {
                 void handleItemPdfPrint();
-              } else if (isCoverActive) {
-                void handleGabjiPdfPrint();
-              } else {
-                setShowPreview(true);
+                return;
               }
+              if (isCoverActive) {
+                void handleGabjiPdfPrint();
+                return;
+              }
+              if (sheet && isPhotoSheet(sheet.name)) {
+                setPdfLoading(true);
+                try { await handlePhotoSheetPrint(); }
+                finally { setPdfLoading(false); }
+                return;
+              }
+              handlePrintActive();
             }}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">

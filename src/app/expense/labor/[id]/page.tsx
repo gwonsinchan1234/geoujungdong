@@ -253,52 +253,48 @@ export default function SafetyLaborDetailPage() {
           <div className={styles.previewCanvas}>
             <div className={styles.previewPaper}>
               <div className={styles.previewHead}>안전관리자 인건비 및 업무수당</div>
-
-              <div className={styles.previewPhotoBlock}>
-                <div className={styles.previewPhotoTitle}>증빙 사진</div>
-                {attachments.length === 0 ? (
-                  <p className={styles.previewPhotoEmpty}>
-                    등록된 이미지가 없습니다. 왼쪽 <strong>첨부 업로드</strong>에서 사진을 추가하세요.
-                  </p>
-                ) : (
-                  <div className={styles.previewPhotoGrid}>
-                    {attachments.map((att) => (
-                      <figure className={styles.previewPhotoFigure} key={att.id}>
-                        {att.url ? (
-                          <a
-                            href={att.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className={styles.previewPhotoLink}
-                            aria-label={`${att.file_name} 원본 보기`}
-                          >
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
-                              className={styles.previewPhotoImg}
-                              src={att.url}
-                              alt={att.file_name}
-                              loading="lazy"
-                            />
-                          </a>
-                        ) : (
-                          <div className={styles.previewPhotoPlaceholder}>URL 없음</div>
-                        )}
-                        <figcaption className={styles.previewPhotoCaption}>{att.file_name}</figcaption>
-                      </figure>
-                    ))}
+              <div className={styles.previewDoc}>
+                <div className={styles.previewNoRow}>NO.1</div>
+                <div className={styles.previewTitleRow}>지급 내역</div>
+                <div className={styles.previewPhotoArea}>
+                  {attachments[0]?.url ? (
+                    <a
+                      href={attachments[0].url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={styles.previewSinglePhotoLink}
+                      aria-label={`${attachments[0].file_name} 원본 보기`}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        className={styles.previewSinglePhoto}
+                        src={attachments[0].url}
+                        alt={attachments[0].file_name}
+                        loading="lazy"
+                      />
+                    </a>
+                  ) : (
+                    <div className={styles.previewWatermark}>1 페이지</div>
+                  )}
+                </div>
+                <div className={styles.previewMetaTable}>
+                  <div className={styles.previewMetaRow}>
+                    <span className={styles.previewMetaKey}>지급일</span>
+                    <strong className={styles.previewMetaValue}>{paymentDate || "-"}</strong>
                   </div>
-                )}
+                  <div className={styles.previewMetaRow}>
+                    <span className={styles.previewMetaKey}>항목</span>
+                    <strong className={styles.previewMetaValue}>
+                      안전관리자 인건비
+                      {personName ? ` (${personName})` : ""}
+                      {paymentDate ? ` · ${paymentDate}` : ""}
+                    </strong>
+                  </div>
+                </div>
+                <div className={styles.previewMetaFoot}>
+                  첨부 {attachments.length}건 · 금액 {Number(amount || 0).toLocaleString()}원 · 상태 {doc?.status ?? "-"}
+                </div>
               </div>
-
-              <div className={styles.previewSummaryTitle}>문서 요약</div>
-              <div className={styles.previewTable}>
-                <div className={styles.previewRow}><span>이름</span><strong>{personName || "-"}</strong></div>
-                <div className={styles.previewRow}><span>지급일</span><strong>{paymentDate || "-"}</strong></div>
-                <div className={styles.previewRow}><span>금액</span><strong>{Number(amount || 0).toLocaleString()}원</strong></div>
-                <div className={styles.previewRow}><span>상태</span><strong>{doc?.status ?? "-"}</strong></div>
-                <div className={styles.previewRow}><span>첨부</span><strong>{attachments.length}건</strong></div>
-              </div>
-              <div className={styles.previewNote}>* 출력/PDF 연동은 별도 기능을 따릅니다.</div>
             </div>
           </div>
         </div>
