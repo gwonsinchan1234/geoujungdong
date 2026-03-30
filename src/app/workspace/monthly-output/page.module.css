@@ -1,12 +1,12 @@
 /* ================================================================
-   Monthly Output — Black & White Corporate Theme
+   Monthly Output — Corporate Light Theme (White & Black)
    ================================================================ */
 
 .page {
   min-height: 100dvh;
   padding: 14px;
-  background: #000000;
-  color: #c8c8c8;
+  background: #f2f2f2;
+  color: #111111;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -21,8 +21,8 @@
 /* ── Surface ──────────────────────────────────────────────── */
 .hero,
 .panel {
-  background: #111111;
-  border: 1px solid #1e1e1e;
+  background: #ffffff;
+  border: 1px solid #e4e4e4;
 }
 
 /* ── Hero ─────────────────────────────────────────────────── */
@@ -49,7 +49,7 @@
   font-weight: 700;
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: #3a3a3a;
+  color: #aaaaaa;
 }
 
 .heroTitle {
@@ -58,13 +58,13 @@
   line-height: 1.1;
   font-weight: 700;
   letter-spacing: -0.025em;
-  color: #f0f0f0;
+  color: #111111;
 }
 
 .heroDescription {
   margin: 7px 0 0;
   max-width: 560px;
-  color: #3a3a3a;
+  color: #aaaaaa;
   font-size: 12px;
   line-height: 1.6;
 }
@@ -119,9 +119,9 @@
 .sectionToggleButton {
   height: 26px;
   border-radius: 5px;
-  border: 1px solid #1e1e1e;
+  border: 1px solid #e4e4e4;
   background: transparent;
-  color: #3a3a3a;
+  color: #aaaaaa;
   padding: 0 9px;
   font-size: 11px;
   font-weight: 600;
@@ -132,38 +132,38 @@
 }
 
 .sectionToggleButton:hover {
-  border-color: #333333;
+  border-color: #bbbbbb;
   color: #666666;
 }
 
 .primaryButton {
   border: 0;
-  background: #ffffff;
-  color: #000000;
+  background: #111111;
+  color: #ffffff;
   font-weight: 700;
   letter-spacing: 0.01em;
 }
 
 .primaryButton:hover {
-  background: #e8e8e8;
+  background: #2a2a2a;
 }
 
 .primaryButton:disabled {
-  opacity: 0.3;
+  opacity: 0.35;
   cursor: default;
 }
 
 .secondaryButton {
-  border: 1px solid #1e1e1e;
+  border: 1px solid #e4e4e4;
   background: transparent;
   color: #555555;
 }
 
 .secondaryButton:hover,
 .deleteButton:hover {
-  border-color: #333333;
-  color: #999999;
-  background: #181818;
+  border-color: #bbbbbb;
+  color: #111111;
+  background: #f5f5f5;
 }
 
 /* ── Control Grid ─────────────────────────────────────────── */
@@ -202,12 +202,12 @@
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: #3a3a3a;
+  color: #aaaaaa;
 }
 
 .panelMeta {
   margin: 3px 0 0;
-  color: #252525;
+  color: #cccccc;
   font-size: 11px;
   line-height: 1.45;
 }
@@ -232,7 +232,7 @@
 .fieldLabel {
   font-size: 9.5px;
   font-weight: 700;
-  color: #3a3a3a;
+  color: #aaaaaa;
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
@@ -242,9 +242,9 @@
 .leaveInput {
   width: 100%;
   border-radius: 6px;
-  border: 1px solid #1e1e1e;
-  background: #000000;
-  color: #c8c8c8;
+  border: 1px solid #e4e4e4;
+  background: #ffffff;
+  color: #111111;
   outline: none;
   transition: border-color 100ms ease, box-shadow 100ms ease;
   font-family: inherit;
@@ -254,8 +254,8 @@
 .personInput:focus,
 .leaveInput:focus,
 .cellInput:focus {
-  border-color: #888888;
-  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.06);
+  border-color: #111111;
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.06);
 }
 
 .textInput {
@@ -278,8 +278,8 @@
 .statCard {
   padding: 11px 10px;
   border-radius: 7px;
-  background: #000000;
-  border: 1px solid #1e1e1e;
+  background: #f9f9f9;
+  border: 1px solid #eeeeee;
   display: flex;
   flex-direction: column;
   gap: 5px;
@@ -290,21 +290,21 @@
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: #3a3a3a;
+  color: #aaaaaa;
 }
 
 .statValue {
   font-size: 20px;
   font-weight: 700;
   letter-spacing: -0.03em;
-  color: #e0e0e0;
+  color: #111111;
   font-variant-numeric: tabular-nums;
   line-height: 1;
 }
 
 .statUnit {
   font-size: 9.5px;
-  color: #252525;
+  color: #cccccc;
 }
 
 /* ── Person Overview ──────────────────────────────────────── */
@@ -317,8 +317,8 @@
 .personCard {
   padding: 11px;
   border-radius: 7px;
-  background: #000000;
-  border: 1px solid #1e1e1e;
+  background: #f9f9f9;
+  border: 1px solid #eeeeee;
 }
 
 .personCardTop {
@@ -332,20 +332,20 @@
   display: block;
   font-size: 12px;
   font-weight: 700;
-  color: #c8c8c8;
+  color: #111111;
 }
 
 .personRole {
   margin: 3px 0 0;
   font-size: 10.5px;
-  color: #3a3a3a;
+  color: #aaaaaa;
 }
 
 .personBadge {
   padding: 3px 7px;
   border-radius: 4px;
-  background: #1e1e1e;
-  color: #555555;
+  background: #111111;
+  color: #ffffff;
   font-size: 10px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
@@ -362,8 +362,8 @@
 .personMetrics span {
   padding: 3px 6px;
   border-radius: 3px;
-  background: #181818;
-  color: #3a3a3a;
+  background: #eeeeee;
+  color: #555555;
   font-variant-numeric: tabular-nums;
 }
 
@@ -381,29 +381,29 @@
   font-size: 9.5px;
   font-weight: 600;
   letter-spacing: 0.04em;
-  border: 1px solid #1e1e1e;
-  color: #3a3a3a;
+  border: 1px solid #e4e4e4;
+  color: #aaaaaa;
   background: transparent;
 }
 
 .legendSunday {
-  color: #ef4444;
-  border-color: #2a1111;
-  background: #110404;
+  color: #dc2626;
+  border-color: #fecaca;
+  background: #fff5f5;
 }
 
 .legendSummary {
-  color: #aaaaaa;
-  border-color: #2a2a2a;
-  background: #111111;
+  color: #555555;
+  border-color: #e4e4e4;
+  background: #f5f5f5;
 }
 
 /* ── Table Wrapper ────────────────────────────────────────── */
 .tableWrap {
   overflow: auto;
   margin: 8px 0 0;
-  border-top: 1px solid #1e1e1e;
-  background: #000000;
+  border-top: 1px solid #e4e4e4;
+  background: #ffffff;
   max-height: calc(100dvh - 122px);
 }
 
@@ -417,7 +417,7 @@
   border-collapse: collapse;
   width: max-content;
   min-width: 100%;
-  background: #000000;
+  background: #ffffff;
 }
 
 .tableDense {
@@ -471,8 +471,8 @@
 .valueCell,
 .noteCell,
 .sumCell {
-  border-right: 1px solid #1e1e1e;
-  border-bottom: 1px solid #1e1e1e;
+  border-right: 1px solid #e8e8e8;
+  border-bottom: 1px solid #e8e8e8;
   border-left: none;
   border-top: none;
 }
@@ -485,8 +485,8 @@
   min-width: 28px;
   height: 20px;
   padding: 0 2px;
-  background: #0a0a0a;
-  color: #2e2e2e;
+  background: #f5f5f5;
+  color: #aaaaaa;
   font-size: 8.5px;
   font-weight: 700;
   text-align: center;
@@ -496,14 +496,14 @@
 
 .cornerHead,
 .sideHead {
-  background: #060606;
-  color: #222222;
+  background: #eeeeee;
+  color: #999999;
   z-index: 6;
 }
 
 .dayHead {
   font-size: 10px;
-  color: #404040;
+  color: #888888;
   font-weight: 600;
 }
 
@@ -511,7 +511,7 @@
   font-size: 8px;
   font-weight: 600;
   top: 20px;
-  color: #222222;
+  color: #bbbbbb;
 }
 
 /* ── Sticky ───────────────────────────────────────────────── */
@@ -539,7 +539,7 @@
   min-width: 90px;
   max-width: 90px;
   padding: 4px;
-  background: #080808;
+  background: #f9f9f9;
   vertical-align: top;
   overflow: hidden;
   height: 105px;
@@ -549,8 +549,8 @@
   min-width: 56px;
   width: 56px;
   padding: 0 5px;
-  background: #0d0d0d;
-  color: #2e2e2e;
+  background: #f5f5f5;
+  color: #999999;
   font-size: 9px;
   font-weight: 600;
   text-align: center;
@@ -563,7 +563,7 @@
   width: 30px;
   height: 21px;
   padding: 0;
-  background: #000000;
+  background: #ffffff;
 }
 
 .noteCell {
@@ -571,7 +571,7 @@
   min-width: 52px;
   max-width: 52px;
   padding: 3px;
-  background: #080808;
+  background: #fafafa;
   vertical-align: top;
   overflow: hidden;
   height: 105px;
@@ -582,7 +582,7 @@
   min-width: 72px;
   max-width: 72px;
   padding: 5px;
-  background: #080808;
+  background: #fafafa;
   vertical-align: top;
   overflow: hidden;
   height: 105px;
@@ -591,7 +591,7 @@
 /* ── Person Row Divider ───────────────────────────────────── */
 .personFirstRow td,
 .personFirstRow th {
-  border-top: 1px solid #282828 !important;
+  border-top: 1px solid #cccccc !important;
 }
 
 /* ── Name Editor ──────────────────────────────────────────── */
@@ -607,19 +607,19 @@
   padding: 0 5px;
   font-size: 9px;
   border-radius: 3px;
-  border: 1px solid #1e1e1e;
-  background: #111111;
-  color: #888888;
+  border: 1px solid #e4e4e4;
+  background: #ffffff;
+  color: #333333;
   min-width: 0;
   font-family: inherit;
 }
 
 .personInput::placeholder {
-  color: #1e1e1e;
+  color: #dddddd;
 }
 
 .personInput:focus {
-  border-color: #888888;
+  border-color: #555555;
   outline: none;
   box-shadow: none;
 }
@@ -627,10 +627,10 @@
 .noteInput {
   width: 100%;
   height: 100%;
-  border: 1px solid #1e1e1e;
+  border: 1px solid #e8e8e8;
   border-radius: 2px;
   background: transparent;
-  color: #444444;
+  color: #888888;
   outline: none;
   font-size: 8.5px;
   padding: 3px;
@@ -640,7 +640,7 @@
 }
 
 .noteInput::placeholder {
-  color: #1c1c1c;
+  color: #dddddd;
 }
 
 /* 히어로 .deleteButton 룰과 충돌 방지 — 테이블 행 삭제 버튼 전용 */
@@ -648,9 +648,9 @@
   height: 16px;
   width: 100%;
   padding: 0 4px;
-  border: 1px solid #2a1010;
-  background: #110404;
-  color: #ef4444;
+  border: 1px solid #fecaca;
+  background: #fff5f5;
+  color: #dc2626;
   border-radius: 3px;
   font-size: 8.5px;
   font-weight: 600;
@@ -666,8 +666,8 @@
 }
 
 .rowDeleteBtn:hover {
-  background: #1e0606;
-  border-color: #3d1414;
+  background: #fee2e2;
+  border-color: #fca5a5;
 }
 
 /* ── Cell Input ───────────────────────────────────────────── */
@@ -680,7 +680,7 @@
   background: transparent;
   font-size: 10px;
   font-weight: 600;
-  color: #888888;
+  color: #222222;
   padding: 0;
   font-variant-numeric: tabular-nums;
   font-family: inherit;
@@ -688,33 +688,33 @@
 
 /* ── Sunday ───────────────────────────────────────────────── */
 .holidayCell {
-  background: #110202 !important;
-  color: #ef4444 !important;
+  background: #fff0f0 !important;
+  color: #dc2626 !important;
 }
 
 .holidayCell .cellInput {
-  color: #f87171;
+  color: #dc2626;
 }
 
 /* ── Person Row Tones ─────────────────────────────────────── */
 .toneBlue {
-  background: #0a0a0d !important;
+  background: #f6f8ff !important;
 }
 
 .toneSky {
-  background: #080808 !important;
+  background: #f4f9fc !important;
 }
 
 .toneGreen {
-  background: #090b09 !important;
+  background: #f4f9f5 !important;
 }
 
 .toneLime {
-  background: #0a0b08 !important;
+  background: #f7f9f3 !important;
 }
 
 .toneYellow {
-  background: #0c0b07 !important;
+  background: #faf9f3 !important;
 }
 
 /* ── Sum Box ──────────────────────────────────────────────── */
@@ -730,18 +730,18 @@
   display: flex;
   justify-content: space-between;
   gap: 4px;
-  color: #333333;
+  color: #bbbbbb;
   font-weight: 500;
   font-variant-numeric: tabular-nums;
 }
 
 .sumLineBold {
   font-weight: 700;
-  color: #888888;
+  color: #333333;
 }
 
 .sumDivider {
-  border-top: 1px solid #1e1e1e;
+  border-top: 1px solid #eeeeee;
   padding-top: 3px;
   margin-top: 2px;
 }
@@ -750,7 +750,7 @@
 .tip {
   margin: 6px 0 12px;
   padding: 0 16px;
-  color: #1e1e1e;
+  color: #cccccc;
   font-size: 10.5px;
   line-height: 1.5;
 }
