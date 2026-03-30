@@ -427,7 +427,9 @@
 }
 
 .tableDense .sumCell {
-  min-width: 92px;
+  width: 72px;
+  min-width: 72px;
+  max-width: 72px;
   padding: 4px;
 }
 
@@ -532,10 +534,13 @@
 }
 
 .sumCell {
-  min-width: 92px;
+  width: 72px;
+  min-width: 72px;
+  max-width: 72px;
   padding: 4px;
   background: #f8fafc;
   vertical-align: top;
+  overflow: hidden;
 }
 
 /* 인원 블록 첫 번째 행 상단 구분선 강조 */
@@ -575,6 +580,8 @@
 
 .deleteButton {
   height: 16px;
+  padding: 0 4px;
+  width: 100%;
   border: 1px solid rgba(0, 0, 0, 0.16);
   background: rgba(255, 255, 255, 0.8);
   color: #9c2b2b;
