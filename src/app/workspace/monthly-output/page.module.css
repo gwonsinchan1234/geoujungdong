@@ -397,11 +397,13 @@
 }
 
 .tableDense .stickyType {
-  left: 112px;
+  left: 90px;
 }
 
 .tableDense .nameCell {
-  min-width: 112px;
+  width: 90px;
+  min-width: 90px;
+  max-width: 90px;
   padding: 4px;
 }
 
@@ -418,7 +420,9 @@
 }
 
 .tableDense .noteCell {
-  min-width: 42px;
+  width: 52px;
+  min-width: 52px;
+  max-width: 52px;
   padding: 3px;
 }
 
@@ -480,7 +484,7 @@
 }
 
 .stickyType {
-  left: 112px;
+  left: 90px;
 }
 
 /* thead의 sticky 셀은 body sticky 셀보다 높아야 함 */
@@ -489,10 +493,13 @@
 }
 
 .nameCell {
-  min-width: 112px;
+  width: 90px;
+  min-width: 90px;
+  max-width: 90px;
   padding: 4px;
   background: #fff;
   vertical-align: top;
+  overflow: hidden;
 }
 
 .typeCell {
@@ -515,10 +522,13 @@
 }
 
 .noteCell {
-  min-width: 42px;
+  width: 52px;
+  min-width: 52px;
+  max-width: 52px;
   padding: 3px;
   background: #f8fafc;
   vertical-align: top;
+  overflow: hidden;
 }
 
 .sumCell {
@@ -547,6 +557,7 @@
   font-size: 9px;
   border-radius: 0;
   border-color: rgba(0, 0, 0, 0.16);
+  min-width: 0;
 }
 
 .noteInput {
@@ -559,7 +570,7 @@
   outline: none;
   font-size: 9px;
   padding: 3px;
-  resize: none;
+  min-width: 0;
 }
 
 .deleteButton {
