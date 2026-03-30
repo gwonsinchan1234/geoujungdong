@@ -578,15 +578,19 @@
   min-width: 0;
 }
 
-.deleteButton {
+/* 히어로 영역 .deleteButton 룰과 충돌 방지 — 테이블 행 삭제 버튼 전용 */
+.rowDeleteBtn {
   height: 16px;
-  padding: 0 4px;
   width: 100%;
+  padding: 0 4px;
   border: 1px solid rgba(0, 0, 0, 0.16);
   background: rgba(255, 255, 255, 0.8);
   color: #9c2b2b;
-  border-radius: 0;
+  border-radius: 2px;
   font-size: 9px;
+  font-weight: 700;
+  cursor: pointer;
+  box-sizing: border-box;
 }
 
 .cellInput {

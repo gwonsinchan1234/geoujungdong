@@ -452,7 +452,7 @@ export default function MonthlyOutputPage() {
                           onChange={(e) => setPersons((prev) => prev.map((item) => (item.id === p.id ? { ...item, role: e.target.value } : item)))}
                           placeholder="직책"
                         />
-                        <button type="button" className={styles.deleteButton} onClick={() => removePerson(p.id)}>삭제</button>
+                        <button type="button" className={styles.rowDeleteBtn} onClick={() => removePerson(p.id)}>삭제</button>
                       </div>
                     </td>
                     <td className={`${styles.typeCell} ${styles.stickyType} ${toneClass}`}>주간(시간)</td>
