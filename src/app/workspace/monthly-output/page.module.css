@@ -1,0 +1,708 @@
+.page {
+  min-height: 100dvh;
+  padding: 12px;
+  background:
+    radial-gradient(circle at top left, rgba(245, 199, 94, 0.18), transparent 28%),
+    radial-gradient(circle at top right, rgba(35, 84, 153, 0.12), transparent 26%),
+    linear-gradient(180deg, #f8f4ea 0%, #f5f7fb 36%, #eef2f7 100%);
+  color: #18212f;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.pageDense {
+  gap: 12px;
+}
+
+.hero,
+.panel {
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(24, 33, 47, 0.08);
+  box-shadow: 0 18px 42px rgba(24, 33, 47, 0.08);
+  backdrop-filter: blur(12px);
+}
+
+.hero {
+  border-radius: 28px;
+  padding: 28px;
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: flex-end;
+}
+
+.heroDense {
+  position: sticky;
+  top: 6px;
+  z-index: 20;
+  padding: 10px 12px;
+  border-radius: 16px;
+}
+
+.eyebrow {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #9a6a18;
+}
+
+.heroTitle {
+  margin: 0;
+  font-size: clamp(28px, 3vw, 42px);
+  line-height: 1.04;
+  font-weight: 900;
+  letter-spacing: -0.04em;
+}
+
+.heroDescription {
+  margin: 12px 0 0;
+  max-width: 720px;
+  color: #516075;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.heroDense .eyebrow {
+  margin-bottom: 4px;
+  font-size: 10px;
+}
+
+.heroDense .heroTitle {
+  font-size: clamp(18px, 2vw, 24px);
+}
+
+.heroDense .heroDescription {
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.heroDense .heroActions {
+  gap: 6px;
+}
+
+.heroDense .primaryButton,
+.heroDense .secondaryButton,
+.heroDense .deleteButton {
+  height: 34px;
+  padding: 0 10px;
+  border-radius: 10px;
+  font-size: 12px;
+}
+
+.heroActions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.primaryButton,
+.secondaryButton,
+.deleteButton {
+  height: 44px;
+  border-radius: 14px;
+  padding: 0 16px;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform 140ms ease, box-shadow 140ms ease, border-color 140ms ease, background 140ms ease;
+}
+
+.sectionToggleButton {
+  height: 32px;
+  border-radius: 10px;
+  border: 1px solid rgba(24, 33, 47, 0.12);
+  background: #fff;
+  color: #18212f;
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.sectionToggleButton:hover {
+  background: #f8fafc;
+}
+
+.primaryButton {
+  border: 0;
+  background: linear-gradient(135deg, #1e5eff 0%, #0d8bff 100%);
+  color: #fff;
+  box-shadow: 0 12px 24px rgba(30, 94, 255, 0.22);
+}
+
+.primaryButton:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 16px 30px rgba(30, 94, 255, 0.28);
+}
+
+.primaryButton:disabled {
+  opacity: 0.64;
+  cursor: default;
+  transform: none;
+  box-shadow: none;
+}
+
+.secondaryButton {
+  border: 1px solid rgba(24, 33, 47, 0.12);
+  background: rgba(255, 255, 255, 0.8);
+  color: #18212f;
+}
+
+.secondaryButton:hover,
+.deleteButton:hover {
+  transform: translateY(-1px);
+  background: #fff;
+}
+
+.controlGrid {
+  display: grid;
+  grid-template-columns: minmax(320px, 1.2fr) minmax(320px, 1fr);
+  gap: 18px;
+}
+
+.controlGridDense {
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 0.6fr);
+  gap: 12px;
+}
+
+.panel {
+  border-radius: 24px;
+  overflow: hidden;
+}
+
+.panelCollapsed {
+  min-height: 0;
+}
+
+.panelHeader {
+  padding: 12px 14px 0;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.panelTitle {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.panelMeta {
+  margin: 4px 0 0;
+  color: #637287;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.fieldGrid,
+.statGrid,
+.personGrid {
+  padding: 12px 14px 14px;
+}
+
+.fieldGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.field {
+  display: grid;
+  gap: 8px;
+}
+
+.fieldLabel {
+  font-size: 11px;
+  font-weight: 800;
+  color: #435166;
+}
+
+.textInput,
+.personInput,
+.leaveInput {
+  width: 100%;
+  border-radius: 14px;
+  border: 1px solid rgba(24, 33, 47, 0.12);
+  background: #fff;
+  color: #18212f;
+  outline: none;
+  transition: border-color 140ms ease, box-shadow 140ms ease;
+}
+
+.textInput:focus,
+.personInput:focus,
+.leaveInput:focus,
+.cellInput:focus {
+  border-color: #1e5eff;
+  box-shadow: 0 0 0 4px rgba(30, 94, 255, 0.12);
+}
+
+.textInput {
+  height: 38px;
+  padding: 0 10px;
+  font-size: 13px;
+}
+
+.statGrid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.hiddenSection {
+  display: none;
+}
+
+.statCard {
+  min-height: 110px;
+  padding: 14px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, #fffaf1 0%, #ffffff 100%);
+  border: 1px solid rgba(154, 106, 24, 0.14);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.statLabel {
+  font-size: 11px;
+  font-weight: 800;
+  color: #8e6b2a;
+}
+
+.statValue {
+  font-size: 26px;
+  font-weight: 900;
+  letter-spacing: -0.04em;
+}
+
+.statUnit {
+  font-size: 12px;
+  color: #68778b;
+}
+
+.personGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px;
+}
+
+.personCard {
+  padding: 14px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, #f6f9fd 0%, #ffffff 100%);
+  border: 1px solid rgba(24, 33, 47, 0.08);
+}
+
+.personCardTop {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.personName {
+  display: block;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.personRole {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: #68778b;
+}
+
+.personBadge {
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #18212f;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.personMetrics {
+  margin-top: 14px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: #425166;
+}
+
+.personMetrics span {
+  padding: 6px 8px;
+  border-radius: 999px;
+  background: #edf2f9;
+}
+
+.legend {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.legendChip {
+  padding: 7px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  border: 1px solid transparent;
+}
+
+.legendSunday {
+  background: #fff0ef;
+  color: #c3413e;
+  border-color: #ffd8d4;
+}
+
+.legendSummary {
+  background: #eef8f1;
+  color: #1b7f4b;
+  border-color: #ccebd8;
+}
+
+.tableWrap {
+  overflow: auto;
+  margin: 10px 14px 0;
+  border-radius: 10px;
+  border: 1px solid #7f7f7f;
+  background: #fff;
+  max-height: calc(100dvh - 126px);
+}
+
+.tableWrapDense {
+  max-height: calc(100dvh - 94px);
+  margin-top: 6px;
+}
+
+.table {
+  border-collapse: collapse;
+  width: max-content;
+  min-width: 100%;
+  background: #fff;
+}
+
+.tableDense {
+  width: max-content;
+}
+
+.tableDense .stickyType {
+  left: 112px;
+}
+
+.tableDense .nameCell {
+  min-width: 112px;
+  padding: 4px;
+}
+
+.tableDense .typeCell {
+  min-width: 64px;
+  width: 64px;
+  font-size: 9px;
+}
+
+.tableDense .valueCell {
+  min-width: 34px;
+  width: 34px;
+  height: 21px;
+}
+
+.tableDense .noteCell {
+  min-width: 42px;
+  padding: 3px;
+}
+
+.tableDense .sumCell {
+  min-width: 92px;
+  padding: 4px;
+}
+
+.headerCell,
+.nameCell,
+.typeCell,
+.valueCell,
+.noteCell,
+.sumCell {
+  border-right: 1px solid #d9e0ea;
+  border-bottom: 1px solid #777;
+  border-left: 1px solid #777;
+  border-top: 1px solid #777;
+}
+
+.headerCell {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  min-width: 34px;
+  height: 22px;
+  padding: 0 2px;
+  background: #f3e4b5;
+  color: #2e2e2e;
+  font-size: 9px;
+  font-weight: 900;
+  text-align: center;
+}
+
+.cornerHead,
+.sideHead {
+  background: #f0f0f0;
+  z-index: 6;
+}
+
+.dayHead {
+  font-size: 11px;
+}
+
+.daySubHead {
+  font-size: 9px;
+  font-weight: 800;
+  top: 22px; /* 첫 번째 헤더행 높이만큼 내려야 겹치지 않음 */
+}
+
+.stickyName,
+.stickyType {
+  position: sticky;
+  z-index: 2;
+}
+
+.stickyName {
+  left: 0;
+}
+
+.stickyType {
+  left: 112px;
+}
+
+/* thead의 sticky 셀은 body sticky 셀보다 높아야 함 */
+.stickyHead {
+  z-index: 6;
+}
+
+.nameCell {
+  min-width: 112px;
+  padding: 4px;
+  background: #fff;
+  vertical-align: top;
+}
+
+.typeCell {
+  min-width: 64px;
+  width: 64px;
+  padding: 0 4px;
+  background: #eef1f4;
+  color: #2e2e2e;
+  font-size: 9px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.valueCell {
+  min-width: 34px;
+  width: 34px;
+  height: 21px;
+  padding: 0;
+  background: #fff;
+}
+
+.noteCell {
+  min-width: 42px;
+  padding: 3px;
+  background: #f8fafc;
+  vertical-align: top;
+}
+
+.sumCell {
+  min-width: 92px;
+  padding: 4px;
+  background: #f8fafc;
+  vertical-align: top;
+}
+
+/* 인원 블록 첫 번째 행 상단 구분선 강조 */
+.personFirstRow td,
+.personFirstRow th {
+  border-top: 2px solid #555 !important;
+}
+
+.nameEditor {
+  display: grid;
+  grid-template-rows: repeat(3, 1fr);
+  gap: 2px;
+  height: 100%;
+}
+
+.personInput {
+  height: 16px;
+  padding: 0 5px;
+  font-size: 9px;
+  border-radius: 0;
+  border-color: rgba(0, 0, 0, 0.16);
+}
+
+.noteInput {
+  width: 100%;
+  height: 100%;
+  border: 1px solid rgba(0, 0, 0, 0.16);
+  border-radius: 0;
+  background: rgba(255, 255, 255, 0.72);
+  color: #18212f;
+  outline: none;
+  font-size: 9px;
+  padding: 3px;
+  resize: none;
+}
+
+.deleteButton {
+  height: 16px;
+  border: 1px solid rgba(0, 0, 0, 0.16);
+  background: rgba(255, 255, 255, 0.8);
+  color: #9c2b2b;
+  border-radius: 0;
+  font-size: 9px;
+}
+
+.cellInput {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  outline: none;
+  text-align: center;
+  background: transparent;
+  font-size: 10px;
+  font-weight: 700;
+  color: #18212f;
+  padding: 0;
+}
+
+.holidayCell {
+  background: #ff1e1e;
+  color: #fff;
+}
+
+.holidayCell .cellInput {
+  color: #fff;
+}
+
+.toneBlue {
+  background: #d9e8f8;
+}
+
+.toneSky {
+  background: #cfe3fb;
+}
+
+.toneGreen {
+  background: #d6e8b8;
+}
+
+.toneLime {
+  background: #e8ee9c;
+}
+
+.toneYellow {
+  background: #f7ef9d;
+}
+
+.sumBox {
+  display: grid;
+  gap: 2px;
+  font-size: 9px;
+  height: 100%;
+  align-content: start;
+}
+
+.sumLine {
+  display: flex;
+  justify-content: space-between;
+  gap: 4px;
+  color: #2d343a;
+  font-weight: 700;
+}
+
+.sumLineBold {
+  font-weight: 900;
+  color: #1f2529;
+}
+
+.sumDivider {
+  border-top: 1px dashed rgba(23, 48, 33, 0.24);
+  padding-top: 3px;
+  margin-top: 1px;
+}
+
+.tip {
+  margin: 8px 14px 14px;
+  color: #68778b;
+  font-size: 11px;
+}
+
+@media (max-width: 1180px) {
+  .controlGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .fieldGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .statGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .page {
+    padding: 14px;
+  }
+
+  .hero {
+    padding: 20px;
+    border-radius: 22px;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .heroActions {
+    justify-content: stretch;
+  }
+
+  .heroActions button {
+    flex: 1;
+  }
+
+  .panel {
+    border-radius: 20px;
+  }
+
+  .panelHeader,
+  .fieldGrid,
+  .statGrid,
+  .personGrid {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .statGrid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .tableWrap {
+    margin-left: 16px;
+    margin-right: 16px;
+  }
+
+  .tip {
+    margin-left: 16px;
+    margin-right: 16px;
+  }
+}
