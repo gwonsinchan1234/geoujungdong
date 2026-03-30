@@ -1,31 +1,34 @@
+/* ================================================================
+   Monthly Output — Corporate Dark Theme
+   ================================================================ */
+
 .page {
   min-height: 100dvh;
-  padding: 12px;
-  background:
-    radial-gradient(circle at top left, rgba(245, 199, 94, 0.18), transparent 28%),
-    radial-gradient(circle at top right, rgba(35, 84, 153, 0.12), transparent 26%),
-    linear-gradient(180deg, #f8f4ea 0%, #f5f7fb 36%, #eef2f7 100%);
-  color: #18212f;
+  padding: 14px;
+  background: #0c0e12;
+  color: #c2cdd8;
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 10px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
 
 .pageDense {
-  gap: 12px;
+  gap: 8px;
 }
 
+/* ── Surface ──────────────────────────────────────────────── */
 .hero,
 .panel {
-  background: rgba(255, 255, 255, 0.9);
-  border: 1px solid rgba(24, 33, 47, 0.08);
-  box-shadow: 0 18px 42px rgba(24, 33, 47, 0.08);
-  backdrop-filter: blur(12px);
+  background: #111520;
+  border: 1px solid #1a2133;
 }
 
+/* ── Hero ─────────────────────────────────────────────────── */
 .hero {
-  border-radius: 28px;
-  padding: 28px;
+  border-radius: 12px;
+  padding: 22px 26px;
   display: flex;
   justify-content: space-between;
   gap: 20px;
@@ -36,66 +39,66 @@
   position: sticky;
   top: 6px;
   z-index: 20;
-  padding: 10px 12px;
-  border-radius: 16px;
+  padding: 9px 14px;
+  border-radius: 10px;
 }
 
 .eyebrow {
-  margin: 0 0 8px;
-  font-size: 12px;
-  font-weight: 800;
-  letter-spacing: 0.14em;
+  margin: 0 0 7px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: #9a6a18;
+  color: #334155;
 }
 
 .heroTitle {
   margin: 0;
-  font-size: clamp(28px, 3vw, 42px);
-  line-height: 1.04;
-  font-weight: 900;
-  letter-spacing: -0.04em;
+  font-size: clamp(20px, 2.2vw, 28px);
+  line-height: 1.1;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  color: #e8edf4;
 }
 
 .heroDescription {
-  margin: 12px 0 0;
-  max-width: 720px;
-  color: #516075;
-  font-size: 14px;
+  margin: 7px 0 0;
+  max-width: 560px;
+  color: #334155;
+  font-size: 12px;
   line-height: 1.6;
 }
 
 .heroDense .eyebrow {
-  margin-bottom: 4px;
-  font-size: 10px;
+  display: none;
 }
 
 .heroDense .heroTitle {
-  font-size: clamp(18px, 2vw, 24px);
+  font-size: clamp(13px, 1.4vw, 17px);
+  font-weight: 600;
 }
 
 .heroDense .heroDescription {
-  margin-top: 6px;
-  font-size: 12px;
-  line-height: 1.4;
+  display: none;
 }
 
 .heroDense .heroActions {
-  gap: 6px;
+  gap: 5px;
 }
 
 .heroDense .primaryButton,
 .heroDense .secondaryButton,
 .heroDense .deleteButton {
-  height: 34px;
+  height: 28px;
   padding: 0 10px;
-  border-radius: 10px;
-  font-size: 12px;
+  border-radius: 6px;
+  font-size: 11px;
 }
 
+/* ── Buttons ──────────────────────────────────────────────── */
 .heroActions {
   display: flex;
-  gap: 10px;
+  gap: 6px;
   flex-wrap: wrap;
   justify-content: flex-end;
 }
@@ -103,76 +106,81 @@
 .primaryButton,
 .secondaryButton,
 .deleteButton {
-  height: 44px;
-  border-radius: 14px;
-  padding: 0 16px;
-  font-size: 13px;
-  font-weight: 800;
+  height: 36px;
+  border-radius: 7px;
+  padding: 0 14px;
+  font-size: 12px;
+  font-weight: 600;
   cursor: pointer;
-  transition: transform 140ms ease, box-shadow 140ms ease, border-color 140ms ease, background 140ms ease;
+  transition: background 100ms ease, border-color 100ms ease, color 100ms ease;
+  font-family: inherit;
 }
 
 .sectionToggleButton {
-  height: 32px;
-  border-radius: 10px;
-  border: 1px solid rgba(24, 33, 47, 0.12);
-  background: #fff;
-  color: #18212f;
-  padding: 0 10px;
-  font-size: 12px;
-  font-weight: 800;
+  height: 26px;
+  border-radius: 5px;
+  border: 1px solid #1a2133;
+  background: transparent;
+  color: #334155;
+  padding: 0 9px;
+  font-size: 11px;
+  font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
+  font-family: inherit;
+  transition: border-color 100ms, color 100ms;
 }
 
 .sectionToggleButton:hover {
-  background: #f8fafc;
+  border-color: #2d3a50;
+  color: #5a6f87;
 }
 
 .primaryButton {
   border: 0;
-  background: linear-gradient(135deg, #1e5eff 0%, #0d8bff 100%);
-  color: #fff;
-  box-shadow: 0 12px 24px rgba(30, 94, 255, 0.22);
+  background: #dde4ef;
+  color: #0c0e12;
+  font-weight: 700;
+  letter-spacing: 0.01em;
 }
 
 .primaryButton:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 16px 30px rgba(30, 94, 255, 0.28);
+  background: #edf2fa;
 }
 
 .primaryButton:disabled {
-  opacity: 0.64;
+  opacity: 0.3;
   cursor: default;
-  transform: none;
-  box-shadow: none;
 }
 
 .secondaryButton {
-  border: 1px solid rgba(24, 33, 47, 0.12);
-  background: rgba(255, 255, 255, 0.8);
-  color: #18212f;
+  border: 1px solid #1a2133;
+  background: transparent;
+  color: #5a6f87;
 }
 
 .secondaryButton:hover,
 .deleteButton:hover {
-  transform: translateY(-1px);
-  background: #fff;
+  border-color: #2d3a50;
+  color: #8fa5bc;
+  background: #141b28;
 }
 
+/* ── Control Grid ─────────────────────────────────────────── */
 .controlGrid {
   display: grid;
-  grid-template-columns: minmax(320px, 1.2fr) minmax(320px, 1fr);
-  gap: 18px;
+  grid-template-columns: minmax(300px, 1.2fr) minmax(280px, 1fr);
+  gap: 10px;
 }
 
 .controlGridDense {
-  grid-template-columns: minmax(0, 1fr) minmax(240px, 0.6fr);
-  gap: 12px;
+  grid-template-columns: minmax(0, 1fr) minmax(200px, 0.48fr);
+  gap: 8px;
 }
 
+/* ── Panel ────────────────────────────────────────────────── */
 .panel {
-  border-radius: 24px;
+  border-radius: 10px;
   overflow: hidden;
 }
 
@@ -181,7 +189,7 @@
 }
 
 .panelHeader {
-  padding: 12px 14px 0;
+  padding: 12px 16px 0;
   display: flex;
   justify-content: space-between;
   gap: 12px;
@@ -190,22 +198,24 @@
 
 .panelTitle {
   margin: 0;
-  font-size: 15px;
-  font-weight: 800;
-  letter-spacing: -0.02em;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #334155;
 }
 
 .panelMeta {
-  margin: 4px 0 0;
-  color: #637287;
-  font-size: 12px;
-  line-height: 1.35;
+  margin: 3px 0 0;
+  color: #222d3d;
+  font-size: 11px;
+  line-height: 1.45;
 }
 
 .fieldGrid,
 .statGrid,
 .personGrid {
-  padding: 12px 14px 14px;
+  padding: 10px 16px 14px;
 }
 
 .fieldGrid {
@@ -216,45 +226,49 @@
 
 .field {
   display: grid;
-  gap: 8px;
+  gap: 5px;
 }
 
 .fieldLabel {
-  font-size: 11px;
-  font-weight: 800;
-  color: #435166;
+  font-size: 9.5px;
+  font-weight: 700;
+  color: #334155;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
 }
 
 .textInput,
 .personInput,
 .leaveInput {
   width: 100%;
-  border-radius: 14px;
-  border: 1px solid rgba(24, 33, 47, 0.12);
-  background: #fff;
-  color: #18212f;
+  border-radius: 6px;
+  border: 1px solid #1a2133;
+  background: #0c0e12;
+  color: #c2cdd8;
   outline: none;
-  transition: border-color 140ms ease, box-shadow 140ms ease;
+  transition: border-color 100ms ease, box-shadow 100ms ease;
+  font-family: inherit;
 }
 
 .textInput:focus,
 .personInput:focus,
 .leaveInput:focus,
 .cellInput:focus {
-  border-color: #1e5eff;
-  box-shadow: 0 0 0 4px rgba(30, 94, 255, 0.12);
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
 .textInput {
-  height: 38px;
+  height: 34px;
   padding: 0 10px;
-  font-size: 13px;
+  font-size: 12px;
 }
 
+/* ── Stat Cards ───────────────────────────────────────────── */
 .statGrid {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 7px;
 }
 
 .hiddenSection {
@@ -262,134 +276,148 @@
 }
 
 .statCard {
-  min-height: 110px;
-  padding: 14px;
-  border-radius: 18px;
-  background: linear-gradient(180deg, #fffaf1 0%, #ffffff 100%);
-  border: 1px solid rgba(154, 106, 24, 0.14);
+  padding: 11px 10px;
+  border-radius: 7px;
+  background: #0c0e12;
+  border: 1px solid #1a2133;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  gap: 5px;
 }
 
 .statLabel {
-  font-size: 11px;
-  font-weight: 800;
-  color: #8e6b2a;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #334155;
 }
 
 .statValue {
-  font-size: 26px;
-  font-weight: 900;
-  letter-spacing: -0.04em;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: #d4dde8;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
 }
 
 .statUnit {
-  font-size: 12px;
-  color: #68778b;
+  font-size: 9.5px;
+  color: #222d3d;
 }
 
+/* ── Person Overview ──────────────────────────────────────── */
 .personGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 7px;
 }
 
 .personCard {
-  padding: 14px;
-  border-radius: 18px;
-  background: linear-gradient(180deg, #f6f9fd 0%, #ffffff 100%);
-  border: 1px solid rgba(24, 33, 47, 0.08);
+  padding: 11px;
+  border-radius: 7px;
+  background: #0c0e12;
+  border: 1px solid #1a2133;
 }
 
 .personCardTop {
   display: flex;
   justify-content: space-between;
-  gap: 10px;
+  gap: 8px;
   align-items: flex-start;
 }
 
 .personName {
   display: block;
-  font-size: 15px;
-  font-weight: 800;
+  font-size: 12px;
+  font-weight: 700;
+  color: #c2cdd8;
 }
 
 .personRole {
-  margin: 4px 0 0;
-  font-size: 12px;
-  color: #68778b;
+  margin: 3px 0 0;
+  font-size: 10.5px;
+  color: #334155;
 }
 
 .personBadge {
-  padding: 6px 10px;
-  border-radius: 999px;
-  background: #18212f;
-  color: #fff;
-  font-size: 12px;
-  font-weight: 800;
+  padding: 3px 7px;
+  border-radius: 4px;
+  background: #1a2133;
+  color: #5a6f87;
+  font-size: 10px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
 
 .personMetrics {
-  margin-top: 14px;
+  margin-top: 9px;
   display: flex;
-  gap: 8px;
+  gap: 3px;
   flex-wrap: wrap;
-  font-size: 12px;
-  color: #425166;
+  font-size: 9.5px;
 }
 
 .personMetrics span {
-  padding: 6px 8px;
-  border-radius: 999px;
-  background: #edf2f9;
+  padding: 3px 6px;
+  border-radius: 3px;
+  background: #141b28;
+  color: #334155;
+  font-variant-numeric: tabular-nums;
 }
 
+/* ── Legend ───────────────────────────────────────────────── */
 .legend {
   display: flex;
-  gap: 8px;
+  gap: 5px;
   flex-wrap: wrap;
+  align-items: center;
 }
 
 .legendChip {
-  padding: 7px 10px;
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 800;
-  border: 1px solid transparent;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  border: 1px solid #1a2133;
+  color: #334155;
+  background: transparent;
 }
 
 .legendSunday {
-  background: #fff0ef;
-  color: #c3413e;
-  border-color: #ffd8d4;
+  color: #ef4444;
+  border-color: #2a1111;
+  background: #120808;
 }
 
 .legendSummary {
-  background: #eef8f1;
-  color: #1b7f4b;
-  border-color: #ccebd8;
+  color: #22c55e;
+  border-color: #0d2416;
+  background: #060d0a;
 }
 
+/* ── Table Wrapper ────────────────────────────────────────── */
 .tableWrap {
   overflow: auto;
-  margin: 10px 14px 0;
-  border-radius: 10px;
-  border: 1px solid #7f7f7f;
-  background: #fff;
-  max-height: calc(100dvh - 126px);
+  margin: 8px 0 0;
+  border-top: 1px solid #1a2133;
+  background: #0c0e12;
+  max-height: calc(100dvh - 122px);
 }
 
 .tableWrapDense {
-  max-height: calc(100dvh - 94px);
-  margin-top: 6px;
+  max-height: calc(100dvh - 88px);
+  margin-top: 5px;
 }
 
+/* ── Table ────────────────────────────────────────────────── */
 .table {
   border-collapse: collapse;
   width: max-content;
   min-width: 100%;
-  background: #fff;
+  background: #0c0e12;
 }
 
 .tableDense {
@@ -405,18 +433,19 @@
   min-width: 90px;
   max-width: 90px;
   padding: 4px;
+  height: 100px;
 }
 
 .tableDense .typeCell {
-  min-width: 64px;
-  width: 64px;
-  font-size: 9px;
+  min-width: 54px;
+  width: 54px;
+  font-size: 8.5px;
 }
 
 .tableDense .valueCell {
-  min-width: 34px;
-  width: 34px;
-  height: 21px;
+  min-width: 28px;
+  width: 28px;
+  height: 20px;
 }
 
 .tableDense .noteCell {
@@ -424,6 +453,7 @@
   min-width: 52px;
   max-width: 52px;
   padding: 3px;
+  height: 100px;
 }
 
 .tableDense .sumCell {
@@ -431,50 +461,60 @@
   min-width: 72px;
   max-width: 72px;
   padding: 4px;
+  height: 100px;
 }
 
+/* ── Cell Borders ─────────────────────────────────────────── */
 .headerCell,
 .nameCell,
 .typeCell,
 .valueCell,
 .noteCell,
 .sumCell {
-  border-right: 1px solid #d9e0ea;
-  border-bottom: 1px solid #777;
-  border-left: 1px solid #777;
-  border-top: 1px solid #777;
+  border-right: 1px solid #1a2133;
+  border-bottom: 1px solid #1a2133;
+  border-left: none;
+  border-top: none;
 }
 
+/* ── Header ───────────────────────────────────────────────── */
 .headerCell {
   position: sticky;
   top: 0;
   z-index: 3;
-  min-width: 34px;
-  height: 22px;
+  min-width: 28px;
+  height: 20px;
   padding: 0 2px;
-  background: #f3e4b5;
-  color: #2e2e2e;
-  font-size: 9px;
-  font-weight: 900;
+  background: #0e1119;
+  color: #2d3a4e;
+  font-size: 8.5px;
+  font-weight: 700;
   text-align: center;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
 }
 
 .cornerHead,
 .sideHead {
-  background: #f0f0f0;
+  background: #090b0f;
+  color: #222d3d;
   z-index: 6;
 }
 
 .dayHead {
-  font-size: 11px;
+  font-size: 10px;
+  color: #3d5068;
+  font-weight: 600;
 }
 
 .daySubHead {
-  font-size: 9px;
-  font-weight: 800;
-  top: 22px; /* 첫 번째 헤더행 높이만큼 내려야 겹치지 않음 */
+  font-size: 8px;
+  font-weight: 600;
+  top: 20px;
+  color: #222d3d;
 }
 
+/* ── Sticky ───────────────────────────────────────────────── */
 .stickyName,
 .stickyType {
   position: sticky;
@@ -489,38 +529,41 @@
   left: 90px;
 }
 
-/* thead의 sticky 셀은 body sticky 셀보다 높아야 함 */
 .stickyHead {
   z-index: 6;
 }
 
+/* ── Data Cells ───────────────────────────────────────────── */
 .nameCell {
   width: 90px;
   min-width: 90px;
   max-width: 90px;
   padding: 4px;
-  background: #fff;
+  background: #090b0f;
   vertical-align: top;
   overflow: hidden;
+  height: 105px;
 }
 
 .typeCell {
-  min-width: 64px;
-  width: 64px;
-  padding: 0 4px;
-  background: #eef1f4;
-  color: #2e2e2e;
+  min-width: 56px;
+  width: 56px;
+  padding: 0 5px;
+  background: #0e1119;
+  color: #2d3a4e;
   font-size: 9px;
-  font-weight: 800;
+  font-weight: 600;
   text-align: center;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
 }
 
 .valueCell {
-  min-width: 34px;
-  width: 34px;
+  min-width: 30px;
+  width: 30px;
   height: 21px;
   padding: 0;
-  background: #fff;
+  background: #0c0e12;
 }
 
 .noteCell {
@@ -528,27 +571,30 @@
   min-width: 52px;
   max-width: 52px;
   padding: 3px;
-  background: #f8fafc;
+  background: #090b0f;
   vertical-align: top;
   overflow: hidden;
+  height: 105px;
 }
 
 .sumCell {
   width: 72px;
   min-width: 72px;
   max-width: 72px;
-  padding: 4px;
-  background: #f8fafc;
+  padding: 5px;
+  background: #090b0f;
   vertical-align: top;
   overflow: hidden;
+  height: 105px;
 }
 
-/* 인원 블록 첫 번째 행 상단 구분선 강조 */
+/* ── Person Row Divider ───────────────────────────────────── */
 .personFirstRow td,
 .personFirstRow th {
-  border-top: 2px solid #555 !important;
+  border-top: 1px solid #263044 !important;
 }
 
+/* ── Name Editor ──────────────────────────────────────────── */
 .nameEditor {
   display: grid;
   grid-template-rows: repeat(3, 1fr);
@@ -560,22 +606,41 @@
   height: 16px;
   padding: 0 5px;
   font-size: 9px;
-  border-radius: 0;
-  border-color: rgba(0, 0, 0, 0.16);
+  border-radius: 3px;
+  border: 1px solid #1a2133;
+  background: #111520;
+  color: #8fa5bc;
   min-width: 0;
+  font-family: inherit;
+}
+
+.personInput::placeholder {
+  color: #1e2b3d;
+}
+
+.personInput:focus {
+  border-color: #3b82f6;
+  outline: none;
+  box-shadow: none;
 }
 
 .noteInput {
   width: 100%;
   height: 100%;
-  border: 1px solid rgba(0, 0, 0, 0.16);
-  border-radius: 0;
-  background: rgba(255, 255, 255, 0.72);
-  color: #18212f;
+  border: 1px solid #1a2133;
+  border-radius: 2px;
+  background: transparent;
+  color: #4a5e72;
   outline: none;
-  font-size: 9px;
+  font-size: 8.5px;
   padding: 3px;
   min-width: 0;
+  font-family: inherit;
+  resize: none;
+}
+
+.noteInput::placeholder {
+  color: #1a2133;
 }
 
 /* 히어로 영역 .deleteButton 룰과 충돌 방지 — 테이블 행 삭제 버튼 전용 */
@@ -583,20 +648,29 @@
   height: 16px;
   width: 100%;
   padding: 0 4px;
-  border: 1px solid rgba(0, 0, 0, 0.16);
-  background: rgba(255, 255, 255, 0.8);
-  color: #9c2b2b;
-  border-radius: 2px;
-  font-size: 9px;
-  font-weight: 700;
+  border: 1px solid #2a1212;
+  background: #140909;
+  color: #ef4444;
+  border-radius: 3px;
+  font-size: 8.5px;
+  font-weight: 600;
   cursor: pointer;
   box-sizing: border-box;
   display: flex;
   align-items: center;
   justify-content: center;
   line-height: 1;
+  letter-spacing: 0.03em;
+  transition: background 100ms;
+  font-family: inherit;
 }
 
+.rowDeleteBtn:hover {
+  background: #200d0d;
+  border-color: #3d1818;
+}
+
+/* ── Cell Input ───────────────────────────────────────────── */
 .cellInput {
   width: 100%;
   height: 100%;
@@ -605,43 +679,48 @@
   text-align: center;
   background: transparent;
   font-size: 10px;
-  font-weight: 700;
-  color: #18212f;
+  font-weight: 600;
+  color: #8fa5bc;
   padding: 0;
+  font-variant-numeric: tabular-nums;
+  font-family: inherit;
 }
 
+/* ── Sunday ───────────────────────────────────────────────── */
 .holidayCell {
-  background: #ff1e1e;
-  color: #fff;
+  background: #130606 !important;
+  color: #ef4444 !important;
 }
 
 .holidayCell .cellInput {
-  color: #fff;
+  color: #f87171;
 }
 
+/* ── Person Row Tones ─────────────────────────────────────── */
 .toneBlue {
-  background: #d9e8f8;
+  background: #0c1320 !important;
 }
 
 .toneSky {
-  background: #cfe3fb;
+  background: #0a1420 !important;
 }
 
 .toneGreen {
-  background: #d6e8b8;
+  background: #0a1510 !important;
 }
 
 .toneLime {
-  background: #e8ee9c;
+  background: #10150a !important;
 }
 
 .toneYellow {
-  background: #f7ef9d;
+  background: #15140a !important;
 }
 
+/* ── Sum Box ──────────────────────────────────────────────── */
 .sumBox {
   display: grid;
-  gap: 2px;
+  gap: 3px;
   font-size: 9px;
   height: 100%;
   align-content: start;
@@ -651,49 +730,54 @@
   display: flex;
   justify-content: space-between;
   gap: 4px;
-  color: #2d343a;
-  font-weight: 700;
+  color: #2d3a4e;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
 }
 
 .sumLineBold {
-  font-weight: 900;
-  color: #1f2529;
+  font-weight: 700;
+  color: #8fa5bc;
 }
 
 .sumDivider {
-  border-top: 1px dashed rgba(23, 48, 33, 0.24);
+  border-top: 1px solid #1a2133;
   padding-top: 3px;
-  margin-top: 1px;
+  margin-top: 2px;
 }
 
+/* ── Tip ──────────────────────────────────────────────────── */
 .tip {
-  margin: 8px 14px 14px;
-  color: #68778b;
-  font-size: 11px;
+  margin: 6px 0 12px;
+  padding: 0 16px;
+  color: #1e2b3d;
+  font-size: 10.5px;
+  line-height: 1.5;
 }
 
+/* ── Responsive ───────────────────────────────────────────── */
 @media (max-width: 1180px) {
   .controlGrid {
     grid-template-columns: 1fr;
   }
 
   .fieldGrid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .statGrid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
 
 @media (max-width: 720px) {
   .page {
-    padding: 14px;
+    padding: 10px;
   }
 
   .hero {
-    padding: 20px;
-    border-radius: 22px;
+    padding: 16px;
+    border-radius: 10px;
     flex-direction: column;
     align-items: stretch;
   }
@@ -707,28 +791,31 @@
   }
 
   .panel {
-    border-radius: 20px;
+    border-radius: 8px;
   }
 
   .panelHeader,
   .fieldGrid,
   .statGrid,
   .personGrid {
-    padding-left: 16px;
-    padding-right: 16px;
+    padding-left: 14px;
+    padding-right: 14px;
   }
 
   .statGrid {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .tableWrap {
-    margin-left: 16px;
-    margin-right: 16px;
+    margin-left: 0;
+    margin-right: 0;
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
   }
 
   .tip {
-    margin-left: 16px;
-    margin-right: 16px;
+    padding-left: 14px;
+    padding-right: 14px;
   }
 }
