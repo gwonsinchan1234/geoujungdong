@@ -425,13 +425,13 @@
 }
 
 .tableDense .stickyType {
-  left: 90px;
+  left: 120px;
 }
 
 .tableDense .nameCell {
-  width: 90px;
-  min-width: 90px;
-  max-width: 90px;
+  width: 120px;
+  min-width: 120px;
+  max-width: 120px;
   padding: 4px;
   height: 100px;
 }
@@ -526,7 +526,7 @@
 }
 
 .stickyType {
-  left: 90px;
+  left: 120px;
 }
 
 .stickyHead {
@@ -535,9 +535,9 @@
 
 /* ── Data Cells ───────────────────────────────────────────── */
 .nameCell {
-  width: 90px;
-  min-width: 90px;
-  max-width: 90px;
+  width: 120px;
+  min-width: 120px;
+  max-width: 120px;
   padding: 4px;
   background: #f9f9f9;
   vertical-align: top;
