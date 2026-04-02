@@ -624,34 +624,9 @@
   box-shadow: none;
 }
 
-.noteCellInner {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  height: 100%;
-}
-
-.leaveBadge {
-  display: block;
-  text-align: center;
-  font-size: 8px;
-  font-weight: 700;
-  color: #b45309;
-  background: #fef3c7;
-  border: 1px solid #fde68a;
-  border-radius: 3px;
-  padding: 1px 2px;
-  flex-shrink: 0;
-  letter-spacing: 0.02em;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
 .noteInput {
   width: 100%;
-  flex: 1;
-  min-height: 0;
+  height: 100%;
   border: 1px solid #e8e8e8;
   border-radius: 2px;
   background: transparent;
@@ -666,6 +641,16 @@
 
 .noteInput::placeholder {
   color: #dddddd;
+}
+
+.noteInputLeave {
+  color: #b45309 !important;
+  font-weight: 700 !important;
+  font-size: 9.5px !important;
+  text-align: center !important;
+  background: #fffbeb !important;
+  border-color: transparent !important;
+  cursor: default !important;
 }
 
 /* 히어로 .deleteButton 룰과 충돌 방지 — 테이블 행 삭제 버튼 전용 */

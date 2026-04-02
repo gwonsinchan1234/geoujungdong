@@ -796,17 +796,20 @@ export default function MonthlyOutputPage() {
                         );
                       })}
                       <td className={`${styles.noteCell} ${toneClass}`} rowSpan={5}>
-                        <div className={styles.noteCellInner}>
-                          {(personLeaves[p.id] ?? 0) > 0 && (
-                            <span className={styles.leaveBadge}>연차{personLeaves[p.id]}</span>
-                          )}
+                        {(personLeaves[p.id] ?? 0) > 0 ? (
+                          <input
+                            className={`${styles.noteInput} ${styles.noteInputLeave}`}
+                            value={`연차${personLeaves[p.id]}`}
+                            readOnly
+                          />
+                        ) : (
                           <input
                             className={styles.noteInput}
                             value={p.note ?? ""}
                             onChange={(e) => setPersons((prev) => prev.map((item) => (item.id === p.id ? { ...item, note: e.target.value } : item)))}
                             placeholder="비고"
                           />
-                        </div>
+                        )}
                       </td>
                       <td className={`${styles.sumCell} ${toneClass}`} rowSpan={5}>
                         <SumBox personId={p.id} dayKeys={dayKeys} values={values} />
