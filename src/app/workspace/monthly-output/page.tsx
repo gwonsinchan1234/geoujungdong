@@ -268,6 +268,16 @@ export default function MonthlyOutputPage() {
     });
   }, [dayKeys, persons, values]);
 
+  const personLeaves = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const p of persons) {
+      map[p.id] = dayKeys.filter(
+        (dateStr) => (values[`${p.id}__${dateStr}__day` as MonthlyOutputCellKey] ?? "") === "연차"
+      ).length;
+    }
+    return map;
+  }, [persons, dayKeys, values]);
+
   const statCards = useMemo(() => {
     const totals = personSummaries.reduce(
       (acc, item) => { acc.day += item.day; acc.ot += item.ot; acc.night += item.night; acc.total += item.total; return acc; },
@@ -786,12 +796,17 @@ export default function MonthlyOutputPage() {
                         );
                       })}
                       <td className={`${styles.noteCell} ${toneClass}`} rowSpan={5}>
-                        <input
-                          className={styles.noteInput}
-                          value={p.note ?? ""}
-                          onChange={(e) => setPersons((prev) => prev.map((item) => (item.id === p.id ? { ...item, note: e.target.value } : item)))}
-                          placeholder="비고"
-                        />
+                        <div className={styles.noteCellInner}>
+                          {(personLeaves[p.id] ?? 0) > 0 && (
+                            <span className={styles.leaveBadge}>연차{personLeaves[p.id]}</span>
+                          )}
+                          <input
+                            className={styles.noteInput}
+                            value={p.note ?? ""}
+                            onChange={(e) => setPersons((prev) => prev.map((item) => (item.id === p.id ? { ...item, note: e.target.value } : item)))}
+                            placeholder="비고"
+                          />
+                        </div>
                       </td>
                       <td className={`${styles.sumCell} ${toneClass}`} rowSpan={5}>
                         <SumBox personId={p.id} dayKeys={dayKeys} values={values} />

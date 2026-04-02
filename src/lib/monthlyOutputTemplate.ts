@@ -111,6 +111,13 @@ export function buildMonthlyOutputHtml(data: MonthlyOutputData): string {
         <div class="sl tot"><span>총 추가근무</span><b>${total || ""}</b></div>
       `;
 
+      const leaveCount = days.filter(
+        (day) => getVal(data.values, p.id, day.dateStr, "day") === "연차"
+      ).length;
+      const leaveHtml = leaveCount > 0 ? `<span class="leave-badge">연차${leaveCount}</span>` : "";
+      const noteText = p.note?.trim() ? esc(p.note) : "";
+      const noteCombined = [leaveHtml, noteText].filter(Boolean).join("<br/>");
+
       return ROWS.map(({ label, type }, i) => {
         const dayCells = days
           .map((day) => {
@@ -124,7 +131,7 @@ export function buildMonthlyOutputHtml(data: MonthlyOutputData): string {
             <td class="nc" rowspan="${rs}">${esc(p.name)}${p.role ? `<div class="rc">${esc(p.role)}</div>` : ""}</td>
             <td class="kc">${label}</td>
             ${dayCells}
-            <td class="notec" rowspan="${rs}">${esc(p.note ?? "")}</td>
+            <td class="notec" rowspan="${rs}">${noteCombined}</td>
             <td class="sumc" rowspan="${rs}">${sumHtml}</td>
           </tr>`;
         }
@@ -216,6 +223,17 @@ td.notec {
   vertical-align: top;
   padding: 4px 3px;
   color: #555;
+}
+.leave-badge {
+  display: inline-block;
+  font-size: 8px;
+  font-weight: 700;
+  color: #b45309;
+  background: #fef3c7;
+  border: 1px solid #fde68a;
+  border-radius: 3px;
+  padding: 1px 4px;
+  margin-bottom: 2px;
 }
 td.sumc {
   background: #fafafa;
