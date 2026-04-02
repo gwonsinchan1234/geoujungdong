@@ -688,12 +688,12 @@
 
 /* ── Sunday ───────────────────────────────────────────────── */
 .holidayCell {
-  background: #fff0f0 !important;
-  color: #dc2626 !important;
+  background: #fecaca !important;
+  color: #b91c1c !important;
 }
 
 .holidayCell .cellInput {
-  color: #dc2626;
+  color: #b91c1c;
 }
 
 /* ── Person Row Tones ─────────────────────────────────────── */
