@@ -4,18 +4,24 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import styles from "./page.module.css";
 import {
   buildMonthlyOutputHtml,
+  type DayEntry,
   type MonthlyOutputCellKey,
   type MonthlyOutputData,
   type MonthlyOutputPerson,
 } from "@/lib/monthlyOutputTemplate";
 
-function nowYm() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+function toDateStr(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
-function daysInMonth(year: number, month: number) {
-  return new Date(year, month, 0).getDate();
+function defaultStart(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
+}
+
+function defaultEnd(): string {
+  const d = new Date();
+  return toDateStr(new Date(d.getFullYear(), d.getMonth() + 1, 0));
 }
 
 function dlBlob(blob: Blob, filename: string) {
@@ -36,10 +42,15 @@ function numFromCell(value: string | undefined) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-function sumType(personId: string, lastDay: number, values: Record<string, string>, type: "day" | "early" | "lunch" | "ot" | "night") {
+function sumType(
+  personId: string,
+  dayKeys: string[],
+  values: Record<string, string>,
+  type: "day" | "early" | "lunch" | "ot" | "night",
+) {
   let total = 0;
-  for (let d = 1; d <= lastDay; d++) {
-    total += numFromCell(values[`${personId}__${d}__${type}`]);
+  for (const dateStr of dayKeys) {
+    total += numFromCell(values[`${personId}__${dateStr}__${type}`]);
   }
   return total;
 }
@@ -61,7 +72,8 @@ const toneClasses = [
 ] as const;
 
 export default function MonthlyOutputPage() {
-  const [ym, setYm] = useState(nowYm());
+  const [startDate, setStartDate] = useState(defaultStart);
+  const [endDate, setEndDate] = useState(defaultEnd);
   const [title, setTitle] = useState("안전감시단 출력현황");
   const [siteName, setSiteName] = useState("");
   const [persons, setPersons] = useState<MonthlyOutputPerson[]>(() => [makePerson()]);
@@ -73,34 +85,60 @@ export default function MonthlyOutputPage() {
   const [focusMode, setFocusMode] = useState(false);
   const [focusedPersonId, setFocusedPersonId] = useState<string | null>(null);
 
-  const [y, m] = useMemo(() => {
-    const mm = ym.match(/^(\d{4})-(\d{2})$/);
-    const year = mm ? Number(mm[1]) : new Date().getFullYear();
-    const month = mm ? Number(mm[2]) : new Date().getMonth() + 1;
-    return [year, month];
-  }, [ym]);
+  // ── 날짜 범위 → DayEntry 배열 ──────────────────────────────
+  const dayCols = useMemo((): DayEntry[] => {
+    const result: DayEntry[] = [];
+    const s = new Date(startDate + "T00:00:00");
+    const e = new Date(endDate + "T00:00:00");
+    if (isNaN(s.getTime()) || isNaN(e.getTime()) || s > e) return result;
+    const cur = new Date(s);
+    while (cur <= e) {
+      const y = cur.getFullYear();
+      const m = cur.getMonth() + 1;
+      const d = cur.getDate();
+      result.push({
+        dateStr: `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`,
+        y, m, d,
+        dow: cur.getDay(),
+      });
+      cur.setDate(cur.getDate() + 1);
+    }
+    return result;
+  }, [startDate, endDate]);
 
-  const lastDay = useMemo(() => daysInMonth(y, m), [y, m]);
+  const multiMonth = useMemo(
+    () => dayCols.length > 0 && dayCols[0].m !== dayCols[dayCols.length - 1].m,
+    [dayCols],
+  );
 
-  const keyOf = useCallback((personId: string, day: number, type: "day" | "early" | "lunch" | "ot" | "night") => {
-    return `${personId}__${day}__${type}` as MonthlyOutputCellKey;
-  }, []);
+  const dayKeys = useMemo(() => dayCols.map((d) => d.dateStr), [dayCols]);
 
-  const setCell = useCallback((personId: string, day: number, type: "day" | "early" | "lunch" | "ot" | "night", v: string) => {
-    const k = keyOf(personId, day, type);
-    setValues((prev) => ({ ...prev, [k]: v }));
-  }, [keyOf]);
+  const keyOf = useCallback(
+    (personId: string, dateStr: string, type: "day" | "early" | "lunch" | "ot" | "night") =>
+      `${personId}__${dateStr}__${type}` as MonthlyOutputCellKey,
+    [],
+  );
+
+  const setCell = useCallback(
+    (personId: string, dateStr: string, type: "day" | "early" | "lunch" | "ot" | "night", v: string) => {
+      const k = keyOf(personId, dateStr, type);
+      setValues((prev) => ({ ...prev, [k]: v }));
+    },
+    [keyOf],
+  );
+
+  // ── LocalStorage ───────────────────────────────────────────
+  const lsKey = useMemo(() => `monthly_output_${startDate}_${endDate}`, [startDate, endDate]);
 
   useEffect(() => {
     try {
-      const data = { ym, title, siteName, persons, values };
-      localStorage.setItem(`monthly_output_${ym}`, JSON.stringify(data));
+      localStorage.setItem(lsKey, JSON.stringify({ startDate, endDate, title, siteName, persons, values }));
     } catch {}
-  }, [ym, title, siteName, persons, values]);
+  }, [lsKey, startDate, endDate, title, siteName, persons, values]);
 
   const loadLocal = useCallback(() => {
     try {
-      const raw = localStorage.getItem(`monthly_output_${ym}`);
+      const raw = localStorage.getItem(lsKey);
       if (!raw) return;
       const parsed = JSON.parse(raw) as {
         persons?: MonthlyOutputPerson[];
@@ -113,83 +151,68 @@ export default function MonthlyOutputPage() {
       if (typeof parsed.title === "string") setTitle(parsed.title);
       if (typeof parsed.siteName === "string") setSiteName(parsed.siteName);
     } catch {}
-  }, [ym]);
+  }, [lsKey]);
 
-  useEffect(() => {
-    loadLocal();
-  }, [loadLocal]);
+  useEffect(() => { loadLocal(); }, [loadLocal]);
 
+  // ── 집계 ──────────────────────────────────────────────────
   const filledPersons = useMemo(() => persons.filter((p) => p.name.trim()), [persons]);
 
   const data: MonthlyOutputData = useMemo(() => ({
-    title,
-    siteName,
-    year: y,
-    month: m,
+    title, siteName, startDate, endDate,
+    days: dayCols,
     persons: filledPersons,
     values,
-  }), [title, siteName, y, m, filledPersons, values]);
+  }), [title, siteName, startDate, endDate, dayCols, filledPersons, values]);
 
   const personSummaries = useMemo(() => {
     return persons.map((person) => {
-      const day = sumType(person.id, lastDay, values, "day");
-      const early = sumType(person.id, lastDay, values, "early");
-      const lunch = sumType(person.id, lastDay, values, "lunch");
-      const ot = sumType(person.id, lastDay, values, "ot");
-      const night = sumType(person.id, lastDay, values, "night");
+      const day   = sumType(person.id, dayKeys, values, "day");
+      const early = sumType(person.id, dayKeys, values, "early");
+      const lunch = sumType(person.id, dayKeys, values, "lunch");
+      const ot    = sumType(person.id, dayKeys, values, "ot");
+      const night = sumType(person.id, dayKeys, values, "night");
       return {
         id: person.id,
         label: person.name.trim() || "이름 없음",
         role: person.role?.trim() || "직책 미입력",
-        early,
-        lunch,
-        day,
-        ot,
-        night,
+        early, lunch, day, ot, night,
         total: early + lunch + ot + night,
       };
     });
-  }, [lastDay, persons, values]);
+  }, [dayKeys, persons, values]);
 
   const statCards = useMemo(() => {
     const totals = personSummaries.reduce(
-      (acc, item) => {
-        acc.day += item.day;
-        acc.ot += item.ot;
-        acc.night += item.night;
-        acc.total += item.total;
-        return acc;
-      },
+      (acc, item) => { acc.day += item.day; acc.ot += item.ot; acc.night += item.night; acc.total += item.total; return acc; },
       { day: 0, ot: 0, night: 0, total: 0 },
     );
-
     return [
       { label: "입력 인원", value: filledPersons.length, unit: `전체 ${persons.length}명` },
       { label: "주간 합계", value: totals.day, unit: "시간" },
-      { label: "조출 합계", value: personSummaries.reduce((acc, item) => acc + item.early, 0), unit: "시간" },
-      { label: "점심 합계", value: personSummaries.reduce((acc, item) => acc + item.lunch, 0), unit: "시간" },
+      { label: "조출 합계", value: personSummaries.reduce((a, i) => a + i.early, 0), unit: "시간" },
+      { label: "점심 합계", value: personSummaries.reduce((a, i) => a + i.lunch, 0), unit: "시간" },
       { label: "연장 합계", value: totals.ot, unit: "시간" },
       { label: "야간 합계", value: totals.night, unit: "시간" },
-      { label: "총 추가근무", value: personSummaries.reduce((acc, item) => acc + item.total, 0), unit: "시간" },
+      { label: "총 추가근무", value: personSummaries.reduce((a, i) => a + i.total, 0), unit: "시간" },
     ];
   }, [filledPersons.length, personSummaries, persons.length]);
 
-  const dayCols = useMemo(() => Array.from({ length: lastDay }, (_, i) => i + 1), [lastDay]);
-
+  // ── 포커스 모드 ────────────────────────────────────────────
   const focusedPerson = useMemo(
     () => persons.find((p) => p.id === focusedPersonId) ?? null,
-    [persons, focusedPersonId]
+    [persons, focusedPersonId],
   );
 
   const personFilledDays = useCallback(
     (personId: string) => {
       let count = 0;
-      for (let d = 1; d <= lastDay; d++) {
-        if (TYPE_ROWS.some(({ type }) => !!values[keyOf(personId, d, type)])) count++;
+      for (const dateStr of dayKeys) {
+        if (TYPE_ROWS.some(({ type }) => !!values[keyOf(personId, dateStr, type)])) count++;
       }
       return count;
     },
-    [lastDay, values, keyOf]
+    [dayKeys, values, keyOf],
   );
 
   const navigatePerson = useCallback(
@@ -198,7 +221,7 @@ export default function MonthlyOutputPage() {
       const next = persons[idx + dir];
       if (next) setFocusedPersonId(next.id);
     },
-    [focusedPersonId, persons]
+    [focusedPersonId, persons],
   );
 
   const handleFocusCellKey = useCallback(
@@ -207,14 +230,15 @@ export default function MonthlyOutputPage() {
         const el = document.querySelector<HTMLInputElement>(`[data-focus-cell="${nTi}-${nDi}"]`);
         if (el) { e.preventDefault(); el.focus(); el.select(); }
       };
-      if (e.key === "ArrowDown") move(Math.min(ti + 1, TYPE_ROWS.length - 1), di);
-      else if (e.key === "ArrowUp") move(Math.max(ti - 1, 0), di);
-      else if (e.key === "ArrowRight") move(ti, Math.min(di + 1, lastDay - 1));
-      else if (e.key === "ArrowLeft") move(ti, Math.max(di - 1, 0));
+      if (e.key === "ArrowDown")       move(Math.min(ti + 1, TYPE_ROWS.length - 1), di);
+      else if (e.key === "ArrowUp")    move(Math.max(ti - 1, 0), di);
+      else if (e.key === "ArrowRight") move(ti, Math.min(di + 1, dayCols.length - 1));
+      else if (e.key === "ArrowLeft")  move(ti, Math.max(di - 1, 0));
     },
-    [lastDay]
+    [dayCols.length],
   );
 
+  // ── 다운로드 ───────────────────────────────────────────────
   const downloadXlsx = useCallback(async () => {
     const ExcelJS = (await import("exceljs")).default;
     const wb = new ExcelJS.Workbook();
@@ -223,7 +247,7 @@ export default function MonthlyOutputPage() {
     const cols = [
       { header: "성명(직책)", width: 16 },
       { header: "구분", width: 12 },
-      ...Array.from({ length: lastDay }, (_, i) => ({ header: String(i + 1), width: 3 })),
+      ...dayCols.map((day) => ({ header: multiMonth ? `${day.m}/${day.d}` : String(day.d), width: 3 })),
       { header: "비고", width: 14 },
       { header: "총 추가근무", width: 12 },
     ];
@@ -233,7 +257,7 @@ export default function MonthlyOutputPage() {
     const border = { top: thin, left: thin, bottom: thin, right: thin } as const;
 
     ws.mergeCells(1, 1, 1, cols.length);
-    ws.getCell(1, 1).value = `${y}년 ${m}월 ${title} ${siteName ? ` ${siteName}` : ""}`.trim();
+    ws.getCell(1, 1).value = `${startDate} ~ ${endDate} ${title}${siteName ? ` ${siteName}` : ""}`.trim();
     ws.getCell(1, 1).alignment = { horizontal: "center", vertical: "middle" };
     ws.getCell(1, 1).font = { bold: true, size: 14 };
     ws.getRow(1).height = 22;
@@ -251,14 +275,6 @@ export default function MonthlyOutputPage() {
 
     let r = 3;
     for (const p of filledPersons) {
-      const blocks: Array<{ label: string; type: "day" | "early" | "lunch" | "ot" | "night" }> = [
-        { label: "주간(시간)", type: "day" },
-        { label: "조출(시간)", type: "early" },
-        { label: "점심(시간)", type: "lunch" },
-        { label: "연장(시간)", type: "ot" },
-        { label: "야간(시간)", type: "night" },
-      ];
-
       ws.mergeCells(r, 1, r + 4, 1);
       ws.mergeCells(r, cols.length - 1, r + 4, cols.length - 1);
       ws.mergeCells(r, cols.length, r + 4, cols.length);
@@ -266,14 +282,18 @@ export default function MonthlyOutputPage() {
       ws.getCell(r, 1).value = p.role?.trim() ? `${p.name}\n${p.role}` : p.name;
       ws.getCell(r, 1).alignment = { horizontal: "center", vertical: "middle", wrapText: true };
       ws.getCell(r, 1).font = { bold: true, size: 10 };
-
       ws.getCell(r, cols.length - 1).value = p.note ?? "";
       ws.getCell(r, cols.length - 1).alignment = { horizontal: "center", vertical: "middle", wrapText: true };
 
-      let sumEarly = 0;
-      let sumLunch = 0;
-      let sumOt = 0;
-      let sumNight = 0;
+      let sumEarly = 0, sumLunch = 0, sumOt = 0, sumNight = 0;
+
+      const blocks: Array<{ label: string; type: "day" | "early" | "lunch" | "ot" | "night" }> = [
+        { label: "주간(시간)", type: "day" },
+        { label: "조출(시간)", type: "early" },
+        { label: "점심(시간)", type: "lunch" },
+        { label: "연장(시간)", type: "ot" },
+        { label: "야간(시간)", type: "night" },
+      ];
 
       for (let i = 0; i < blocks.length; i++) {
         const row = ws.getRow(r + i);
@@ -283,19 +303,17 @@ export default function MonthlyOutputPage() {
         row.getCell(2).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFEFF2FF" } };
         row.getCell(2).font = { bold: true, size: 10 };
 
-        for (let d = 1; d <= lastDay; d++) {
-          const v = values[keyOf(p.id, d, blocks[i].type)] ?? "";
-          const cell = row.getCell(2 + d);
+        for (let di = 0; di < dayCols.length; di++) {
+          const day = dayCols[di];
+          const v = values[keyOf(p.id, day.dateStr, blocks[i].type)] ?? "";
+          const cell = row.getCell(3 + di);
           cell.value = v || "";
           cell.alignment = { horizontal: "center", vertical: "middle" };
-          const date = new Date(y, m - 1, d);
-          if (date.getDay() === 0) {
-            cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFE2E2" } };
-          }
+          if (day.dow === 0) cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFECACA" } };
           const n = numFromCell(v);
           if (blocks[i].type === "early") sumEarly += n;
           if (blocks[i].type === "lunch") sumLunch += n;
-          if (blocks[i].type === "ot") sumOt += n;
+          if (blocks[i].type === "ot")    sumOt    += n;
           if (blocks[i].type === "night") sumNight += n;
         }
       }
@@ -314,43 +332,40 @@ export default function MonthlyOutputPage() {
     }
 
     const buf = await wb.xlsx.writeBuffer();
-    dlBlob(new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), `${y}-${String(m).padStart(2, "0")}_출력현황.xlsx`);
-  }, [filledPersons, keyOf, lastDay, m, siteName, title, values, y]);
+    dlBlob(
+      new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }),
+      `${startDate}_${endDate}_출력현황.xlsx`,
+    );
+  }, [dayCols, filledPersons, keyOf, multiMonth, siteName, startDate, endDate, title, values]);
 
   const downloadPng = useCallback(async () => {
     setDownloading(true);
     try {
-      const html = buildMonthlyOutputHtml(data);
       const res = await fetch("/api/monthly-output/png", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          data,
-          fileName: `${y}-${String(m).padStart(2, "0")}_출력현황.png`,
-          htmlPreview: html.length,
-        }),
+        body: JSON.stringify({ data, fileName: `${startDate}_${endDate}_출력현황.png` }),
       });
       if (!res.ok) {
         const j = await res.json().catch(() => null);
         throw new Error(j?.error ?? `PNG 생성 실패 (${res.status})`);
       }
-      const blob = await res.blob();
-      dlBlob(blob, `${y}-${String(m).padStart(2, "0")}_출력현황.png`);
+      dlBlob(await res.blob(), `${startDate}_${endDate}_출력현황.png`);
     } catch (e: unknown) {
       alert(e instanceof Error ? e.message : "PNG 다운로드 실패");
     } finally {
       setDownloading(false);
     }
-  }, [data, m, y]);
+  }, [data, startDate, endDate]);
 
-  const addPerson = () => setPersons((prev) => [...prev, makePerson()]);
-  const addPeople = (count: number) => {
-    setPersons((prev) => [...prev, ...Array.from({ length: count }, () => makePerson())]);
-  };
+  const addPerson  = () => setPersons((prev) => [...prev, makePerson()]);
+  const addPeople  = (count: number) => setPersons((prev) => [...prev, ...Array.from({ length: count }, () => makePerson())]);
   const removePerson = (id: string) => setPersons((prev) => (prev.length <= 1 ? prev : prev.filter((item) => item.id !== id)));
 
+  // ── 렌더 ──────────────────────────────────────────────────
   return (
     <div className={`${styles.page} ${denseMode ? styles.pageDense : ""}`}>
+      {/* Hero */}
       <section className={`${styles.hero} ${denseMode ? styles.heroDense : ""}`}>
         <div>
           <p className={styles.eyebrow}>Monthly Output</p>
@@ -386,6 +401,7 @@ export default function MonthlyOutputPage() {
         </div>
       </section>
 
+      {/* 기본 설정 */}
       <section className={`${styles.controlGrid} ${denseMode ? styles.controlGridDense : ""}`}>
         <div className={styles.panel}>
           <div className={styles.panelHeader}>
@@ -396,8 +412,12 @@ export default function MonthlyOutputPage() {
           </div>
           <div className={styles.fieldGrid}>
             <label className={styles.field}>
-              <span className={styles.fieldLabel}>기준 월</span>
-              <input className={styles.textInput} value={ym} onChange={(e) => setYm(e.target.value)} placeholder="YYYY-MM" />
+              <span className={styles.fieldLabel}>시작 날짜</span>
+              <input type="date" className={styles.textInput} value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+            </label>
+            <label className={styles.field}>
+              <span className={styles.fieldLabel}>종료 날짜</span>
+              <input type="date" className={styles.textInput} value={endDate} onChange={(e) => setEndDate(e.target.value)} />
             </label>
             <label className={styles.field}>
               <span className={styles.fieldLabel}>현장명</span>
@@ -432,6 +452,7 @@ export default function MonthlyOutputPage() {
         </div>
       </section>
 
+      {/* 인원 개요 */}
       <section className={`${styles.panel} ${showOverview ? "" : styles.panelCollapsed}`}>
         <div className={styles.panelHeader}>
           <div>
@@ -464,6 +485,7 @@ export default function MonthlyOutputPage() {
         </div>
       </section>
 
+      {/* 포커스 모드 */}
       {focusMode && (
         <section className={styles.panel}>
           <div className={styles.focusModeWrap}>
@@ -503,39 +525,34 @@ export default function MonthlyOutputPage() {
                       <thead>
                         <tr>
                           <th className={styles.focusCorner}>구분</th>
-                          {dayCols.map((d) => {
-                            const dow = new Date(y, m - 1, d).getDay();
-                            return (
-                              <th key={d} className={`${styles.focusDayHead} ${dow === 0 ? styles.holidayCell : ""}`}>{d}</th>
-                            );
-                          })}
+                          {dayCols.map((day) => (
+                            <th key={day.dateStr} className={`${styles.focusDayHead} ${day.dow === 0 ? styles.holidayCell : ""}`}>
+                              {multiMonth ? `${day.m}/${day.d}` : day.d}
+                            </th>
+                          ))}
                         </tr>
                         <tr>
                           <th className={styles.focusCorner} />
-                          {dayCols.map((d) => {
-                            const dow = new Date(y, m - 1, d).getDay();
-                            return (
-                              <th key={`dow-${d}`} className={`${styles.focusDaySubHead} ${dow === 0 ? styles.holidayCell : ""}`}>
-                                {["일", "월", "화", "수", "목", "금", "토"][dow]}
-                              </th>
-                            );
-                          })}
+                          {dayCols.map((day) => (
+                            <th key={`dow-${day.dateStr}`} className={`${styles.focusDaySubHead} ${day.dow === 0 ? styles.holidayCell : ""}`}>
+                              {["일", "월", "화", "수", "목", "금", "토"][day.dow]}
+                            </th>
+                          ))}
                         </tr>
                       </thead>
                       <tbody>
                         {TYPE_ROWS.map(({ label, type }, ti) => (
                           <tr key={type}>
                             <td className={styles.focusTypeCell}>{label}</td>
-                            {dayCols.map((d, di) => {
-                              const k = keyOf(focusedPerson.id, d, type);
-                              const dow = new Date(y, m - 1, d).getDay();
+                            {dayCols.map((day, di) => {
+                              const k = keyOf(focusedPerson.id, day.dateStr, type);
                               return (
-                                <td key={k} className={`${styles.focusValueCell} ${dow === 0 ? styles.holidayCell : ""}`}>
+                                <td key={k} className={`${styles.focusValueCell} ${day.dow === 0 ? styles.holidayCell : ""}`}>
                                   <input
                                     data-focus-cell={`${ti}-${di}`}
                                     className={styles.focusCellInput}
                                     value={values[k] ?? ""}
-                                    onChange={(e) => setCell(focusedPerson.id, d, type, e.target.value)}
+                                    onChange={(e) => setCell(focusedPerson.id, day.dateStr, type, e.target.value)}
                                     onKeyDown={(e) => handleFocusCellKey(e, ti, di)}
                                     inputMode="decimal"
                                   />
@@ -548,7 +565,7 @@ export default function MonthlyOutputPage() {
                     </table>
                   </div>
                   <div className={styles.focusSumArea}>
-                    <SumBox personId={focusedPerson.id} lastDay={lastDay} values={values} />
+                    <SumBox personId={focusedPerson.id} dayKeys={dayKeys} values={values} />
                   </div>
                 </>
               ) : (
@@ -559,6 +576,7 @@ export default function MonthlyOutputPage() {
         </section>
       )}
 
+      {/* 월간 입력 테이블 */}
       <section className={`${styles.panel} ${focusMode ? styles.hiddenSection : ""}`}>
         <div className={styles.panelHeader}>
           <div>
@@ -578,139 +596,128 @@ export default function MonthlyOutputPage() {
               <tr>
                 <th className={`${styles.headerCell} ${styles.cornerHead} ${styles.stickyName} ${styles.stickyHead}`} rowSpan={2}>성명(직책)</th>
                 <th className={`${styles.headerCell} ${styles.cornerHead} ${styles.stickyType} ${styles.stickyHead}`} rowSpan={2}>구분</th>
-                {dayCols.map((d) => {
-                  const dow = new Date(y, m - 1, d).getDay();
-                  return (
-                    <th key={d} className={`${styles.headerCell} ${styles.dayHead} ${dow === 0 ? styles.holidayCell : ""}`}>
-                      {d}
-                    </th>
-                  );
-                })}
+                {dayCols.map((day) => (
+                  <th key={day.dateStr} className={`${styles.headerCell} ${styles.dayHead} ${day.dow === 0 ? styles.holidayCell : ""}`}>
+                    {multiMonth ? `${day.m}/${day.d}` : day.d}
+                  </th>
+                ))}
                 <th className={`${styles.headerCell} ${styles.sideHead} ${styles.stickyHead}`} rowSpan={2}>비고</th>
                 <th className={`${styles.headerCell} ${styles.sideHead} ${styles.stickyHead}`} rowSpan={2}>총 추가근무</th>
               </tr>
               <tr>
-                {dayCols.map((d) => {
-                  const dow = new Date(y, m - 1, d).getDay();
-                  return (
-                    <th key={`dow-${d}`} className={`${styles.headerCell} ${styles.daySubHead} ${dow === 0 ? styles.holidayCell : ""}`}>
-                      {["일", "월", "화", "수", "목", "금", "토"][dow]}
-                    </th>
-                  );
-                })}
+                {dayCols.map((day) => (
+                  <th key={`dow-${day.dateStr}`} className={`${styles.headerCell} ${styles.daySubHead} ${day.dow === 0 ? styles.holidayCell : ""}`}>
+                    {["일", "월", "화", "수", "목", "금", "토"][day.dow]}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
               {persons.map((p, index) => {
                 const toneClass = styles[toneClasses[index % toneClasses.length]];
                 return (
-                <React.Fragment key={p.id}>
-                  <tr className={styles.personFirstRow}>
-                    <td className={`${styles.nameCell} ${styles.stickyName} ${toneClass}`} rowSpan={5}>
-                      <div className={styles.nameEditor}>
+                  <React.Fragment key={p.id}>
+                    <tr className={styles.personFirstRow}>
+                      <td className={`${styles.nameCell} ${styles.stickyName} ${toneClass}`} rowSpan={5}>
+                        <div className={styles.nameEditor}>
+                          <input
+                            className={styles.personInput}
+                            value={p.name}
+                            onChange={(e) => setPersons((prev) => prev.map((item) => (item.id === p.id ? { ...item, name: e.target.value } : item)))}
+                            placeholder="이름"
+                          />
+                          <input
+                            className={styles.personInput}
+                            value={p.role ?? ""}
+                            onChange={(e) => setPersons((prev) => prev.map((item) => (item.id === p.id ? { ...item, role: e.target.value } : item)))}
+                            placeholder="직책"
+                          />
+                          <button type="button" className={styles.rowDeleteBtn} onClick={() => removePerson(p.id)}>삭제</button>
+                        </div>
+                      </td>
+                      <td className={`${styles.typeCell} ${styles.stickyType} ${toneClass}`}>주간(시간)</td>
+                      {dayCols.map((day) => {
+                        const k = keyOf(p.id, day.dateStr, "day");
+                        return (
+                          <td key={k} className={`${styles.valueCell} ${day.dow === 0 ? styles.holidayCell : ""}`}>
+                            <input className={styles.cellInput} value={values[k] ?? ""} onChange={(e) => setCell(p.id, day.dateStr, "day", e.target.value)} inputMode="decimal" />
+                          </td>
+                        );
+                      })}
+                      <td className={`${styles.noteCell} ${toneClass}`} rowSpan={5}>
                         <input
-                          className={styles.personInput}
-                          value={p.name}
-                          onChange={(e) => setPersons((prev) => prev.map((item) => (item.id === p.id ? { ...item, name: e.target.value } : item)))}
-                          placeholder="이름"
+                          className={styles.noteInput}
+                          value={p.note ?? ""}
+                          onChange={(e) => setPersons((prev) => prev.map((item) => (item.id === p.id ? { ...item, note: e.target.value } : item)))}
+                          placeholder="비고"
                         />
-                        <input
-                          className={styles.personInput}
-                          value={p.role ?? ""}
-                          onChange={(e) => setPersons((prev) => prev.map((item) => (item.id === p.id ? { ...item, role: e.target.value } : item)))}
-                          placeholder="직책"
-                        />
-                        <button type="button" className={styles.rowDeleteBtn} onClick={() => removePerson(p.id)}>삭제</button>
-                      </div>
-                    </td>
-                    <td className={`${styles.typeCell} ${styles.stickyType} ${toneClass}`}>주간(시간)</td>
-                    {dayCols.map((d) => {
-                      const dow = new Date(y, m - 1, d).getDay();
-                      const k = keyOf(p.id, d, "day");
-                      return (
-                        <td key={k} className={`${styles.valueCell} ${dow === 0 ? styles.holidayCell : ""}`}>
-                          <input className={styles.cellInput} value={values[k] ?? ""} onChange={(e) => setCell(p.id, d, "day", e.target.value)} inputMode="decimal" />
-                        </td>
-                      );
-                    })}
-                    <td className={`${styles.noteCell} ${toneClass}`} rowSpan={5}>
-                      <input
-                        className={styles.noteInput}
-                        value={p.note ?? ""}
-                        onChange={(e) => setPersons((prev) => prev.map((item) => (item.id === p.id ? { ...item, note: e.target.value } : item)))}
-                        placeholder="비고"
-                      />
-                    </td>
-                    <td className={`${styles.sumCell} ${toneClass}`} rowSpan={5}>
-                      <SumBox personId={p.id} lastDay={lastDay} values={values} />
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className={`${styles.typeCell} ${styles.stickyType} ${toneClass}`}>조출(시간)</td>
-                    {dayCols.map((d) => {
-                      const dow = new Date(y, m - 1, d).getDay();
-                      const k = keyOf(p.id, d, "early");
-                      return (
-                        <td key={k} className={`${styles.valueCell} ${dow === 0 ? styles.holidayCell : ""}`}>
-                          <input className={styles.cellInput} value={values[k] ?? ""} onChange={(e) => setCell(p.id, d, "early", e.target.value)} inputMode="decimal" />
-                        </td>
-                      );
-                    })}
-                  </tr>
-                  <tr>
-                    <td className={`${styles.typeCell} ${styles.stickyType} ${toneClass}`}>점심(시간)</td>
-                    {dayCols.map((d) => {
-                      const dow = new Date(y, m - 1, d).getDay();
-                      const k = keyOf(p.id, d, "lunch");
-                      return (
-                        <td key={k} className={`${styles.valueCell} ${dow === 0 ? styles.holidayCell : ""}`}>
-                          <input className={styles.cellInput} value={values[k] ?? ""} onChange={(e) => setCell(p.id, d, "lunch", e.target.value)} inputMode="decimal" />
-                        </td>
-                      );
-                    })}
-                  </tr>
-                  <tr>
-                    <td className={`${styles.typeCell} ${styles.stickyType} ${toneClass}`}>연장(시간)</td>
-                    {dayCols.map((d) => {
-                      const dow = new Date(y, m - 1, d).getDay();
-                      const k = keyOf(p.id, d, "ot");
-                      return (
-                        <td key={k} className={`${styles.valueCell} ${dow === 0 ? styles.holidayCell : ""}`}>
-                          <input className={styles.cellInput} value={values[k] ?? ""} onChange={(e) => setCell(p.id, d, "ot", e.target.value)} inputMode="decimal" />
-                        </td>
-                      );
-                    })}
-                  </tr>
-                  <tr>
-                    <td className={`${styles.typeCell} ${styles.stickyType} ${toneClass}`}>야간(시간)</td>
-                    {dayCols.map((d) => {
-                      const dow = new Date(y, m - 1, d).getDay();
-                      const k = keyOf(p.id, d, "night");
-                      return (
-                        <td key={k} className={`${styles.valueCell} ${dow === 0 ? styles.holidayCell : ""}`}>
-                          <input className={styles.cellInput} value={values[k] ?? ""} onChange={(e) => setCell(p.id, d, "night", e.target.value)} inputMode="decimal" />
-                        </td>
-                      );
-                    })}
-                  </tr>
-                </React.Fragment>
-              );
+                      </td>
+                      <td className={`${styles.sumCell} ${toneClass}`} rowSpan={5}>
+                        <SumBox personId={p.id} dayKeys={dayKeys} values={values} />
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className={`${styles.typeCell} ${styles.stickyType} ${toneClass}`}>조출(시간)</td>
+                      {dayCols.map((day) => {
+                        const k = keyOf(p.id, day.dateStr, "early");
+                        return (
+                          <td key={k} className={`${styles.valueCell} ${day.dow === 0 ? styles.holidayCell : ""}`}>
+                            <input className={styles.cellInput} value={values[k] ?? ""} onChange={(e) => setCell(p.id, day.dateStr, "early", e.target.value)} inputMode="decimal" />
+                          </td>
+                        );
+                      })}
+                    </tr>
+                    <tr>
+                      <td className={`${styles.typeCell} ${styles.stickyType} ${toneClass}`}>점심(시간)</td>
+                      {dayCols.map((day) => {
+                        const k = keyOf(p.id, day.dateStr, "lunch");
+                        return (
+                          <td key={k} className={`${styles.valueCell} ${day.dow === 0 ? styles.holidayCell : ""}`}>
+                            <input className={styles.cellInput} value={values[k] ?? ""} onChange={(e) => setCell(p.id, day.dateStr, "lunch", e.target.value)} inputMode="decimal" />
+                          </td>
+                        );
+                      })}
+                    </tr>
+                    <tr>
+                      <td className={`${styles.typeCell} ${styles.stickyType} ${toneClass}`}>연장(시간)</td>
+                      {dayCols.map((day) => {
+                        const k = keyOf(p.id, day.dateStr, "ot");
+                        return (
+                          <td key={k} className={`${styles.valueCell} ${day.dow === 0 ? styles.holidayCell : ""}`}>
+                            <input className={styles.cellInput} value={values[k] ?? ""} onChange={(e) => setCell(p.id, day.dateStr, "ot", e.target.value)} inputMode="decimal" />
+                          </td>
+                        );
+                      })}
+                    </tr>
+                    <tr>
+                      <td className={`${styles.typeCell} ${styles.stickyType} ${toneClass}`}>야간(시간)</td>
+                      {dayCols.map((day) => {
+                        const k = keyOf(p.id, day.dateStr, "night");
+                        return (
+                          <td key={k} className={`${styles.valueCell} ${day.dow === 0 ? styles.holidayCell : ""}`}>
+                            <input className={styles.cellInput} value={values[k] ?? ""} onChange={(e) => setCell(p.id, day.dateStr, "night", e.target.value)} inputMode="decimal" />
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  </React.Fragment>
+                );
               })}
             </tbody>
           </table>
         </div>
 
-        <p className={styles.tip}>카톡 전송은 `카톡용 PNG`만 보내면 되고, 수정용 원본은 브라우저 로컬 저장으로 월별 유지됩니다.</p>
+        <p className={styles.tip}>카톡 전송은 `카톡용 PNG`만 보내면 되고, 수정용 원본은 브라우저 로컬 저장으로 날짜별 유지됩니다.</p>
       </section>
     </div>
   );
 }
 
-function SumBox({ personId, lastDay, values }: { personId: string; lastDay: number; values: Record<string, string> }) {
-  const early = sumType(personId, lastDay, values, "early");
-  const lunch = sumType(personId, lastDay, values, "lunch");
-  const ot = sumType(personId, lastDay, values, "ot");
-  const night = sumType(personId, lastDay, values, "night");
+function SumBox({ personId, dayKeys, values }: { personId: string; dayKeys: string[]; values: Record<string, string> }) {
+  const early = sumType(personId, dayKeys, values, "early");
+  const lunch = sumType(personId, dayKeys, values, "lunch");
+  const ot    = sumType(personId, dayKeys, values, "ot");
+  const night = sumType(personId, dayKeys, values, "night");
   const total = early + lunch + ot + night;
 
   return (

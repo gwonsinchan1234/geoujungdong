@@ -5,18 +5,27 @@ export type MonthlyOutputPerson = {
   note?: string;
 };
 
+export type DayEntry = {
+  dateStr: string; // "YYYY-MM-DD"
+  y: number;
+  m: number;
+  d: number;
+  dow: number; // 0=일 … 6=토
+};
+
 export type MonthlyOutputCellKey =
-  | `${string}__${number}__day`
-  | `${string}__${number}__early`
-  | `${string}__${number}__lunch`
-  | `${string}__${number}__ot`
-  | `${string}__${number}__night`;
+  | `${string}__${string}__day`
+  | `${string}__${string}__early`
+  | `${string}__${string}__lunch`
+  | `${string}__${string}__ot`
+  | `${string}__${string}__night`;
 
 export type MonthlyOutputData = {
   title: string;
   siteName: string;
-  year: number;
-  month: number;
+  startDate: string; // "YYYY-MM-DD"
+  endDate: string;   // "YYYY-MM-DD"
+  days: DayEntry[];
   persons: MonthlyOutputPerson[];
   values: Record<MonthlyOutputCellKey, string>;
 };
@@ -29,44 +38,33 @@ function esc(s: string): string {
     .replace(/"/g, "&quot;");
 }
 
-function daysInMonth(year: number, month: number): number {
-  return new Date(year, month, 0).getDate();
-}
-
-function isSunday(year: number, month: number, day: number): boolean {
-  return new Date(year, month - 1, day).getDay() === 0;
-}
-
-function getDow(year: number, month: number, day: number): string {
-  return ["일", "월", "화", "수", "목", "금", "토"][new Date(year, month - 1, day).getDay()] ?? "";
-}
-
 function getVal(
   values: MonthlyOutputData["values"],
   personId: string,
-  day: number,
+  dateStr: string,
   type: "day" | "early" | "lunch" | "ot" | "night",
 ): string {
-  return (values[`${personId}__${day}__${type}` as MonthlyOutputCellKey] ?? "").trim();
+  return (values[`${personId}__${dateStr}__${type}` as MonthlyOutputCellKey] ?? "").trim();
 }
 
 function sumRow(
   values: MonthlyOutputData["values"],
   personId: string,
   type: "day" | "early" | "lunch" | "ot" | "night",
-  lastDay: number,
+  days: DayEntry[],
 ): number {
   let s = 0;
-  for (let d = 1; d <= lastDay; d++) {
-    const n = Number(getVal(values, personId, d, type).replace(/[^\d.]/g, ""));
+  for (const day of days) {
+    const n = Number(getVal(values, personId, day.dateStr, type).replace(/[^\d.]/g, ""));
     if (Number.isFinite(n)) s += n;
   }
   return s;
 }
 
 export function buildMonthlyOutputHtml(data: MonthlyOutputData): string {
-  const lastDay = daysInMonth(data.year, data.month);
-  const days = Array.from({ length: lastDay }, (_, i) => i + 1);
+  const days = data.days;
+  const multiMonth = days.length > 0 && days[0].m !== days[days.length - 1].m;
+  const dayWidth = days.length > 20 ? 24 : 28;
 
   const ROWS: { label: string; type: "day" | "early" | "lunch" | "ot" | "night" }[] = [
     { label: "주간", type: "day" },
@@ -77,26 +75,30 @@ export function buildMonthlyOutputHtml(data: MonthlyOutputData): string {
   ];
 
   const headDays = days
-    .map((d) => {
-      const sun = isSunday(data.year, data.month, d);
-      return `<th class="dh${sun ? " sun" : ""}">${d}</th>`;
+    .map((day) => {
+      const label = multiMonth ? `${day.m}/${day.d}` : String(day.d);
+      return `<th class="dh${day.dow === 0 ? " sun" : ""}">${label}</th>`;
     })
     .join("");
 
   const headDow = days
-    .map((d) => {
-      const sun = isSunday(data.year, data.month, d);
-      return `<th class="dh${sun ? " sun" : ""}">${getDow(data.year, data.month, d)}</th>`;
-    })
+    .map((day) =>
+      `<th class="dh${day.dow === 0 ? " sun" : ""}">${["일", "월", "화", "수", "목", "금", "토"][day.dow]}</th>`
+    )
     .join("");
+
+  const titleDate =
+    data.startDate === data.endDate
+      ? data.startDate.replace(/-/g, ".")
+      : `${data.startDate.replace(/-/g, ".")} ~ ${data.endDate.replace(/-/g, ".")}`;
 
   const bodyRows = data.persons
     .map((p) => {
       const sums = {
-        early: sumRow(data.values, p.id, "early", lastDay),
-        lunch: sumRow(data.values, p.id, "lunch", lastDay),
-        ot: sumRow(data.values, p.id, "ot", lastDay),
-        night: sumRow(data.values, p.id, "night", lastDay),
+        early: sumRow(data.values, p.id, "early", days),
+        lunch: sumRow(data.values, p.id, "lunch", days),
+        ot: sumRow(data.values, p.id, "ot", days),
+        night: sumRow(data.values, p.id, "night", days),
       };
       const total = sums.early + sums.lunch + sums.ot + sums.night;
       const rs = ROWS.length;
@@ -111,10 +113,9 @@ export function buildMonthlyOutputHtml(data: MonthlyOutputData): string {
 
       return ROWS.map(({ label, type }, i) => {
         const dayCells = days
-          .map((d) => {
-            const sun = isSunday(data.year, data.month, d);
-            const v = esc(getVal(data.values, p.id, d, type));
-            return `<td class="dc${sun ? " sun" : ""}">${v}</td>`;
+          .map((day) => {
+            const v = esc(getVal(data.values, p.id, day.dateStr, type));
+            return `<td class="dc${day.dow === 0 ? " sun" : ""}">${v}</td>`;
           })
           .join("");
 
@@ -174,19 +175,17 @@ th, td {
   padding: 1px 0;
   line-height: 1.2;
 }
-/* 헤더 행 */
 thead th {
   background: #f0f0f0;
   font-weight: 700;
   color: #333;
 }
-th.dh { width: 28px; font-size: 9px; }
+th.dh { width: ${dayWidth}px; font-size: 9px; }
 th.nh { width: 88px; }
 th.kh { width: 52px; }
 th.nth { width: 50px; }
 th.sh { width: 78px; }
-th.dh.sun, td.dc.sun { background: #fff0f0; color: #dc2626; }
-/* 바디 셀 */
+th.dh.sun, td.dc.sun { background: #fecaca; color: #b91c1c; }
 td.nc {
   font-weight: 800;
   font-size: 9.5px;
@@ -239,18 +238,17 @@ td.sumc {
   font-weight: 800;
 }
 .tot span, .tot b { color: #111; font-weight: 800; }
-/* 인원 구분 */
 tr.prow td, tr.prow th { border-top: 2px solid #888; }
 </style>
 </head>
 <body>
-<div class="doc-title">${esc(data.year + "년 " + data.month + "월")} ${esc(data.title || "출력현황")}${data.siteName ? " — " + esc(data.siteName) : ""}</div>
+<div class="doc-title">${esc(titleDate)} ${esc(data.title || "출력현황")}${data.siteName ? " — " + esc(data.siteName) : ""}</div>
 ${data.siteName ? `<div class="doc-sub">${esc(data.siteName)}</div>` : ""}
 <table>
   <colgroup>
     <col style="width:88px"/>
     <col style="width:52px"/>
-    ${days.map(() => `<col style="width:28px"/>`).join("")}
+    ${days.map(() => `<col style="width:${dayWidth}px"/>`).join("")}
     <col style="width:50px"/>
     <col style="width:78px"/>
   </colgroup>
