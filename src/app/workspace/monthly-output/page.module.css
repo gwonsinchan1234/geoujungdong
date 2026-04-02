@@ -702,7 +702,8 @@
   color: #b91c1c !important;
 }
 
-.holidayCell .cellInput {
+.holidayCell .cellInput,
+.holidayCell .focusCellInput {
   color: #b91c1c;
 }
 

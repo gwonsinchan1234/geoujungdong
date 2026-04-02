@@ -694,7 +694,7 @@ export default function MonthlyOutputPage() {
                               const val = values[k] ?? "";
                               const isDay = type === "day";
                               return (
-                                <td key={k} className={`${styles.focusValueCell} ${day.dow === 0 ? styles.holidayCell : ""} ${isDay && val === "O" ? styles.focusValueCellO : ""}`}>
+                                <td key={k} className={`${styles.focusValueCell} ${day.dow === 0 || (isDay && val === "연차") ? styles.holidayCell : ""} ${isDay && val === "O" ? styles.focusValueCellO : ""}`}>
                                   <input
                                     data-focus-cell={`${ti}-${di}`}
                                     className={`${styles.focusCellInput} ${isDay && val === "O" ? styles.focusCellInputO : ""}`}
@@ -796,7 +796,7 @@ export default function MonthlyOutputPage() {
                         const k = keyOf(p.id, day.dateStr, "day");
                         const val = values[k] ?? "";
                         return (
-                          <td key={k} className={`${styles.valueCell} ${day.dow === 0 ? styles.holidayCell : ""} ${val === "O" ? styles.valueCellO : ""}`}>
+                          <td key={k} className={`${styles.valueCell} ${day.dow === 0 || val === "연차" ? styles.holidayCell : ""} ${val === "O" ? styles.valueCellO : ""}`}>
                             <input
                               className={`${styles.cellInput} ${val === "O" ? styles.cellInputO : ""}`}
                               value={val}
