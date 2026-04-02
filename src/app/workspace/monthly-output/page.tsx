@@ -324,6 +324,16 @@ export default function MonthlyOutputPage() {
     [dayCols.length],
   );
 
+  // ── 즉시 저장 ─────────────────────────────────────────────
+  const saveAll = useCallback(async () => {
+    if (globalTimer.current) clearTimeout(globalTimer.current);
+    if (rangeTimer.current)  clearTimeout(rangeTimer.current);
+    await Promise.all([
+      saveGlobalToSupabase(persons, title, siteName),
+      saveRangeToSupabase(values, startDate, endDate),
+    ]);
+  }, [persons, title, siteName, values, startDate, endDate, saveGlobalToSupabase, saveRangeToSupabase]);
+
   // ── 주간 O 채우기 ──────────────────────────────────────────
   const fillDayO = useCallback(
     (personId: string) => {
@@ -488,6 +498,7 @@ export default function MonthlyOutputPage() {
           <button type="button" className={styles.secondaryButton} onClick={addPerson}>인원 추가</button>
           <button type="button" className={styles.secondaryButton} onClick={() => addPeople(5)}>5명 추가</button>
           <button type="button" className={styles.secondaryButton} onClick={() => addPeople(10)}>10명 추가</button>
+          <button type="button" className={styles.primaryButton} onClick={() => void saveAll()}>저장하기</button>
           <button
             type="button"
             className={focusMode ? styles.primaryButton : styles.secondaryButton}
