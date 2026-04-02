@@ -238,6 +238,21 @@ export default function MonthlyOutputPage() {
     [dayCols.length],
   );
 
+  // ── 주간 O 채우기 ──────────────────────────────────────────
+  const fillDayO = useCallback(
+    (personId: string) => {
+      setValues((prev) => {
+        const next = { ...prev };
+        for (const dateStr of dayKeys) {
+          const k = `${personId}__${dateStr}__day` as MonthlyOutputCellKey;
+          if (!next[k]) next[k] = "O" as never;
+        }
+        return next;
+      });
+    },
+    [dayKeys],
+  );
+
   // ── 다운로드 ───────────────────────────────────────────────
   const downloadXlsx = useCallback(async () => {
     const ExcelJS = (await import("exceljs")).default;
@@ -518,6 +533,7 @@ export default function MonthlyOutputPage() {
                       <strong>{focusedPerson.name || "이름 없음"}</strong>
                       {focusedPerson.role && <span>{focusedPerson.role}</span>}
                     </div>
+                    <button type="button" className={styles.focusOFillBtn} onClick={() => fillDayO(focusedPerson.id)}>주간 O 채우기</button>
                     <button type="button" className={styles.focusNavBtn} onClick={() => navigatePerson(1)}>다음 ▶</button>
                   </div>
                   <div className={styles.focusTableWrap}>
@@ -546,13 +562,23 @@ export default function MonthlyOutputPage() {
                             <td className={styles.focusTypeCell}>{label}</td>
                             {dayCols.map((day, di) => {
                               const k = keyOf(focusedPerson.id, day.dateStr, type);
+                              const val = values[k] ?? "";
+                              const isDay = type === "day";
                               return (
-                                <td key={k} className={`${styles.focusValueCell} ${day.dow === 0 ? styles.holidayCell : ""}`}>
+                                <td key={k} className={`${styles.focusValueCell} ${day.dow === 0 ? styles.holidayCell : ""} ${isDay && val === "O" ? styles.focusValueCellO : ""}`}>
                                   <input
                                     data-focus-cell={`${ti}-${di}`}
-                                    className={styles.focusCellInput}
-                                    value={values[k] ?? ""}
-                                    onChange={(e) => setCell(focusedPerson.id, day.dateStr, type, e.target.value)}
+                                    className={`${styles.focusCellInput} ${isDay && val === "O" ? styles.focusCellInputO : ""}`}
+                                    value={val}
+                                    onChange={(e) => {
+                                      const v = e.target.value;
+                                      setCell(focusedPerson.id, day.dateStr, type, isDay ? (v === "O" || v === "o" ? "O" : v.replace(/[Oo]/g, "")) : v);
+                                    }}
+                                    onFocus={(e) => e.target.select()}
+                                    onClick={isDay ? () => {
+                                      if (val === "") setCell(focusedPerson.id, day.dateStr, "day", "O");
+                                      else if (val === "O") setCell(focusedPerson.id, day.dateStr, "day", "");
+                                    } : undefined}
                                     onKeyDown={(e) => handleFocusCellKey(e, ti, di)}
                                     inputMode="decimal"
                                   />
@@ -632,15 +658,30 @@ export default function MonthlyOutputPage() {
                             onChange={(e) => setPersons((prev) => prev.map((item) => (item.id === p.id ? { ...item, role: e.target.value } : item)))}
                             placeholder="직책"
                           />
+                          <button type="button" className={styles.rowOFillBtn} onClick={() => fillDayO(p.id)}>O 채우기</button>
                           <button type="button" className={styles.rowDeleteBtn} onClick={() => removePerson(p.id)}>삭제</button>
                         </div>
                       </td>
                       <td className={`${styles.typeCell} ${styles.stickyType} ${toneClass}`}>주간(시간)</td>
                       {dayCols.map((day) => {
                         const k = keyOf(p.id, day.dateStr, "day");
+                        const val = values[k] ?? "";
                         return (
-                          <td key={k} className={`${styles.valueCell} ${day.dow === 0 ? styles.holidayCell : ""}`}>
-                            <input className={styles.cellInput} value={values[k] ?? ""} onChange={(e) => setCell(p.id, day.dateStr, "day", e.target.value)} inputMode="decimal" />
+                          <td key={k} className={`${styles.valueCell} ${day.dow === 0 ? styles.holidayCell : ""} ${val === "O" ? styles.valueCellO : ""}`}>
+                            <input
+                              className={`${styles.cellInput} ${val === "O" ? styles.cellInputO : ""}`}
+                              value={val}
+                              onChange={(e) => {
+                                const v = e.target.value;
+                                setCell(p.id, day.dateStr, "day", v === "O" || v === "o" ? "O" : v.replace(/[Oo]/g, ""));
+                              }}
+                              onFocus={(e) => e.target.select()}
+                              onClick={() => {
+                                if (val === "") setCell(p.id, day.dateStr, "day", "O");
+                                else if (val === "O") setCell(p.id, day.dateStr, "day", "");
+                              }}
+                              inputMode="decimal"
+                            />
                           </td>
                         );
                       })}

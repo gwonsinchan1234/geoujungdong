@@ -746,6 +746,59 @@
   margin-top: 2px;
 }
 
+/* ── O 표시 셀 ────────────────────────────────────────────── */
+.valueCellO {
+  background: #f0fdf4 !important;
+}
+
+.cellInputO {
+  color: #16a34a !important;
+  font-weight: 700 !important;
+}
+
+.focusValueCellO {
+  background: #f0fdf4 !important;
+}
+
+.focusCellInputO {
+  color: #16a34a !important;
+  font-weight: 700 !important;
+}
+
+/* ── O 채우기 버튼 ─────────────────────────────────────────── */
+.rowOFillBtn {
+  padding: 2px 6px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #16a34a;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.rowOFillBtn:hover {
+  background: #dcfce7;
+}
+
+.focusOFillBtn {
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #15803d;
+  background: #f0fdf4;
+  border: 1px solid #86efac;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.12s;
+  white-space: nowrap;
+}
+
+.focusOFillBtn:hover {
+  background: #dcfce7;
+}
+
 /* ── Focus Mode ───────────────────────────────────────────── */
 .focusModeWrap {
   display: flex;
