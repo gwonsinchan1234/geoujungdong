@@ -329,14 +329,15 @@ export default function MonthlyOutputPage() {
     (personId: string) => {
       setValues((prev) => {
         const next = { ...prev };
-        for (const dateStr of dayKeys) {
-          const k = `${personId}__${dateStr}__day` as MonthlyOutputCellKey;
+        for (const day of dayCols) {
+          if (day.dow === 0) continue; // 일요일 제외
+          const k = `${personId}__${day.dateStr}__day` as MonthlyOutputCellKey;
           if (!next[k]) next[k] = "O" as never;
         }
         return next;
       });
     },
-    [dayKeys],
+    [dayCols],
   );
 
   // ── 다운로드 ───────────────────────────────────────────────
