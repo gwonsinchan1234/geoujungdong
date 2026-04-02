@@ -130,30 +130,46 @@ export default function MonthlyOutputPage() {
   // ── LocalStorage ───────────────────────────────────────────
   const lsKey = useMemo(() => `monthly_output_${startDate}_${endDate}`, [startDate, endDate]);
 
+  // 인원/제목/현장명 → 날짜 무관 전역 저장
   useEffect(() => {
     try {
-      localStorage.setItem(lsKey, JSON.stringify({ startDate, endDate, title, siteName, persons, values }));
+      localStorage.setItem("monthly_output_global", JSON.stringify({ persons, title, siteName }));
     } catch {}
-  }, [lsKey, startDate, endDate, title, siteName, persons, values]);
+  }, [persons, title, siteName]);
 
-  const loadLocal = useCallback(() => {
+  // 셀 데이터 → 날짜 범위별 저장
+  useEffect(() => {
     try {
-      const raw = localStorage.getItem(lsKey);
+      localStorage.setItem(lsKey, JSON.stringify({ values }));
+    } catch {}
+  }, [lsKey, values]);
+
+  // 최초 마운트: 전역 설정(인원/제목/현장명) 로드
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("monthly_output_global");
       if (!raw) return;
-      const parsed = JSON.parse(raw) as {
-        persons?: MonthlyOutputPerson[];
-        values?: Record<MonthlyOutputCellKey, string>;
-        title?: string;
-        siteName?: string;
-      };
-      if (parsed.persons) setPersons(parsed.persons);
-      if (parsed.values) setValues(parsed.values);
+      const parsed = JSON.parse(raw) as { persons?: MonthlyOutputPerson[]; title?: string; siteName?: string; };
+      if (parsed.persons?.length) setPersons(parsed.persons);
       if (typeof parsed.title === "string") setTitle(parsed.title);
       if (typeof parsed.siteName === "string") setSiteName(parsed.siteName);
     } catch {}
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // 날짜 범위 변경 시: 해당 범위의 셀 데이터만 로드 (없으면 초기화)
+  const loadRangeValues = useCallback(() => {
+    try {
+      const raw = localStorage.getItem(lsKey);
+      if (raw) {
+        const parsed = JSON.parse(raw) as { values?: Record<MonthlyOutputCellKey, string>; };
+        if (parsed.values) { setValues(parsed.values); return; }
+      }
+      setValues({});
+    } catch {}
   }, [lsKey]);
 
-  useEffect(() => { loadLocal(); }, [loadLocal]);
+  useEffect(() => { loadRangeValues(); }, [loadRangeValues]);
 
   // ── 집계 ──────────────────────────────────────────────────
   const filledPersons = useMemo(() => persons.filter((p) => p.name.trim()), [persons]);
