@@ -86,6 +86,8 @@ export default function MonthlyOutputPage() {
   const [focusMode, setFocusMode] = useState(false);
   const [focusedPersonId, setFocusedPersonId] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewFileName, setPreviewFileName] = useState("");
 
   const globalTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const rangeTimer  = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -460,6 +462,21 @@ export default function MonthlyOutputPage() {
     );
   }, [dayCols, filledPersons, keyOf, multiMonth, siteName, startDate, endDate, title, values]);
 
+  const closePreview = useCallback(() => {
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    setPreviewUrl(null);
+  }, [previewUrl]);
+
+  const confirmDownload = useCallback(() => {
+    if (!previewUrl) return;
+    const a = document.createElement("a");
+    a.href = previewUrl;
+    a.download = previewFileName;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(previewUrl), 1000);
+    setPreviewUrl(null);
+  }, [previewUrl, previewFileName]);
+
   const downloadPng = useCallback(async () => {
     setDownloading(true);
     try {
@@ -472,9 +489,11 @@ export default function MonthlyOutputPage() {
         const j = await res.json().catch(() => null);
         throw new Error(j?.error ?? `PNG 생성 실패 (${res.status})`);
       }
-      dlBlob(await res.blob(), `${startDate}_${endDate}_출력현황.png`);
+      const fileName = `${startDate}_${endDate}_출력현황.png`;
+      setPreviewFileName(fileName);
+      setPreviewUrl(URL.createObjectURL(await res.blob()));
     } catch (e: unknown) {
-      alert(e instanceof Error ? e.message : "PNG 다운로드 실패");
+      alert(e instanceof Error ? e.message : "PNG 생성 실패");
     } finally {
       setDownloading(false);
     }
@@ -868,6 +887,25 @@ export default function MonthlyOutputPage() {
 
         <p className={styles.tip}>카톡 전송은 `카톡용 PNG`만 보내면 되고, 수정용 원본은 브라우저 로컬 저장으로 날짜별 유지됩니다.</p>
       </section>
+
+      {/* PNG 미리보기 모달 */}
+      {previewUrl && (
+        <div className={styles.modalOverlay} onClick={closePreview}>
+          <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <span className={styles.modalTitle}>PNG 미리보기</span>
+              <button type="button" className={styles.modalCloseBtn} onClick={closePreview}>✕</button>
+            </div>
+            <div className={styles.modalBody}>
+              <img src={previewUrl} alt="출력현황 미리보기" className={styles.previewImg} />
+            </div>
+            <div className={styles.modalFooter}>
+              <button type="button" className={styles.secondaryButton} onClick={closePreview}>닫기</button>
+              <button type="button" className={styles.primaryButton} onClick={confirmDownload}>다운로드</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
