@@ -1042,6 +1042,17 @@
   font-size: 14px;
 }
 
+/* ── 저장 상태 ────────────────────────────────────────────── */
+.saveStatus {
+  margin-top: 4px;
+  font-size: 11px;
+  color: #aaaaaa;
+}
+
+.saveStatusDone {
+  color: #16a34a;
+}
+
 /* ── Tip ──────────────────────────────────────────────────── */
 .tip {
   margin: 6px 0 12px;

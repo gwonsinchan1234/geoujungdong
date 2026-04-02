@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import styles from "./page.module.css";
+import { supabase } from "@/lib/supabaseClient";
 import {
   buildMonthlyOutputHtml,
   type DayEntry,
@@ -84,6 +85,10 @@ export default function MonthlyOutputPage() {
   const [showOverview, setShowOverview] = useState(false);
   const [focusMode, setFocusMode] = useState(false);
   const [focusedPersonId, setFocusedPersonId] = useState<string | null>(null);
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
+
+  const globalTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const rangeTimer  = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ── 날짜 범위 → DayEntry 배열 ──────────────────────────────
   const dayCols = useMemo((): DayEntry[] => {
@@ -130,46 +135,111 @@ export default function MonthlyOutputPage() {
   // ── LocalStorage ───────────────────────────────────────────
   const lsKey = useMemo(() => `monthly_output_${startDate}_${endDate}`, [startDate, endDate]);
 
-  // 인원/제목/현장명 → 날짜 무관 전역 저장
-  useEffect(() => {
-    try {
-      localStorage.setItem("monthly_output_global", JSON.stringify({ persons, title, siteName }));
-    } catch {}
-  }, [persons, title, siteName]);
+  // ── 저장 헬퍼 ──────────────────────────────────────────────
+  const saveGlobalToSupabase = useCallback(async (
+    p: MonthlyOutputPerson[], t: string, s: string,
+  ) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    setSaveStatus("saving");
+    await supabase.from("monthly_output_settings").upsert({
+      user_id: user.id, persons: p, title: t, site_name: s,
+      updated_at: new Date().toISOString(),
+    });
+    setSaveStatus("saved");
+    setTimeout(() => setSaveStatus("idle"), 2000);
+  }, []);
 
-  // 셀 데이터 → 날짜 범위별 저장
-  useEffect(() => {
-    try {
-      localStorage.setItem(lsKey, JSON.stringify({ values }));
-    } catch {}
-  }, [lsKey, values]);
+  const saveRangeToSupabase = useCallback(async (
+    vals: Record<string, string>, sd: string, ed: string,
+  ) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    setSaveStatus("saving");
+    await supabase.from("monthly_output_ranges").upsert({
+      user_id: user.id, start_date: sd, end_date: ed, values: vals,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: "user_id,start_date,end_date" });
+    setSaveStatus("saved");
+    setTimeout(() => setSaveStatus("idle"), 2000);
+  }, []);
 
-  // 최초 마운트: 전역 설정(인원/제목/현장명) 로드
+  // 인원/제목/현장명: localStorage 즉시 + Supabase 2초 디바운스
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem("monthly_output_global");
-      if (!raw) return;
-      const parsed = JSON.parse(raw) as { persons?: MonthlyOutputPerson[]; title?: string; siteName?: string; };
-      if (parsed.persons?.length) setPersons(parsed.persons);
-      if (typeof parsed.title === "string") setTitle(parsed.title);
-      if (typeof parsed.siteName === "string") setSiteName(parsed.siteName);
-    } catch {}
+    try { localStorage.setItem("monthly_output_global", JSON.stringify({ persons, title, siteName })); } catch {}
+    if (globalTimer.current) clearTimeout(globalTimer.current);
+    globalTimer.current = setTimeout(() => { void saveGlobalToSupabase(persons, title, siteName); }, 2000);
+  }, [persons, title, siteName, saveGlobalToSupabase]);
+
+  // 셀 데이터: localStorage 즉시 + Supabase 2초 디바운스
+  useEffect(() => {
+    try { localStorage.setItem(lsKey, JSON.stringify({ values })); } catch {}
+    if (rangeTimer.current) clearTimeout(rangeTimer.current);
+    rangeTimer.current = setTimeout(() => { void saveRangeToSupabase(values, startDate, endDate); }, 2000);
+  }, [lsKey, values, startDate, endDate, saveRangeToSupabase]);
+
+  // 최초 마운트: Supabase → localStorage 순서로 전역 설정 로드
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data } = await supabase
+            .from("monthly_output_settings")
+            .select("persons, title, site_name")
+            .eq("user_id", user.id)
+            .single();
+          if (data) {
+            if (Array.isArray(data.persons) && data.persons.length) setPersons(data.persons as MonthlyOutputPerson[]);
+            if (data.title) setTitle(data.title as string);
+            if (data.site_name) setSiteName(data.site_name as string);
+            return;
+          }
+        }
+      } catch {}
+      // Supabase 실패 시 localStorage fallback
+      try {
+        const raw = localStorage.getItem("monthly_output_global");
+        if (!raw) return;
+        const parsed = JSON.parse(raw) as { persons?: MonthlyOutputPerson[]; title?: string; siteName?: string; };
+        if (parsed.persons?.length) setPersons(parsed.persons);
+        if (typeof parsed.title === "string") setTitle(parsed.title);
+        if (typeof parsed.siteName === "string") setSiteName(parsed.siteName);
+      } catch {}
+    })();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // 날짜 범위 변경 시: 해당 범위의 셀 데이터만 로드 (없으면 초기화)
-  const loadRangeValues = useCallback(() => {
+  // 날짜 범위 변경: Supabase → localStorage 순서로 셀 데이터 로드
+  const loadRangeValues = useCallback(async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data } = await supabase
+          .from("monthly_output_ranges")
+          .select("values")
+          .eq("user_id", user.id)
+          .eq("start_date", startDate)
+          .eq("end_date", endDate)
+          .single();
+        if (data?.values) {
+          setValues(data.values as Record<MonthlyOutputCellKey, string>);
+          return;
+        }
+      }
+    } catch {}
+    // Supabase 실패 시 localStorage fallback
     try {
       const raw = localStorage.getItem(lsKey);
       if (raw) {
         const parsed = JSON.parse(raw) as { values?: Record<MonthlyOutputCellKey, string>; };
         if (parsed.values) { setValues(parsed.values); return; }
       }
-      setValues({});
     } catch {}
-  }, [lsKey]);
+    setValues({});
+  }, [lsKey, startDate, endDate]);
 
-  useEffect(() => { loadRangeValues(); }, [loadRangeValues]);
+  useEffect(() => { void loadRangeValues(); }, [loadRangeValues]);
 
   // ── 집계 ──────────────────────────────────────────────────
   const filledPersons = useMemo(() => persons.filter((p) => p.name.trim()), [persons]);
@@ -404,6 +474,8 @@ export default function MonthlyOutputPage() {
           <p className={styles.heroDescription}>
             10명 이상도 한 화면에서 수정하기 쉽게 상단은 압축하고 표 영역은 최대한 넓혔습니다.
           </p>
+          {saveStatus === "saving" && <p className={styles.saveStatus}>저장 중…</p>}
+          {saveStatus === "saved"  && <p className={`${styles.saveStatus} ${styles.saveStatusDone}`}>저장됨 ✓</p>}
         </div>
         <div className={styles.heroActions}>
           <button type="button" className={styles.secondaryButton} onClick={() => setDenseMode((prev) => !prev)}>
