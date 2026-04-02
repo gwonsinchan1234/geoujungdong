@@ -36,13 +36,21 @@ function numFromCell(value: string | undefined) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-function sumType(personId: string, lastDay: number, values: Record<string, string>, type: "day" | "ot" | "night") {
+function sumType(personId: string, lastDay: number, values: Record<string, string>, type: "day" | "early" | "lunch" | "ot" | "night") {
   let total = 0;
   for (let d = 1; d <= lastDay; d++) {
     total += numFromCell(values[`${personId}__${d}__${type}`]);
   }
   return total;
 }
+
+const TYPE_ROWS = [
+  { label: "주간(시간)", type: "day" as const },
+  { label: "조출(시간)", type: "early" as const },
+  { label: "점심(시간)", type: "lunch" as const },
+  { label: "연장(시간)", type: "ot" as const },
+  { label: "야간(시간)", type: "night" as const },
+];
 
 const toneClasses = [
   "toneBlue",
@@ -62,6 +70,8 @@ export default function MonthlyOutputPage() {
   const [denseMode, setDenseMode] = useState(true);
   const [showSummary, setShowSummary] = useState(false);
   const [showOverview, setShowOverview] = useState(false);
+  const [focusMode, setFocusMode] = useState(false);
+  const [focusedPersonId, setFocusedPersonId] = useState<string | null>(null);
 
   const [y, m] = useMemo(() => {
     const mm = ym.match(/^(\d{4})-(\d{2})$/);
@@ -72,11 +82,11 @@ export default function MonthlyOutputPage() {
 
   const lastDay = useMemo(() => daysInMonth(y, m), [y, m]);
 
-  const keyOf = useCallback((personId: string, day: number, type: "day" | "ot" | "night") => {
+  const keyOf = useCallback((personId: string, day: number, type: "day" | "early" | "lunch" | "ot" | "night") => {
     return `${personId}__${day}__${type}` as MonthlyOutputCellKey;
   }, []);
 
-  const setCell = useCallback((personId: string, day: number, type: "day" | "ot" | "night", v: string) => {
+  const setCell = useCallback((personId: string, day: number, type: "day" | "early" | "lunch" | "ot" | "night", v: string) => {
     const k = keyOf(personId, day, type);
     setValues((prev) => ({ ...prev, [k]: v }));
   }, [keyOf]);
@@ -123,16 +133,20 @@ export default function MonthlyOutputPage() {
   const personSummaries = useMemo(() => {
     return persons.map((person) => {
       const day = sumType(person.id, lastDay, values, "day");
+      const early = sumType(person.id, lastDay, values, "early");
+      const lunch = sumType(person.id, lastDay, values, "lunch");
       const ot = sumType(person.id, lastDay, values, "ot");
       const night = sumType(person.id, lastDay, values, "night");
       return {
         id: person.id,
         label: person.name.trim() || "이름 없음",
         role: person.role?.trim() || "직책 미입력",
+        early,
+        lunch,
         day,
         ot,
         night,
-        total: ot + night,
+        total: early + lunch + ot + night,
       };
     });
   }, [lastDay, persons, values]);
@@ -152,13 +166,54 @@ export default function MonthlyOutputPage() {
     return [
       { label: "입력 인원", value: filledPersons.length, unit: `전체 ${persons.length}명` },
       { label: "주간 합계", value: totals.day, unit: "시간" },
+      { label: "조출 합계", value: personSummaries.reduce((acc, item) => acc + item.early, 0), unit: "시간" },
+      { label: "점심 합계", value: personSummaries.reduce((acc, item) => acc + item.lunch, 0), unit: "시간" },
       { label: "연장 합계", value: totals.ot, unit: "시간" },
       { label: "야간 합계", value: totals.night, unit: "시간" },
-      { label: "총 추가근무", value: totals.ot + totals.night, unit: "시간" },
+      { label: "총 추가근무", value: personSummaries.reduce((acc, item) => acc + item.total, 0), unit: "시간" },
     ];
   }, [filledPersons.length, personSummaries, persons.length]);
 
   const dayCols = useMemo(() => Array.from({ length: lastDay }, (_, i) => i + 1), [lastDay]);
+
+  const focusedPerson = useMemo(
+    () => persons.find((p) => p.id === focusedPersonId) ?? null,
+    [persons, focusedPersonId]
+  );
+
+  const personFilledDays = useCallback(
+    (personId: string) => {
+      let count = 0;
+      for (let d = 1; d <= lastDay; d++) {
+        if (TYPE_ROWS.some(({ type }) => !!values[keyOf(personId, d, type)])) count++;
+      }
+      return count;
+    },
+    [lastDay, values, keyOf]
+  );
+
+  const navigatePerson = useCallback(
+    (dir: 1 | -1) => {
+      const idx = persons.findIndex((p) => p.id === focusedPersonId);
+      const next = persons[idx + dir];
+      if (next) setFocusedPersonId(next.id);
+    },
+    [focusedPersonId, persons]
+  );
+
+  const handleFocusCellKey = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>, ti: number, di: number) => {
+      const move = (nTi: number, nDi: number) => {
+        const el = document.querySelector<HTMLInputElement>(`[data-focus-cell="${nTi}-${nDi}"]`);
+        if (el) { e.preventDefault(); el.focus(); el.select(); }
+      };
+      if (e.key === "ArrowDown") move(Math.min(ti + 1, TYPE_ROWS.length - 1), di);
+      else if (e.key === "ArrowUp") move(Math.max(ti - 1, 0), di);
+      else if (e.key === "ArrowRight") move(ti, Math.min(di + 1, lastDay - 1));
+      else if (e.key === "ArrowLeft") move(ti, Math.max(di - 1, 0));
+    },
+    [lastDay]
+  );
 
   const downloadXlsx = useCallback(async () => {
     const ExcelJS = (await import("exceljs")).default;
@@ -196,15 +251,17 @@ export default function MonthlyOutputPage() {
 
     let r = 3;
     for (const p of filledPersons) {
-      const blocks: Array<{ label: string; type: "day" | "ot" | "night" }> = [
+      const blocks: Array<{ label: string; type: "day" | "early" | "lunch" | "ot" | "night" }> = [
         { label: "주간(시간)", type: "day" },
+        { label: "조출(시간)", type: "early" },
+        { label: "점심(시간)", type: "lunch" },
         { label: "연장(시간)", type: "ot" },
         { label: "야간(시간)", type: "night" },
       ];
 
-      ws.mergeCells(r, 1, r + 2, 1);
-      ws.mergeCells(r, cols.length - 1, r + 2, cols.length - 1);
-      ws.mergeCells(r, cols.length, r + 2, cols.length);
+      ws.mergeCells(r, 1, r + 4, 1);
+      ws.mergeCells(r, cols.length - 1, r + 4, cols.length - 1);
+      ws.mergeCells(r, cols.length, r + 4, cols.length);
 
       ws.getCell(r, 1).value = p.role?.trim() ? `${p.name}\n${p.role}` : p.name;
       ws.getCell(r, 1).alignment = { horizontal: "center", vertical: "middle", wrapText: true };
@@ -213,6 +270,8 @@ export default function MonthlyOutputPage() {
       ws.getCell(r, cols.length - 1).value = p.note ?? "";
       ws.getCell(r, cols.length - 1).alignment = { horizontal: "center", vertical: "middle", wrapText: true };
 
+      let sumEarly = 0;
+      let sumLunch = 0;
       let sumOt = 0;
       let sumNight = 0;
 
@@ -234,22 +293,24 @@ export default function MonthlyOutputPage() {
             cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFE2E2" } };
           }
           const n = numFromCell(v);
+          if (blocks[i].type === "early") sumEarly += n;
+          if (blocks[i].type === "lunch") sumLunch += n;
           if (blocks[i].type === "ot") sumOt += n;
           if (blocks[i].type === "night") sumNight += n;
         }
       }
 
-      const totalExtra = sumOt + sumNight;
-      ws.getCell(r, cols.length).value = `연장 ${sumOt || ""}\n야간 ${sumNight || ""}\n총 추가근무 ${totalExtra || ""}`.trim();
+      const totalExtra = sumEarly + sumLunch + sumOt + sumNight;
+      ws.getCell(r, cols.length).value = `조출 ${sumEarly || ""}\n점심 ${sumLunch || ""}\n연장 ${sumOt || ""}\n야간 ${sumNight || ""}\n총 추가근무 ${totalExtra || ""}`.trim();
       ws.getCell(r, cols.length).alignment = { horizontal: "left", vertical: "middle", wrapText: true };
       ws.getCell(r, cols.length).font = { size: 10 };
 
-      for (let rr = r; rr <= r + 2; rr++) {
+      for (let rr = r; rr <= r + 4; rr++) {
         for (let cc = 1; cc <= cols.length; cc++) {
           ws.getRow(rr).getCell(cc).border = border;
         }
       }
-      r += 3;
+      r += 5;
     }
 
     const buf = await wb.xlsx.writeBuffer();
@@ -308,6 +369,16 @@ export default function MonthlyOutputPage() {
           <button type="button" className={styles.secondaryButton} onClick={addPerson}>인원 추가</button>
           <button type="button" className={styles.secondaryButton} onClick={() => addPeople(5)}>5명 추가</button>
           <button type="button" className={styles.secondaryButton} onClick={() => addPeople(10)}>10명 추가</button>
+          <button
+            type="button"
+            className={focusMode ? styles.primaryButton : styles.secondaryButton}
+            onClick={() => {
+              if (!focusMode) setFocusedPersonId((prev) => prev ?? persons[0]?.id ?? null);
+              setFocusMode((prev) => !prev);
+            }}
+          >
+            {focusMode ? "테이블 모드" : "포커스 모드"}
+          </button>
           <button type="button" className={styles.secondaryButton} onClick={() => void downloadXlsx()}>엑셀 저장</button>
           <button type="button" className={styles.primaryButton} disabled={downloading} onClick={() => void downloadPng()}>
             {downloading ? "PNG 생성 중…" : "카톡용 PNG"}
@@ -383,6 +454,8 @@ export default function MonthlyOutputPage() {
               </div>
               <div className={styles.personMetrics}>
                 <span>주간 {person.day || 0}</span>
+                <span>조출 {person.early || 0}</span>
+                <span>점심 {person.lunch || 0}</span>
                 <span>연장 {person.ot || 0}</span>
                 <span>야간 {person.night || 0}</span>
               </div>
@@ -391,7 +464,102 @@ export default function MonthlyOutputPage() {
         </div>
       </section>
 
-      <section className={styles.panel}>
+      {focusMode && (
+        <section className={styles.panel}>
+          <div className={styles.focusModeWrap}>
+            <div className={styles.focusPersonList}>
+              {persons.map((p) => {
+                const filled = personFilledDays(p.id);
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    className={`${styles.focusPersonItem} ${p.id === focusedPersonId ? styles.focusPersonActive : ""}`}
+                    onClick={() => setFocusedPersonId(p.id)}
+                  >
+                    <span className={`${styles.focusDot} ${filled > 0 ? styles.focusDotOn : ""}`} />
+                    <div className={styles.focusPersonInfo}>
+                      <strong>{p.name || "이름 없음"}</strong>
+                      {p.role && <small>{p.role}</small>}
+                    </div>
+                    {filled > 0 && <span className={styles.focusCount}>{filled}일</span>}
+                  </button>
+                );
+              })}
+            </div>
+            <div className={styles.focusGridWrap}>
+              {focusedPerson ? (
+                <>
+                  <div className={styles.focusGridHeader}>
+                    <button type="button" className={styles.focusNavBtn} onClick={() => navigatePerson(-1)}>◀ 이전</button>
+                    <div className={styles.focusPersonTitle}>
+                      <strong>{focusedPerson.name || "이름 없음"}</strong>
+                      {focusedPerson.role && <span>{focusedPerson.role}</span>}
+                    </div>
+                    <button type="button" className={styles.focusNavBtn} onClick={() => navigatePerson(1)}>다음 ▶</button>
+                  </div>
+                  <div className={styles.focusTableWrap}>
+                    <table className={styles.focusTable}>
+                      <thead>
+                        <tr>
+                          <th className={styles.focusCorner}>구분</th>
+                          {dayCols.map((d) => {
+                            const dow = new Date(y, m - 1, d).getDay();
+                            return (
+                              <th key={d} className={`${styles.focusDayHead} ${dow === 0 ? styles.holidayCell : ""}`}>{d}</th>
+                            );
+                          })}
+                        </tr>
+                        <tr>
+                          <th className={styles.focusCorner} />
+                          {dayCols.map((d) => {
+                            const dow = new Date(y, m - 1, d).getDay();
+                            return (
+                              <th key={`dow-${d}`} className={`${styles.focusDaySubHead} ${dow === 0 ? styles.holidayCell : ""}`}>
+                                {["일", "월", "화", "수", "목", "금", "토"][dow]}
+                              </th>
+                            );
+                          })}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {TYPE_ROWS.map(({ label, type }, ti) => (
+                          <tr key={type}>
+                            <td className={styles.focusTypeCell}>{label}</td>
+                            {dayCols.map((d, di) => {
+                              const k = keyOf(focusedPerson.id, d, type);
+                              const dow = new Date(y, m - 1, d).getDay();
+                              return (
+                                <td key={k} className={`${styles.focusValueCell} ${dow === 0 ? styles.holidayCell : ""}`}>
+                                  <input
+                                    data-focus-cell={`${ti}-${di}`}
+                                    className={styles.focusCellInput}
+                                    value={values[k] ?? ""}
+                                    onChange={(e) => setCell(focusedPerson.id, d, type, e.target.value)}
+                                    onKeyDown={(e) => handleFocusCellKey(e, ti, di)}
+                                    inputMode="decimal"
+                                  />
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className={styles.focusSumArea}>
+                    <SumBox personId={focusedPerson.id} lastDay={lastDay} values={values} />
+                  </div>
+                </>
+              ) : (
+                <p className={styles.focusEmpty}>왼쪽에서 인원을 선택하세요.</p>
+              )}
+            </div>
+          </div>
+        </section>
+      )}
+
+      <section className={`${styles.panel} ${focusMode ? styles.hiddenSection : ""}`}>
         <div className={styles.panelHeader}>
           <div>
             <h2 className={styles.panelTitle}>월간 입력 테이블</h2>
@@ -438,7 +606,7 @@ export default function MonthlyOutputPage() {
                 return (
                 <React.Fragment key={p.id}>
                   <tr className={styles.personFirstRow}>
-                    <td className={`${styles.nameCell} ${styles.stickyName} ${toneClass}`} rowSpan={3}>
+                    <td className={`${styles.nameCell} ${styles.stickyName} ${toneClass}`} rowSpan={5}>
                       <div className={styles.nameEditor}>
                         <input
                           className={styles.personInput}
@@ -465,7 +633,7 @@ export default function MonthlyOutputPage() {
                         </td>
                       );
                     })}
-                    <td className={`${styles.noteCell} ${toneClass}`} rowSpan={3}>
+                    <td className={`${styles.noteCell} ${toneClass}`} rowSpan={5}>
                       <input
                         className={styles.noteInput}
                         value={p.note ?? ""}
@@ -473,9 +641,33 @@ export default function MonthlyOutputPage() {
                         placeholder="비고"
                       />
                     </td>
-                    <td className={`${styles.sumCell} ${toneClass}`} rowSpan={3}>
+                    <td className={`${styles.sumCell} ${toneClass}`} rowSpan={5}>
                       <SumBox personId={p.id} lastDay={lastDay} values={values} />
                     </td>
+                  </tr>
+                  <tr>
+                    <td className={`${styles.typeCell} ${styles.stickyType} ${toneClass}`}>조출(시간)</td>
+                    {dayCols.map((d) => {
+                      const dow = new Date(y, m - 1, d).getDay();
+                      const k = keyOf(p.id, d, "early");
+                      return (
+                        <td key={k} className={`${styles.valueCell} ${dow === 0 ? styles.holidayCell : ""}`}>
+                          <input className={styles.cellInput} value={values[k] ?? ""} onChange={(e) => setCell(p.id, d, "early", e.target.value)} inputMode="decimal" />
+                        </td>
+                      );
+                    })}
+                  </tr>
+                  <tr>
+                    <td className={`${styles.typeCell} ${styles.stickyType} ${toneClass}`}>점심(시간)</td>
+                    {dayCols.map((d) => {
+                      const dow = new Date(y, m - 1, d).getDay();
+                      const k = keyOf(p.id, d, "lunch");
+                      return (
+                        <td key={k} className={`${styles.valueCell} ${dow === 0 ? styles.holidayCell : ""}`}>
+                          <input className={styles.cellInput} value={values[k] ?? ""} onChange={(e) => setCell(p.id, d, "lunch", e.target.value)} inputMode="decimal" />
+                        </td>
+                      );
+                    })}
                   </tr>
                   <tr>
                     <td className={`${styles.typeCell} ${styles.stickyType} ${toneClass}`}>연장(시간)</td>
@@ -515,12 +707,16 @@ export default function MonthlyOutputPage() {
 }
 
 function SumBox({ personId, lastDay, values }: { personId: string; lastDay: number; values: Record<string, string> }) {
+  const early = sumType(personId, lastDay, values, "early");
+  const lunch = sumType(personId, lastDay, values, "lunch");
   const ot = sumType(personId, lastDay, values, "ot");
   const night = sumType(personId, lastDay, values, "night");
-  const total = ot + night;
+  const total = early + lunch + ot + night;
 
   return (
     <div className={styles.sumBox}>
+      <Line label="조출" value={early} />
+      <Line label="점심" value={lunch} />
       <Line label="연장" value={ot} />
       <Line label="야간" value={night} />
       <div className={styles.sumDivider}>
