@@ -220,7 +220,8 @@ td.dc {
 td.notec {
   font-size: 8.5px;
   background: #fafafa;
-  vertical-align: top;
+  vertical-align: middle;
+  text-align: center;
   padding: 4px 3px;
   color: #555;
 }
