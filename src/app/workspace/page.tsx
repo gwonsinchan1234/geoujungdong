@@ -1,1550 +1,211 @@
 "use client";
 
-import React, { Suspense, useEffect, useMemo, useRef, useState, useCallback } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
-import * as XLSX from "xlsx";
-import ExcelJS from "exceljs";
-import { EmptyState } from "@/components/ui/EmptyState";
-import { LoadingState } from "@/components/ui/LoadingState";
-import { PhotoSheetPage, type PhotoSheetItem } from "@/components/PhotoSheet";
-import styles from "./WorkspacePage.module.css";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabaseClient";
+import styles from "./HubPage.module.css";
 
-type Doc = {
-  id: string;
-  title: string;
-  subtitle: string;
-  updatedAt: string;
+type RecentItem = {
+  path: string;
+  label: string;
+  time: number;
 };
 
-type TemplateSpec = {
-  incomingSlots: number;
-  installSlots: number;
-};
+const RECENT_KEY = "workspace_recent";
 
-type Item = {
-  id: string;
-  evidenceNo: number;
-  name: string;
-  qtyLabel: string;
-  qty?: number;
-  useDate?: string;
-  unitPrice?: number | null;
-  amount?: number | null;
-  proofNo?: string;
-  templateName: string;
-  templateSpec: TemplateSpec;
-  /** 원본 카테고리 (엑셀 셀 그대로) */
-  category_raw?: string;
-  /** 정규화된 카테고리 키 (그룹핑/필터용) */
-  category_key?: string;
-  /** 표시용 카테고리 라벨 (key + suffix 결합) */
-  category_label?: string;
-};
-
-type PhotoKind = "incoming" | "install";
-
-type PhotoSlot = {
-  kind: PhotoKind;
-  slot: number;
-  file?: File;
-  previewUrl?: string;
-};
-
-function makeSlots(spec: TemplateSpec): PhotoSlot[] {
-  const incoming = Array.from({ length: spec.incomingSlots }, (_, i) => ({
-    kind: "incoming" as const,
-    slot: i,
-  }));
-  const install = Array.from({ length: spec.installSlots }, (_, i) => ({
-    kind: "install" as const,
-    slot: i,
-  }));
-  return [...incoming, ...install];
+function saveRecent(path: string, label: string) {
+  try {
+    const prev: RecentItem[] = JSON.parse(localStorage.getItem(RECENT_KEY) ?? "[]");
+    const filtered = prev.filter((r) => r.path !== path);
+    const next = [{ path, label, time: Date.now() }, ...filtered].slice(0, 5);
+    localStorage.setItem(RECENT_KEY, JSON.stringify(next));
+  } catch {}
 }
 
-/** API grouped URL을 기존 슬롯에 병합 (로컬 file이 있으면 덮어쓰지 않음) */
-function mergePhotoSlotsWithGrouped(
-  existing: PhotoSlot[] | undefined,
-  spec: TemplateSpec,
-  grouped: { incoming?: string[]; install?: string[] },
-): PhotoSlot[] {
-  const base = existing ?? makeSlots(spec);
-  const next = base.map((s) => ({ ...s }));
-  const incoming = grouped.incoming ?? [];
-  const install = grouped.install ?? [];
-  for (let slot = 0; slot < incoming.length; slot++) {
-    const url = incoming[slot];
-    if (typeof url === "string" && url.length > 0) {
-      const idx = next.findIndex((x) => x.kind === "incoming" && x.slot === slot);
-      if (idx >= 0 && !next[idx].file) next[idx].previewUrl = url;
-    }
+function loadRecent(): RecentItem[] {
+  try {
+    return JSON.parse(localStorage.getItem(RECENT_KEY) ?? "[]");
+  } catch {
+    return [];
   }
-  for (let slot = 0; slot < install.length; slot++) {
-    const url = install[slot];
-    if (typeof url === "string" && url.length > 0) {
-      const idx = next.findIndex((x) => x.kind === "install" && x.slot === slot);
-      if (idx >= 0 && !next[idx].file) next[idx].previewUrl = url;
-    }
-  }
-  return next;
 }
 
-function countFilled(slots: PhotoSlot[], kind: PhotoKind) {
-  return slots.filter((s) => s.kind === kind && (!!s.file || !!(s.previewUrl && typeof s.previewUrl === "string" && s.previewUrl.length > 0))).length;
+function timeAgo(ts: number): string {
+  const diff = Date.now() - ts;
+  const min = Math.floor(diff / 60000);
+  if (min < 1) return "방금";
+  if (min < 60) return `${min}분 전`;
+  const h = Math.floor(min / 60);
+  if (h < 24) return `${h}시간 전`;
+  const d = Math.floor(h / 24);
+  return `${d}일 전`;
 }
 
-function uniqueBy<T>(arr: T[], keyFn: (x: T) => string) {
-  const seen = new Set<string>();
-  const out: T[] = [];
-  for (const x of arr) {
-    const k = keyFn(x);
-    if (seen.has(k)) continue;
-    seen.add(k);
-    out.push(x);
-  }
-  return out;
-}
+const FEATURES = [
+  {
+    path: "/workspace/fill",
+    label: "엑셀 편집기",
+    desc: "현장 서류를 모바일에서 바로 수정·저장",
+    icon: (
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+        <rect x="3" y="3" width="18" height="18" rx="2" />
+        <line x1="3" y1="9" x2="21" y2="9" />
+        <line x1="3" y1="15" x2="21" y2="15" />
+        <line x1="9" y1="3" x2="9" y2="21" />
+      </svg>
+    ),
+    color: "#16a34a",
+    bg: "#f0fdf4",
+  },
+  {
+    path: "/workspace/photo",
+    label: "사진대지",
+    desc: "안전관리비 증빙 사진 정리 및 인쇄",
+    icon: (
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+        <rect x="3" y="5" width="18" height="14" rx="2" />
+        <circle cx="12" cy="12" r="3" />
+        <path d="M8.5 5V3.5A1.5 1.5 0 0 1 10 2h4a1.5 1.5 0 0 1 1.5 1.5V5" />
+      </svg>
+    ),
+    color: "#2563eb",
+    bg: "#eff6ff",
+  },
+  {
+    path: "/workspace/attendance",
+    label: "출결 관리",
+    desc: "근태 데이터 업로드 및 공수 자동 집계",
+    icon: (
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+        <rect x="3" y="4" width="18" height="18" rx="2" />
+        <line x1="16" y1="2" x2="16" y2="6" />
+        <line x1="8" y1="2" x2="8" y2="6" />
+        <line x1="3" y1="10" x2="21" y2="10" />
+        <polyline points="9 16 11 18 15 14" />
+      </svg>
+    ),
+    color: "#7c3aed",
+    bg: "#f5f3ff",
+  },
+  {
+    path: "/workspace/giseong",
+    label: "기성 검증",
+    desc: "노무 공수 기반 기성 금액 자동 산출",
+    icon: (
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+        <line x1="12" y1="20" x2="12" y2="10" />
+        <line x1="18" y1="20" x2="18" y2="4" />
+        <line x1="6" y1="20" x2="6" y2="16" />
+      </svg>
+    ),
+    color: "#ea580c",
+    bg: "#fff7ed",
+  },
+  {
+    path: "/workspace/output",
+    label: "월간 출력",
+    desc: "월별 근무표 PNG·인쇄 출력",
+    icon: (
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+        <polyline points="6 9 6 2 18 2 18 9" />
+        <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+        <rect x="6" y="14" width="12" height="8" />
+      </svg>
+    ),
+    color: "#0891b2",
+    bg: "#ecfeff",
+  },
+];
 
-const DEFAULT_TEMPLATE_SPEC: TemplateSpec = {
-  incomingSlots: 4,
-  installSlots: 4,
-};
-
-function formatUseDate(cell: unknown): string | undefined {
-  if (cell == null) return undefined;
-  const s = String(cell).trim();
-  if (!s) return undefined;
-
-  if (cell instanceof Date && !Number.isNaN(cell.getTime())) {
-    const y = cell.getFullYear() % 100;
-    const m = cell.getMonth() + 1;
-    const d = cell.getDate();
-    return `${String(y).padStart(2, "0")}.${String(m).padStart(2, "0")}.${String(d).padStart(2, "0")}`;
-  }
-
-  if (typeof cell === "number" && Number.isFinite(cell)) {
-    const dc = XLSX.SSF.parse_date_code(cell);
-    if (!dc || !dc.y) return undefined;
-    const y = dc.y % 100;
-    const m = dc.m ?? 0;
-    const d = dc.d ?? 0;
-    return `${String(y).padStart(2, "0")}.${String(m).padStart(2, "0")}.${String(d).padStart(2, "0")}`;
-  }
-
-  if (/^\d{2}\.\d{1,2}\.\d{1,2}$/.test(s) || /^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
-  return undefined;
-}
-
-/** category_key 문자열에서 정렬용 번호 파싱 (예: "2. 안전시설비 등" → 2) */
-function parseCategorySortKey(cat: string): number {
-  if (!cat || !cat.trim()) return 9999;
-  const m = cat.trim().match(/^(\d+)/);
-  return m ? Number(m[1]) : 9999;
-}
-
-/**
- * 카테고리 문자열 정규화
- * - 줄바꿈으로 split하여 "^\d+\." 번호가 있는 라인을 key로
- * - 나머지 라인들은 suffix로 합쳐 label 생성
- * @returns { key, label, hasNumber }
- */
-function normalizeCategoryKey(raw: string): { key: string; label: string; hasNumber: boolean } {
-  if (!raw) return { key: "", label: "", hasNumber: false };
-
-  // 줄바꿈으로 split (병합셀에서 여러 줄이 올 수 있음)
-  const lines = raw
-    .split(/[\r\n]+/)
-    .map((l) => l.replace(/\t/g, " ").replace(/\s+/g, " ").trim())
-    .filter(Boolean);
-
-  if (lines.length === 0) return { key: "", label: "", hasNumber: false };
-
-  // 첫 번째로 "^\d+\."로 시작하는 라인 찾기
-  const keyLineIdx = lines.findIndex((l) => /^\d+\./.test(l));
-
-  if (keyLineIdx >= 0) {
-    const keyLine = lines[keyLineIdx];
-    // key 이외의 라인들을 suffix로 결합
-    const suffixLines = lines.filter((_, i) => i !== keyLineIdx);
-    const suffix = suffixLines.join(" ").trim();
-    const label = suffix ? `${keyLine} ${suffix}` : keyLine;
-    return { key: keyLine, label, hasNumber: true };
-  }
-
-  // 번호가 없는 경우 (조각 텍스트)
-  const combined = lines.join(" ").trim();
-  return { key: combined, label: combined, hasNumber: false };
-}
-
-function parseItemsFromSheet(ws: XLSX.WorkSheet, docId: string): Item[] {
-  const data = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" }) as (string | number)[][];
-  const norm = (v: string) => String(v ?? "").replace(/\s/g, "");
-
-  let headerRowIndex = -1;
-  let colCategory = -1;
-  let colUsageDate = -1;
-  let colDesc = -1;
-  let colQty = -1;
-  let colUnitPrice = -1;
-  let colAmount = -1;
-  let colEvidenceNo = -1;
-
-  for (let r = 0; r < Math.min(data.length, 50); r++) {
-    colCategory = colUsageDate = colDesc = colQty = colUnitPrice = colAmount = colEvidenceNo = -1;
-    const row = data[r] ?? [];
-    for (let c = 0; c < row.length; c++) {
-      const cell = norm(String(row[c] ?? ""));
-      if (cell === "항목") colCategory = c;
-      else if (cell === "사용일자") colUsageDate = c;
-      else if (cell === "사용내역") colDesc = c;
-      else if (cell === "수량") colQty = c;
-      else if (cell === "단가") colUnitPrice = c;
-      else if (cell === "금액") colAmount = c;
-      else if (cell === "증빙번호") colEvidenceNo = c;
-    }
-    if (colDesc >= 0 && colQty >= 0) {
-      headerRowIndex = r;
-      break;
-    }
-  }
-
-  if (headerRowIndex < 0 || colDesc < 0) return [];
-
-  const items: Item[] = [];
-  // forward-fill: 번호가 있는 대표 카테고리 키/라벨 유지
-  let lastCategoryKey = "";
-  let lastCategoryLabel = "";
-
-  for (let r = headerRowIndex + 1; r < data.length; r++) {
-    const row = data[r] ?? [];
-    const categoryRaw = colCategory >= 0 ? String(row[colCategory] ?? "").trim() : "";
-
-    // 카테고리 정규화 및 번호 확인
-    const { key: normalizedKey, label: normalizedLabel, hasNumber } = normalizeCategoryKey(categoryRaw);
-
-    if (normalizedKey && hasNumber) {
-      // 번호가 있는 항목이면 새 대표 키/라벨 시작
-      lastCategoryKey = normalizedKey;
-      lastCategoryLabel = normalizedLabel;
-    } else if (normalizedKey && lastCategoryKey) {
-      // 번호 없는 조각(예: "구입비 등")은 이전 대표 라벨에 suffix로 합침
-      // 단, "계"는 제외
-      if (normalizedKey !== "계" && !normalizedKey.includes("합계")) {
-        lastCategoryLabel = `${lastCategoryLabel} ${normalizedKey}`;
-      }
-    }
-    // 번호 없는 조각은 단독 키로 쓰지 않고 이전 대표 키에 귀속
-
-    const desc = String(row[colDesc] ?? "").trim();
-    if (!desc || desc === "계" || norm(desc) === "계") continue;
-
-    const qtyRaw = row[colQty];
-    const qtyNum = typeof qtyRaw === "number" ? qtyRaw : Number(String(qtyRaw).replace(/,/g, ""));
-    const qtyLabel = Number.isFinite(qtyNum) ? `${qtyNum}개` : String(qtyRaw ?? "").trim() || "—";
-
-    const toNum = (val: unknown): number | null => {
-      if (val == null) return null;
-      const n = typeof val === "number" ? val : Number(String(val).replace(/,/g, ""));
-      return Number.isFinite(n) ? n : null;
-    };
-
-    let evidenceNo = r - headerRowIndex;
-    if (colEvidenceNo >= 0) {
-      const no = row[colEvidenceNo];
-      const noStr = String(no ?? "").trim();
-      if (noStr !== "") {
-        const n = toNum(no);
-        if (n !== null && n >= 1) evidenceNo = n;
-      }
-    }
-
-    items.push({
-      id: `item_${docId}_${r}`,
-      evidenceNo,
-      name: desc,
-      qtyLabel,
-      qty: Number.isFinite(qtyNum) ? qtyNum : undefined,
-      useDate: colUsageDate >= 0 ? formatUseDate(row[colUsageDate]) : undefined,
-      unitPrice: colUnitPrice >= 0 ? toNum(row[colUnitPrice]) : undefined,
-      amount: colAmount >= 0 ? toNum(row[colAmount]) : undefined,
-      proofNo: colEvidenceNo >= 0 ? String(row[colEvidenceNo] ?? "").trim() || undefined : undefined,
-      templateName: "반입/지급-설치",
-      templateSpec: DEFAULT_TEMPLATE_SPEC,
-      category_raw: categoryRaw || undefined,
-      category_key: lastCategoryKey || undefined,
-      category_label: lastCategoryLabel || undefined,
-    });
-  }
-
-  return uniqueBy(items, (x) => `${x.evidenceNo}__${x.name}`);
-}
-
-function PhotoDropSlot(props: {
-  title: string;
-  subtitle: string;
-  previewUrl?: string;
-  onPickFile: (file: File) => void;
-  onClear: () => void;
-  disabled?: boolean;
-  compact?: boolean;
-}) {
-  const inputRef = useRef<HTMLInputElement | null>(null);
-  const [dragging, setDragging] = useState(false);
-
-  function onChoose() {
-    if (props.disabled) return;
-    inputRef.current?.click();
-  }
-
-  function onInputChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const f = e.target.files?.[0];
-    if (!f) return;
-    props.onPickFile(f);
-    e.target.value = "";
-  }
-
-  function handleDrop(e: React.DragEvent<HTMLDivElement>) {
-    e.preventDefault();
-    setDragging(false);
-    if (props.disabled) return;
-    const f = e.dataTransfer.files?.[0];
-    if (!f) return;
-    props.onPickFile(f);
-  }
-
-  return (
-    <div
-      className={`${styles.photoSlot} ${dragging ? styles.photoSlotDragging : ""} ${props.compact ? styles.photoSlotCompact : ""}`}
-      role="button"
-      tabIndex={0}
-      onClick={onChoose}
-      onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && onChoose()}
-      onDragEnter={() => setDragging(true)}
-      onDragLeave={() => setDragging(false)}
-      onDragOver={(e) => e.preventDefault()}
-      onDrop={handleDrop}
-    >
-      <input
-        ref={inputRef}
-        type="file"
-        accept="image/*"
-        className={styles.hiddenInput}
-        onChange={onInputChange}
-        disabled={props.disabled}
-      />
-
-      {props.previewUrl ? (
-        <div className={styles.photoSlotPreview}>
-          <img src={props.previewUrl} alt={props.title} />
-          <div className={styles.photoSlotOverlay}>
-            <span className={styles.photoSlotLabel}>{props.title}</span>
-            <div className={styles.photoSlotActions}>
-              <button type="button" onClick={(e) => { e.stopPropagation(); onChoose(); }}>교체</button>
-              <button type="button" onClick={(e) => { e.stopPropagation(); props.onClear(); }}>삭제</button>
-            </div>
-          </div>
-        </div>
-      ) : (
-        <div className={styles.photoSlotEmpty}>
-          <div className={styles.photoSlotIcon}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <rect x="3" y="3" width="18" height="18" rx="2" />
-              <circle cx="8.5" cy="8.5" r="1.5" />
-              <path d="M21 15l-5-5L5 21" />
-            </svg>
-          </div>
-          <span className={styles.photoSlotTitle}>{props.title}</span>
-          {!props.compact && <span className={styles.photoSlotHint}>클릭 또는 드래그</span>}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function WorkspacePageContent() {
-  const searchParams = useSearchParams();
+export default function WorkspaceHub() {
   const router = useRouter();
+  const [userName, setUserName] = useState<string | null>(null);
+  const [recent, setRecent] = useState<RecentItem[]>([]);
 
-  const initialDocs: Doc[] = useMemo(() => [], []);
-
-  const mockItems: Item[] = useMemo(() => {
-    const raw: Item[] = [
-      { id: "item_001", evidenceNo: 1, name: "확장", qtyLabel: "1개", qty: 1, useDate: "25.12.27", unitPrice: 25000, amount: 25000, templateName: "반입/지급-설치", templateSpec: DEFAULT_TEMPLATE_SPEC, category_key: "1. 공사비 등", category_label: "1. 공사비 등" },
-      { id: "item_002", evidenceNo: 2, name: "안전난간", qtyLabel: "10m", qty: 10, useDate: "26.01.14", unitPrice: 500, amount: 5000, templateName: "반입/지급-설치", templateSpec: DEFAULT_TEMPLATE_SPEC, category_key: "2. 안전시설비 등", category_label: "2. 안전시설비 등 구매비 등" },
-      { id: "item_003", evidenceNo: 3, name: "생명줄", qtyLabel: "2set", qty: 2, useDate: "26.01.14", unitPrice: 26000, amount: 52000, templateName: "반입/지급-설치", templateSpec: DEFAULT_TEMPLATE_SPEC, category_key: "2. 안전시설비 등", category_label: "2. 안전시설비 등 구매비 등" },
-    ];
-    return uniqueBy(raw, (x) => `${x.evidenceNo}__${x.name}`);
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      const email = data.user?.email ?? null;
+      setUserName(email ? email.split("@")[0] : null);
+    });
+    setRecent(loadRecent());
   }, []);
 
-  const [docs, setDocs] = useState<Doc[]>(initialDocs);
-  const [docItems, setDocItems] = useState<Record<string, Item[]>>({});
-  const excelInputRef = useRef<HTMLInputElement | null>(null);
-
-  const [selectedDocId, setSelectedDocId] = useState<string>(initialDocs[0]?.id ?? "");
-  const [selectedItemId, setSelectedItemId] = useState<string>(mockItems[0]?.id ?? "");
-  const [itemQuery, setItemQuery] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState<string>("");
-
-  const [rightPanelTab, setRightPanelTab] = useState<"data" | "photo">("data");
-  const [rightPanelOpen, setRightPanelOpen] = useState(true);
-
-  const [isExcelLoading, setIsExcelLoading] = useState(false);
-  const [excelError, setExcelError] = useState<string | null>(null);
-  const [showPreview, setShowPreview] = useState(false);
-  const [previewTab, setPreviewTab] = useState<"photo" | "usage">("photo");
-
-  const currentItems = useMemo(() => docItems[selectedDocId] ?? mockItems, [docItems, selectedDocId, mockItems]);
-  const selectedDoc = useMemo(() => docs.find((d) => d.id === selectedDocId) ?? null, [docs, selectedDocId]);
-  const selectedItem = useMemo(() => currentItems.find((it) => it.id === selectedItemId) ?? null, [currentItems, selectedItemId]);
-
-  // 모든 품목의 사진 슬롯 저장 (품목ID -> 슬롯 배열)
-  const [allItemSlots, setAllItemSlots] = useState<Record<string, PhotoSlot[]>>({});
-
-  // 현재 선택된 품목의 슬롯 (없으면 빈 슬롯 생성)
-  const slots = useMemo(() => {
-    if (!selectedItem) return [];
-    const existing = allItemSlots[selectedItemId];
-    if (existing) return existing;
-    return makeSlots(selectedItem.templateSpec);
-  }, [selectedItem, selectedItemId, allItemSlots]);
-
-  useEffect(() => {
-    const items = docItems[selectedDocId] ?? mockItems;
-    const firstId = items[0]?.id ?? "";
-    queueMicrotask(() => {
-      setSelectedItemId((prev) => (items.some((it) => it.id === prev) ? prev : firstId));
-    });
-  }, [selectedDocId, docItems, mockItems]);
-
-  // 품목 선택 시 슬롯 초기화 + API에서 사진 조회 (kind=install 일치, slot 0~3)
-  useEffect(() => {
-    if (!selectedItem || !selectedItemId) return;
-    const spec = selectedItem.templateSpec ?? DEFAULT_TEMPLATE_SPEC;
-    const baseSlots = makeSlots(spec);
-    let cancelled = false;
-
-    async function fetchAndMerge() {
-      try {
-        const url = `/api/photos/list?itemId=${encodeURIComponent(selectedItemId)}`;
-        const res = await fetch(url);
-        if (cancelled) return;
-        const json = await res.json().catch(() => ({}));
-        if (!res.ok) {
-          console.warn("[photos/list] request failed", res.status, url, json?.error ?? res.statusText);
-          setAllItemSlots((prev) => (prev[selectedItemId] ? prev : { ...prev, [selectedItemId]: baseSlots }));
-          return;
-        }
-        if (!json.ok || !json.grouped) {
-          setAllItemSlots((prev) => (prev[selectedItemId] ? prev : { ...prev, [selectedItemId]: baseSlots }));
-          return;
-        }
-        const { incoming, install } = json.grouped;
-        const next = baseSlots.map((s) => ({ ...s }));
-        for (let slot = 0; slot < (incoming?.length ?? 0); slot++) {
-          const url = incoming[slot];
-          if (typeof url === "string" && url.length > 0) {
-            const idx = next.findIndex((x) => x.kind === "incoming" && x.slot === slot);
-            if (idx >= 0 && !next[idx].file) next[idx].previewUrl = url;
-          }
-        }
-        for (let slot = 0; slot < (install?.length ?? 0); slot++) {
-          const url = install[slot];
-          if (typeof url === "string" && url.length > 0) {
-            const idx = next.findIndex((x) => x.kind === "install" && x.slot === slot);
-            if (idx >= 0 && !next[idx].file) next[idx].previewUrl = url;
-          }
-        }
-        if (!cancelled) setAllItemSlots((prev) => ({ ...prev, [selectedItemId]: next }));
-      } catch {
-        if (!cancelled) setAllItemSlots((prev) => (prev[selectedItemId] ? prev : { ...prev, [selectedItemId]: baseSlots }));
-      }
-    }
-
-    if (!allItemSlots[selectedItemId]) {
-      fetchAndMerge();
-    }
-    return () => { cancelled = true; };
-  }, [selectedItemId, selectedItem, allItemSlots]);
-
-  // 사진대지 미리보기: 선택되지 않은 품목도 URL을 불러와야 썸네일이 보임
-  useEffect(() => {
-    if (!showPreview) return;
-    const items = currentItems;
-    let cancelled = false;
-
-    void (async () => {
-      await Promise.all(
-        items.map(async (item) => {
-          const spec = item.templateSpec ?? DEFAULT_TEMPLATE_SPEC;
-          try {
-            const res = await fetch(`/api/photos/list?itemId=${encodeURIComponent(item.id)}`);
-            const json = await res.json().catch(() => ({}));
-            if (cancelled) return;
-            if (!res.ok || !json.ok || !json.grouped) {
-              setAllItemSlots((prev) => {
-                if (prev[item.id]) return prev;
-                return { ...prev, [item.id]: makeSlots(spec) };
-              });
-              return;
-            }
-            setAllItemSlots((prev) => ({
-              ...prev,
-              [item.id]: mergePhotoSlotsWithGrouped(prev[item.id], spec, json.grouped),
-            }));
-          } catch {
-            if (!cancelled) {
-              setAllItemSlots((prev) => {
-                if (prev[item.id]) return prev;
-                return { ...prev, [item.id]: makeSlots(spec) };
-              });
-            }
-          }
-        }),
-      );
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [showPreview, currentItems]);
-
-  // cleanup: 컴포넌트 언마운트 시 모든 previewUrl 해제
-  useEffect(() => {
-    return () => {
-      Object.values(allItemSlots).forEach((slots) => {
-        slots.forEach((s) => {
-          if (s.previewUrl) URL.revokeObjectURL(s.previewUrl);
-        });
-      });
-    };
-  }, []);
-
-  // 사진이 등록된 품목 수 계산 (file 또는 previewUrl 있으면 포함)
-  const itemsWithPhotos = useMemo(() => {
-    return currentItems.filter((item) => {
-      const slots = allItemSlots[item.id];
-      if (!slots) return false;
-      return slots.some((s) => s.file || (s.previewUrl && typeof s.previewUrl === "string" && s.previewUrl.length > 0));
-    });
-  }, [currentItems, allItemSlots]);
-
-  // PhotoSheetItem 배열 생성 (미리보기/출력용) - slot 0~3 고정 반복 + find(kind, slot)만 사용. map/filter 순서 의존 금지.
-  const photoSheetItems: PhotoSheetItem[] = useMemo(() => {
-    return itemsWithPhotos.map((item, idx) => {
-      const slots = allItemSlots[item.id] ?? [];
-      const incMax = item.templateSpec?.incomingSlots ?? 4;
-      const instMax = item.templateSpec?.installSlots ?? 4;
-      const templateId = incMax === 1 && instMax === 1 ? "safety_facilities_1x1" : incMax === 2 && instMax === 2 ? "template_2x2" : incMax === 3 && instMax === 3 ? "template_3x3" : "template_4x4";
-
-      const photos: { kind: "incoming" | "install"; slot: number; url: string }[] = [];
-      for (let slot = 0; slot < incMax; slot++) {
-        const s = slots.find((x) => x.kind === "incoming" && x.slot === slot);
-        const url = typeof s?.previewUrl === "string" && s.previewUrl.length > 0 ? s.previewUrl : "";
-        if (url) photos.push({ kind: "incoming", slot, url });
-      }
-      for (let slot = 0; slot < instMax; slot++) {
-        const s = slots.find((x) => x.kind === "install" && x.slot === slot);
-        const url = typeof s?.previewUrl === "string" && s.previewUrl.length > 0 ? s.previewUrl : "";
-        if (url) photos.push({ kind: "install", slot, url });
-      }
-
-      return {
-        no: idx + 1,
-        date: item.useDate ?? "",
-        itemName: `${item.name} [${item.qtyLabel}]`,
-        photos,
-        templateId,
-        evidence_no: String(item.evidenceNo ?? idx + 1),
-      };
-    });
-  }, [itemsWithPhotos, allItemSlots]);
-
-  const filteredItems = useMemo(() => {
-    let list = currentItems;
-    if (categoryFilter) {
-      list = list.filter((it) => (it.category_key ?? "") === categoryFilter);
-    }
-    const q = itemQuery.trim().toLowerCase();
-    if (!q) return list;
-    return list.filter((it) => {
-      const a = `${it.evidenceNo} ${it.name} ${it.qtyLabel} ${it.useDate ?? ""} ${it.category_key ?? ""}`.toLowerCase();
-      return a.includes(q);
-    });
-  }, [itemQuery, categoryFilter, currentItems]);
-
-  const categoryOptions = useMemo(() => {
-    const set = new Set<string>();
-    for (const it of currentItems) {
-      const c = it.category_key?.trim();
-      if (c) set.add(c);
-    }
-    return Array.from(set).sort((a, b) => parseCategorySortKey(a) - parseCategorySortKey(b));
-  }, [currentItems]);
-
-  const groupedItems = useMemo(() => {
-    const groups: { category: string; label: string; items: Item[] }[] = [];
-    const seen = new Map<string, { items: Item[] }>();
-    for (const it of filteredItems) {
-      const cat = it.category_key?.trim() || "(미분류)";
-      if (!seen.has(cat)) seen.set(cat, { items: [] });
-      seen.get(cat)!.items.push(it);
-    }
-    const keys = Array.from(seen.keys()).sort((a, b) => {
-      if (a === "(미분류)") return 1;
-      if (b === "(미분류)") return -1;
-      return parseCategorySortKey(a) - parseCategorySortKey(b);
-    });
-    for (const k of keys) {
-      const { items } = seen.get(k)!;
-      // 그룹 내 마지막 아이템의 label 사용 (가장 완전한 label)
-      const label = items[items.length - 1]?.category_label?.trim() || k;
-      groups.push({ category: k, label, items });
-    }
-    return groups;
-  }, [filteredItems]);
-
-  const totalQty = useMemo(() => filteredItems.reduce((sum, it) => sum + (it.qty ?? 0), 0), [filteredItems]);
-  const totalAmount = useMemo(() => filteredItems.reduce((sum, it) => sum + (it.amount ?? 0), 0), [filteredItems]);
-
-  const progressDone = itemsWithPhotos.length;
-  const progressTotal = currentItems.length || 1;
-
-  const incomingFilled = useMemo(() => countFilled(slots, "incoming"), [slots]);
-  const installFilled = useMemo(() => countFilled(slots, "install"), [slots]);
-  const incomingMax = selectedItem?.templateSpec.incomingSlots ?? 1;
-  const installMax = selectedItem?.templateSpec.installSlots ?? 4;
-
-  function updateSlot(kind: PhotoKind, slot: number, file?: File) {
-    if (!selectedItemId) return;
-
-    setAllItemSlots((prev) => {
-      const currentSlots = prev[selectedItemId] ?? makeSlots(selectedItem?.templateSpec ?? DEFAULT_TEMPLATE_SPEC);
-      const next = currentSlots.map((s) => ({ ...s }));
-      const idx = next.findIndex((s) => s.kind === kind && s.slot === slot);
-      if (idx < 0) return prev;
-      if (next[idx].previewUrl) URL.revokeObjectURL(next[idx].previewUrl);
-      if (!file) {
-        next[idx].file = undefined;
-        next[idx].previewUrl = undefined;
-        return { ...prev, [selectedItemId]: next };
-      }
-      if (!file.type.startsWith("image/")) return prev;
-      next[idx].file = file;
-      const url = URL.createObjectURL(file);
-      next[idx].previewUrl = typeof url === "string" && url.length > 0 ? url : undefined;
-
-      const spec = selectedItem?.templateSpec ?? DEFAULT_TEMPLATE_SPEC;
-      const templateId = spec.incomingSlots === 1 && spec.installSlots === 1 ? "safety_facilities_1x1" : spec.incomingSlots === 2 && spec.installSlots === 2 ? "template_2x2" : spec.incomingSlots === 3 && spec.installSlots === 3 ? "template_3x3" : "template_4x4";
-      const form = new FormData();
-      form.append("itemId", selectedItemId);
-      form.append("templateId", templateId);
-      form.append("kind", kind);
-      form.append("slot", String(slot));
-      form.append("file", file);
-      fetch("/api/photos/upload", { method: "POST", body: form }).catch((e) => console.warn("[upload]", e));
-
-      return { ...prev, [selectedItemId]: next };
-    });
-  }
-
-  useEffect(() => {
-    if (searchParams.get("openUpload") === "1") {
-      router.replace("/workspace", { scroll: false });
-      const t = setTimeout(() => excelInputRef.current?.click(), 100);
-      return () => clearTimeout(t);
-    }
-  }, [searchParams, router]);
-
-  function handleCreateBlankDoc() {
-    const newDoc: Doc = {
-      id: `doc_${Date.now()}`,
-      title: "빈 페이지",
-      subtitle: "새로 만든 빈 문서",
-      updatedAt: new Date().toISOString().slice(0, 10),
-    };
-    setDocs((prev) => [...prev, newDoc]);
-    setDocItems((prev) => ({ ...prev, [newDoc.id]: [] }));
-    setSelectedDocId(newDoc.id);
-  }
-
-  async function handleExcelFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    e.target.value = "";
-    if (!file) return;
-
-    const name = file.name.toLowerCase();
-    if (!name.endsWith(".xlsx") && !name.endsWith(".xls")) {
-      setExcelError("엑셀 파일(.xlsx, .xls)만 업로드할 수 있습니다.");
-      return;
-    }
-
-    setExcelError(null);
-    setIsExcelLoading(true);
-    try {
-      const buf = await file.arrayBuffer();
-      const wb = XLSX.read(buf, { type: "array" });
-      const firstSheetName = wb.SheetNames[0] ?? "";
-      const ws = firstSheetName ? wb.Sheets[firstSheetName] : undefined;
-
-      const title = firstSheetName.trim() || file.name.replace(/\.(xlsx|xls)$/i, "").trim() || "새 문서";
-
-      const newDoc: Doc = {
-        id: `doc_${Date.now()}`,
-        title,
-        subtitle: file.name,
-        updatedAt: new Date().toISOString().slice(0, 10),
-      };
-
-      const items = ws ? parseItemsFromSheet(ws, newDoc.id) : [];
-
-      setDocs((prev) => [...prev, newDoc]);
-      setDocItems((prev) => ({ ...prev, [newDoc.id]: items }));
-      setSelectedDocId(newDoc.id);
-    } catch (err) {
-      console.error(err);
-      setExcelError("엑셀 파일을 읽는 중 오류가 났습니다.");
-    } finally {
-      setIsExcelLoading(false);
-    }
-  }
-
-  function onClickPdf() {
-    alert("PDF 출력은 다음 단계에서 연결합니다.");
-  }
-
-  // 엑셀 내보내기 (A4 세로 형식 사진대지 - 3개 품목 = 1페이지)
-  const exportToExcel = useCallback(async () => {
-    if (itemsWithPhotos.length === 0) {
-      alert("사진이 등록된 품목이 없습니다.");
-      return;
-    }
-
-    try {
-      const workbook = new ExcelJS.Workbook();
-      const worksheet = workbook.addWorksheet("사진대지");
-
-      // A4 세로 페이지 설정
-      worksheet.pageSetup = {
-        paperSize: 9, // A4
-        orientation: "portrait",
-        fitToPage: true,
-        fitToWidth: 1,
-        fitToHeight: 0,
-        margins: {
-          left: 0.3, right: 0.3,
-          top: 0.3, bottom: 0.3,
-          header: 0.2, footer: 0.2,
-        },
-      };
-
-      worksheet.columns = [
-        { width: 6 },   // A: 라벨 (날짜/항목)
-        { width: 11 },  // B: 반입1
-        { width: 11 },  // C: 반입2
-        { width: 6 },   // D: 라벨
-        { width: 11 },  // E: 설치1
-        { width: 11 },  // F: 설치2
-      ];
-
-      const thinBorder: Partial<ExcelJS.Borders> = {
-        top: { style: "thin" },
-        left: { style: "thin" },
-        bottom: { style: "thin" },
-        right: { style: "thin" },
-      };
-
-      const headerFill: ExcelJS.FillPattern = {
-        type: "pattern",
-        pattern: "solid",
-        fgColor: { argb: "FFE8E8E8" },
-      };
-
-      const ROWS_PER_ITEM = 8;
-      const PHOTO_ROW_HEIGHT = 60;
-
-      for (let idx = 0; idx < itemsWithPhotos.length; idx++) {
-        const item = itemsWithPhotos[idx];
-        const itemSlots = allItemSlots[item.id] ?? [];
-        const startRow = idx * ROWS_PER_ITEM + 1;
-
-        worksheet.mergeCells(startRow, 1, startRow, 6);
-        const noCell = worksheet.getCell(startRow, 1);
-        noCell.value = `NO.${idx + 1}`;
-        noCell.font = { bold: true, size: 12 };
-        noCell.alignment = { horizontal: "center", vertical: "middle" };
-        noCell.border = thinBorder;
-        worksheet.getRow(startRow).height = 20;
-
-        const headerRowNum = startRow + 1;
-        worksheet.mergeCells(headerRowNum, 1, headerRowNum, 3);
-        worksheet.mergeCells(headerRowNum, 4, headerRowNum, 6);
-
-        const incomingHeader = worksheet.getCell(headerRowNum, 1);
-        incomingHeader.value = "반입사진";
-        incomingHeader.font = { bold: true, size: 10 };
-        incomingHeader.fill = headerFill;
-        incomingHeader.alignment = { horizontal: "center", vertical: "middle" };
-        incomingHeader.border = thinBorder;
-
-        const installHeader = worksheet.getCell(headerRowNum, 4);
-        installHeader.value = "현장 설치 사진";
-        installHeader.font = { bold: true, size: 10 };
-        installHeader.fill = headerFill;
-        installHeader.alignment = { horizontal: "center", vertical: "middle" };
-        installHeader.border = thinBorder;
-
-        worksheet.getRow(headerRowNum).height = 18;
-
-        const photoRow1 = startRow + 2;
-        const photoRow2 = startRow + 3;
-
-        worksheet.getRow(photoRow1).height = PHOTO_ROW_HEIGHT;
-        worksheet.getRow(photoRow2).height = PHOTO_ROW_HEIGHT;
-
-        // 슬롯 0~3 SSOT: find(kind, slot)로 매핑
-        const getIncomingSlot = (slot: number) => itemSlots.find(s => s.kind === "incoming" && s.slot === slot);
-        const getInstallSlot = (slot: number) => itemSlots.find(s => s.kind === "install" && s.slot === slot);
-
-        for (let r = 0; r < 2; r++) {
-          for (let c = 0; c < 2; c++) {
-            const row = photoRow1 + r;
-            const col = 2 + c; // B=2, C=3
-            const cell = worksheet.getCell(row, col);
-            cell.border = thinBorder;
-            cell.alignment = { horizontal: "center", vertical: "middle" };
-          }
-        }
-
-        for (let r = 0; r < 2; r++) {
-          for (let c = 0; c < 2; c++) {
-            const row = photoRow1 + r;
-            const col = 5 + c; // E=5, F=6
-            const cell = worksheet.getCell(row, col);
-            cell.border = thinBorder;
-            cell.alignment = { horizontal: "center", vertical: "middle" };
-          }
-        }
-
-        worksheet.mergeCells(photoRow1, 1, photoRow2, 1);
-        worksheet.mergeCells(photoRow1, 4, photoRow2, 4);
-
-        // 반입 사진 삽입 (슬롯 0~3 고정)
-        for (let i = 0; i < 4; i++) {
-          const slot = getIncomingSlot(i);
-          const row = photoRow1 + Math.floor(i / 2);
-          const col = 2 + (i % 2); // B=2, C=3
-
-          if (slot?.file) {
-            const base64 = await fileToBase64(slot.file);
-            const imageId = workbook.addImage({
-              base64,
-              extension: slot.file.type.includes("png") ? "png" : "jpeg",
-            });
-
-            // NOTE: exceljs 타입 정의(Anchor)가 tl/br을 과도하게 엄격하게 요구하는 빌드 케이스가 있어,
-            // 런타임 동작은 그대로 두고 타입체크만 통과시키기 위해 any 캐스팅을 사용합니다.
-            worksheet.addImage(
-              imageId,
-              {
-                tl: { col: col - 1 + 0.05, row: row - 1 + 0.05 } as any,
-                br: { col: col - 0.05, row: row - 0.05 } as any,
-              } as any
-            );
-          }
-        }
-
-        // 설치 사진 삽입 (슬롯 0~3 고정)
-        for (let i = 0; i < 4; i++) {
-          const slot = getInstallSlot(i);
-          const row = photoRow1 + Math.floor(i / 2);
-          const col = 5 + (i % 2); // E=5, F=6
-
-          if (slot?.file) {
-            const base64 = await fileToBase64(slot.file);
-            const imageId = workbook.addImage({
-              base64,
-              extension: slot.file.type.includes("png") ? "png" : "jpeg",
-            });
-
-            worksheet.addImage(
-              imageId,
-              {
-                tl: { col: col - 1 + 0.05, row: row - 1 + 0.05 } as any,
-                br: { col: col - 0.05, row: row - 0.05 } as any,
-              } as any
-            );
-          }
-        }
-
-        const dateRowNum = startRow + 4;
-
-        const dateLabelCell1 = worksheet.getCell(dateRowNum, 1);
-        dateLabelCell1.value = "날짜";
-        dateLabelCell1.font = { bold: true, size: 9 };
-        dateLabelCell1.fill = headerFill;
-        dateLabelCell1.alignment = { horizontal: "center", vertical: "middle" };
-        dateLabelCell1.border = thinBorder;
-
-        worksheet.mergeCells(dateRowNum, 2, dateRowNum, 3);
-        const dateValueCell1 = worksheet.getCell(dateRowNum, 2);
-        dateValueCell1.value = item.useDate ?? "";
-        dateValueCell1.alignment = { horizontal: "center", vertical: "middle" };
-        dateValueCell1.border = thinBorder;
-
-        const dateLabelCell2 = worksheet.getCell(dateRowNum, 4);
-        dateLabelCell2.value = "날짜";
-        dateLabelCell2.font = { bold: true, size: 9 };
-        dateLabelCell2.fill = headerFill;
-        dateLabelCell2.alignment = { horizontal: "center", vertical: "middle" };
-        dateLabelCell2.border = thinBorder;
-
-        worksheet.mergeCells(dateRowNum, 5, dateRowNum, 6);
-        const dateValueCell2 = worksheet.getCell(dateRowNum, 5);
-        dateValueCell2.value = item.useDate ?? "";
-        dateValueCell2.alignment = { horizontal: "center", vertical: "middle" };
-        dateValueCell2.border = thinBorder;
-
-        worksheet.getRow(dateRowNum).height = 18;
-
-        const itemRowNum = startRow + 5;
-
-        const itemLabelCell1 = worksheet.getCell(itemRowNum, 1);
-        itemLabelCell1.value = "항목";
-        itemLabelCell1.font = { bold: true, size: 9 };
-        itemLabelCell1.fill = headerFill;
-        itemLabelCell1.alignment = { horizontal: "center", vertical: "middle" };
-        itemLabelCell1.border = thinBorder;
-
-        worksheet.mergeCells(itemRowNum, 2, itemRowNum, 3);
-        const itemValueCell1 = worksheet.getCell(itemRowNum, 2);
-        itemValueCell1.value = `${item.name} [${item.qtyLabel}]`;
-        itemValueCell1.alignment = { horizontal: "center", vertical: "middle" };
-        itemValueCell1.border = thinBorder;
-
-        const itemLabelCell2 = worksheet.getCell(itemRowNum, 4);
-        itemLabelCell2.value = "항목";
-        itemLabelCell2.font = { bold: true, size: 9 };
-        itemLabelCell2.fill = headerFill;
-        itemLabelCell2.alignment = { horizontal: "center", vertical: "middle" };
-        itemLabelCell2.border = thinBorder;
-
-        worksheet.mergeCells(itemRowNum, 5, itemRowNum, 6);
-        const itemValueCell2 = worksheet.getCell(itemRowNum, 5);
-        itemValueCell2.value = `${item.name} [${item.qtyLabel}]`;
-        itemValueCell2.alignment = { horizontal: "center", vertical: "middle" };
-        itemValueCell2.border = thinBorder;
-
-        worksheet.getRow(itemRowNum).height = 18;
-
-        worksheet.getRow(startRow + 6).height = 5;
-        worksheet.getRow(startRow + 7).height = 5;
-      }
-
-      const buffer = await workbook.xlsx.writeBuffer();
-      const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `사진대지_${itemsWithPhotos.length}건_${Date.now()}.xlsx`;
-      a.click();
-      URL.revokeObjectURL(url);
-
-    } catch (err) {
-      console.error(err);
-      alert("엑셀 내보내기 중 오류가 발생했습니다: " + (err instanceof Error ? err.message : "알 수 없는 오류"));
-    }
-  }, [itemsWithPhotos, allItemSlots]);
-
-  // File을 Base64로 변환
-  async function fileToBase64(file: File): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const result = reader.result as string;
-        const base64 = result.split(",")[1];
-        resolve(base64);
-      };
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
+  function handleNav(path: string, label: string) {
+    saveRecent(path, label);
+    router.push(path);
   }
 
   return (
-    <div className={styles.workspace}>
-      {/* 상단 헤더 */}
+    <div className={styles.hub}>
       <header className={styles.header}>
-        <div className={styles.headerLeft}>
-          <a href="/" className={styles.logo}>PhotoSheet</a>
-          <span className={styles.headerDivider} />
-          <span className={styles.headerDocName}>{selectedDoc?.title ?? "문서 선택"}</span>
-        </div>
+        <span className={styles.logo}>거우중동</span>
         <div className={styles.headerRight}>
-          <span className={styles.progressBadge}>
-            <span className={styles.progressCount}>{progressDone}</span>
-            <span className={styles.progressSep}>/</span>
-            <span className={styles.progressTotal}>{progressTotal}</span>
-            <span className={styles.progressLabel}>완료</span>
-          </span>
-          <button type="button" className={styles.headerBtn} onClick={() => setShowPreview(true)}>미리보기</button>
-          <button type="button" className={styles.headerBtnPrimary} onClick={onClickPdf}>PDF 출력</button>
+          {userName && <span className={styles.userChip}>{userName}</span>}
+          <button
+            type="button"
+            className={styles.logoutBtn}
+            onClick={async () => {
+              await supabase.auth.signOut();
+              router.push("/login");
+            }}
+          >
+            로그아웃
+          </button>
         </div>
       </header>
 
-      {/* 메인 영역 */}
-      <div className={styles.main}>
-        {/* 좌측: 테이블 + 사진 슬롯 */}
-        <div className={styles.content}>
-          {/* 툴바 */}
-          <div className={styles.toolbar}>
-            <div className={styles.toolbarLeft}>
-              <button type="button" className={styles.toolBtn} onClick={() => excelInputRef.current?.click()}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                  <polyline points="14 2 14 8 20 8" />
-                  <line x1="12" y1="18" x2="12" y2="12" />
-                  <line x1="9" y1="15" x2="15" y2="15" />
-                </svg>
-                <span>새 문서</span>
-              </button>
+      <main className={styles.main}>
+        <div className={styles.greeting}>
+          <h1 className={styles.title}>
+            {userName ? `${userName}님, 안녕하세요` : "안녕하세요"}
+          </h1>
+          <p className={styles.subtitle}>오늘 어떤 작업을 하시겠어요?</p>
+        </div>
 
-              <div className={styles.toolDivider} />
-
-              <div className={styles.sheetSelect}>
-                <label className={styles.sheetSelectLabel}>시트</label>
-                <select
-                  className={styles.sheetSelectInput}
-                  value={selectedDocId}
-                  onChange={(e) => setSelectedDocId(e.target.value)}
-                >
-                  {docs.map((d) => (
-                    <option key={d.id} value={d.id}>{d.title}</option>
-                  ))}
-                </select>
-              </div>
-
-              <button type="button" className={styles.blankPageBtn} onClick={handleCreateBlankDoc}>
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                  <line x1="12" y1="5" x2="12" y2="19" />
-                  <line x1="5" y1="12" x2="19" y2="12" />
-                </svg>
-                빈 페이지
-              </button>
-
-              <div className={styles.toolDivider} />
-
-              <div className={styles.sheetSelect}>
-                <label className={styles.sheetSelectLabel}>항목</label>
-                <select
-                  className={styles.sheetSelectInput}
-                  value={categoryFilter}
-                  onChange={(e) => setCategoryFilter(e.target.value)}
-                >
-                  <option value="">전체</option>
-                  {categoryOptions.map((c) => (
-                    <option key={c} value={c}>{c}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className={styles.toolDivider} />
-
-              <div className={styles.searchBox}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <circle cx="11" cy="11" r="8" />
-                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                </svg>
-                <input
-                  type="text"
-                  placeholder="품목 검색..."
-                  value={itemQuery}
-                  onChange={(e) => setItemQuery(e.target.value)}
-                />
-              </div>
-            </div>
-
-            <div className={styles.toolbarRight}>
-              <span className={styles.itemCount}>{filteredItems.length}개 품목</span>
-            </div>
-          </div>
-
-          {/* 테이블 */}
-          <div className={styles.tableContainer}>
-            <table className={styles.dataTable}>
-              <thead>
-                <tr>
-                  <th className={styles.colSeq}>순번</th>
-                  <th className={styles.colDate}>사용일자</th>
-                  <th className={styles.colName}>사용내역</th>
-                  <th className={styles.colQty}>수량</th>
-                  <th className={styles.colPrice}>단가</th>
-                  <th className={styles.colAmount}>금액</th>
-                  <th className={styles.colProof}>증빙번호</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredItems.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className={styles.emptyRow}>
-                      <EmptyState
-                        title="품목이 없습니다"
-                        description={itemQuery.trim() || categoryFilter ? "검색·필터 조건을 변경해 보세요." : "엑셀 파일을 업로드하세요."}
-                      />
-                    </td>
-                  </tr>
-                ) : (
-                  (() => {
-                    let seqNo = 0;
-                    return groupedItems.map((grp) => (
-                      <React.Fragment key={grp.category}>
-                        <tr className={styles.groupHeaderRow}>
-                          <td colSpan={7} className={styles.groupHeaderCell}>
-                            {grp.label}
-                          </td>
-                        </tr>
-                        {grp.items.map((it) => {
-                          seqNo += 1;
-                          const isActive = it.id === selectedItemId;
-                          const hasPhoto = allItemSlots[it.id]?.some((s) => s.file) ?? false;
-                          return (
-                            <tr
-                              key={it.id}
-                              className={`${isActive ? styles.rowActive : styles.row} ${hasPhoto ? styles.rowDone : ""}`}
-                              onClick={() => setSelectedItemId(it.id)}
-                            >
-                              <td className={styles.colSeq}>
-                                {hasPhoto && (
-                                  <span className={styles.doneCheck}>
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                                      <polyline points="20 6 9 17 4 12" />
-                                    </svg>
-                                  </span>
-                                )}
-                                {seqNo}
-                              </td>
-                              <td className={styles.colDate}>{it.useDate ?? "—"}</td>
-                              <td className={styles.colName}>{it.name}</td>
-                              <td className={styles.colQty}>{it.qty ?? it.qtyLabel}</td>
-                              <td className={styles.colPrice}>{it.unitPrice?.toLocaleString("ko-KR") ?? "—"}</td>
-                              <td className={styles.colAmount}>{it.amount?.toLocaleString("ko-KR") ?? "—"}</td>
-                              <td className={styles.colProof}>{it.proofNo ?? it.evidenceNo}</td>
-                            </tr>
-                          );
-                        })}
-                      </React.Fragment>
-                    ));
-                  })()
-                )}
-              </tbody>
-              {filteredItems.length > 0 && (
-                <tfoot>
-                  <tr className={styles.totalRow}>
-                    <td className={styles.colSeq} />
-                    <td className={styles.colDate} />
-                    <td className={styles.colName}>합계</td>
-                    <td className={styles.colQty}>{totalQty.toLocaleString("ko-KR")}</td>
-                    <td className={styles.colPrice}>—</td>
-                    <td className={styles.colAmount}>{totalAmount.toLocaleString("ko-KR")}</td>
-                    <td className={styles.colProof} />
-                  </tr>
-                </tfoot>
-              )}
-            </table>
-          </div>
-
-          {/* 선택된 품목 + 사진 슬롯 */}
-          {selectedItem && (
-            <div className={styles.photoArea}>
-              <div className={styles.photoAreaHeader}>
-                <div className={styles.selectedItemInfo}>
-                  <span className={styles.selectedItemBadge}>선택됨</span>
-                  <span className={styles.selectedItemName}>{selectedItem.name}</span>
-                  <span className={styles.selectedItemQty}>{selectedItem.qtyLabel}</span>
-                </div>
-                <div className={styles.slotStatus}>
-                  <span>반입 {incomingFilled}/{incomingMax}</span>
-                  <span className={styles.slotStatusDivider}>·</span>
-                  <span>설치 {installFilled}/{installMax}</span>
-                </div>
-              </div>
-
-              <div className={styles.photoGrid}>
-                <div className={styles.photoRow}>
-                  {Array.from({ length: incomingMax }, (_, i) => {
-                    const slot = slots.find((s) => s.kind === "incoming" && s.slot === i);
-                    return (
-                      <PhotoDropSlot
-                        key={`incoming_${i}`}
-                        title={`반입 ${i + 1}`}
-                        subtitle=""
-                        previewUrl={slot?.previewUrl}
-                        onPickFile={(file) => updateSlot("incoming", i, file)}
-                        onClear={() => updateSlot("incoming", i, undefined)}
-                      />
-                    );
-                  })}
-                </div>
-                <div className={styles.photoRow}>
-                  {Array.from({ length: installMax }, (_, i) => {
-                    const slot = slots.find((s) => s.kind === "install" && s.slot === i);
-                    return (
-                      <PhotoDropSlot
-                        key={`install_${i}`}
-                        title={`설치 ${i + 1}`}
-                        subtitle=""
-                        previewUrl={slot?.previewUrl}
-                        onPickFile={(file) => updateSlot("install", i, file)}
-                        onClear={() => updateSlot("install", i, undefined)}
-                      />
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* 저장 = DB 반영만(업로드 시 자동). 엑셀 생성은 내보내기에서만. */}
-              <div className={styles.saveButtonArea}>
+        {recent.length > 0 && (
+          <section className={styles.section}>
+            <h2 className={styles.sectionTitle}>최근 작업</h2>
+            <div className={styles.recentList}>
+              {recent.map((r) => (
                 <button
+                  key={r.path}
                   type="button"
-                  className={styles.saveButton}
-                  onClick={() => alert("사진은 슬롯 업로드 시 DB에 저장됩니다. 엑셀 파일이 필요하면 '엑셀로 내보내기'를 사용하세요.")}
-                  disabled={false}
+                  className={styles.recentChip}
+                  onClick={() => handleNav(r.path, r.label)}
                 >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                    <polyline points="7 10 12 15 17 10" />
-                    <line x1="12" y1="15" x2="12" y2="3" />
-                  </svg>
-                  {itemsWithPhotos.length > 0 ? `저장됨 (${itemsWithPhotos.length}건)` : "저장 안내"}
+                  <span className={styles.recentLabel}>{r.label}</span>
+                  <span className={styles.recentTime}>{timeAgo(r.time)}</span>
                 </button>
-              </div>
+              ))}
             </div>
-          )}
-        </div>
+          </section>
+        )}
 
-        {/* 우측 패널 */}
-        <aside className={`${styles.rightPanel} ${rightPanelOpen ? styles.rightPanelOpen : ""}`}>
-          <div className={styles.panelTabs}>
-            <button
-              type="button"
-              className={`${styles.panelTab} ${rightPanelTab === "data" ? styles.panelTabActive : ""}`}
-              onClick={() => setRightPanelTab("data")}
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                <polyline points="14 2 14 8 20 8" />
-              </svg>
-              <span>Data</span>
-            </button>
-            <button
-              type="button"
-              className={`${styles.panelTab} ${rightPanelTab === "photo" ? styles.panelTabActive : ""}`}
-              onClick={() => setRightPanelTab("photo")}
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <rect x="3" y="3" width="18" height="18" rx="2" />
-                <circle cx="8.5" cy="8.5" r="1.5" />
-                <path d="M21 15l-5-5L5 21" />
-              </svg>
-              <span>사진</span>
-            </button>
-          </div>
-
-          <div className={styles.panelBody}>
-            {rightPanelTab === "data" && (
-              <div className={styles.panelSection}>
-                <div className={styles.panelSectionTitle}>문서 목록</div>
-                <div className={styles.docList}>
-                  {docs.map((d) => (
-                    <button
-                      key={d.id}
-                      type="button"
-                      className={`${styles.docItem} ${d.id === selectedDocId ? styles.docItemActive : ""}`}
-                      onClick={() => setSelectedDocId(d.id)}
-                    >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                        <polyline points="14 2 14 8 20 8" />
-                      </svg>
-                      <span className={styles.docItemName}>{d.title}</span>
-                    </button>
-                  ))}
-                </div>
-
-                <button type="button" className={styles.panelAddBtn} onClick={() => excelInputRef.current?.click()}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <line x1="12" y1="5" x2="12" y2="19" />
+        <section className={styles.section}>
+          <h2 className={styles.sectionTitle}>기능 선택</h2>
+          <div className={styles.grid}>
+            {FEATURES.map((f) => (
+              <button
+                key={f.path}
+                type="button"
+                className={styles.card}
+                onClick={() => handleNav(f.path, f.label)}
+                style={{ "--card-color": f.color, "--card-bg": f.bg } as React.CSSProperties}
+              >
+                <span className={styles.cardIcon}>{f.icon}</span>
+                <span className={styles.cardLabel}>{f.label}</span>
+                <span className={styles.cardDesc}>{f.desc}</span>
+                <span className={styles.cardArrow}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <line x1="5" y1="12" x2="19" y2="12" />
+                    <polyline points="12 5 19 12 12 19" />
                   </svg>
-                  새 문서 업로드
-                </button>
-              </div>
-            )}
-
-            {rightPanelTab === "photo" && selectedItem && (
-              <div className={styles.panelSection}>
-                <div className={styles.panelSectionTitle}>
-                  {selectedItem.name}
-                </div>
-                <div className={styles.panelPhotoStatus}>
-                  <div className={styles.statusItem}>
-                    <span className={styles.statusLabel}>반입</span>
-                    <span className={styles.statusValue}>{incomingFilled}/{incomingMax}</span>
-                  </div>
-                  <div className={styles.statusItem}>
-                    <span className={styles.statusLabel}>설치</span>
-                    <span className={styles.statusValue}>{installFilled}/{installMax}</span>
-                  </div>
-                </div>
-
-                <div className={styles.panelPhotoGrid}>
-                  {Array.from({ length: incomingMax }, (_, i) => {
-                    const slot = slots.find((s) => s.kind === "incoming" && s.slot === i);
-                    return (
-                      <PhotoDropSlot
-                        key={`panel_incoming_${i}`}
-                        title={`반입 ${i + 1}`}
-                        subtitle=""
-                        previewUrl={slot?.previewUrl}
-                        onPickFile={(file) => updateSlot("incoming", i, file)}
-                        onClear={() => updateSlot("incoming", i, undefined)}
-                        compact
-                      />
-                    );
-                  })}
-                  {Array.from({ length: installMax }, (_, i) => {
-                    const slot = slots.find((s) => s.kind === "install" && s.slot === i);
-                    return (
-                      <PhotoDropSlot
-                        key={`panel_install_${i}`}
-                        title={`설치 ${i + 1}`}
-                        subtitle=""
-                        previewUrl={slot?.previewUrl}
-                        onPickFile={(file) => updateSlot("install", i, file)}
-                        onClear={() => updateSlot("install", i, undefined)}
-                        compact
-                      />
-                    );
-                  })}
-                </div>
-              </div>
-            )}
+                </span>
+              </button>
+            ))}
           </div>
-        </aside>
-
-        {/* 패널 토글 */}
-        <button
-          type="button"
-          className={styles.panelToggle}
-          onClick={() => setRightPanelOpen(!rightPanelOpen)}
-          aria-label={rightPanelOpen ? "패널 닫기" : "패널 열기"}
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            {rightPanelOpen ? (
-              <polyline points="9 18 15 12 9 6" />
-            ) : (
-              <polyline points="15 18 9 12 15 6" />
-            )}
-          </svg>
-        </button>
-      </div>
-
-      <input
-        ref={excelInputRef}
-        type="file"
-        accept=".xlsx,.xls"
-        className={styles.hiddenInput}
-        onChange={handleExcelFile}
-      />
-
-      {isExcelLoading && (
-        <div className={styles.loadingOverlay}>
-          <LoadingState label="엑셀 파일 불러오는 중…" />
-        </div>
-      )}
-
-      <AnimatePresence>
-        {excelError && (
-          <motion.div
-            className={styles.errorToast}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 20 }}
-          >
-            <span>{excelError}</span>
-            <button type="button" onClick={() => setExcelError(null)}>✕</button>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {showPreview && (
-          <motion.div
-            className={styles.previewOverlay}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => setShowPreview(false)}
-          >
-            <motion.div
-              className={styles.previewModal}
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className={styles.previewHeader}>
-                <h2 className={styles.previewTitle}>
-                  {previewTab === "photo" ? "사진대지 미리보기" : "항목별 사용 내역서 미리보기"}
-                </h2>
-                <div className={styles.previewActions}>
-                  <div className={styles.previewTabs}>
-                    <button
-                      type="button"
-                      className={previewTab === "photo" ? styles.previewTabActive : styles.previewTab}
-                      onClick={() => setPreviewTab("photo")}
-                    >
-                      사진대지
-                    </button>
-                    <button
-                      type="button"
-                      className={previewTab === "usage" ? styles.previewTabActive : styles.previewTab}
-                      onClick={() => setPreviewTab("usage")}
-                    >
-                      항목별 사용 내역서
-                    </button>
-                  </div>
-                  <button
-                    type="button"
-                    className={styles.previewPrintBtn}
-                    onClick={() => window.print()}
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <polyline points="6 9 6 2 18 2 18 9" />
-                      <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
-                    </svg>
-                    인쇄
-                  </button>
-                  <button
-                    type="button"
-                    className={styles.previewExportBtn}
-                    onClick={() => {
-                      if (!selectedDocId) {
-                        alert("문서를 선택하세요.");
-                        return;
-                      }
-                      window.location.href = `/expense/export?docId=${encodeURIComponent(selectedDocId)}`;
-                    }}
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                      <polyline points="7 10 12 15 17 10" />
-                      <line x1="12" y1="15" x2="12" y2="3" />
-                    </svg>
-                    엑셀로 내보내기
-                  </button>
-                  <button
-                    type="button"
-                    className={styles.previewClose}
-                    onClick={() => setShowPreview(false)}
-                  >
-                    ✕
-                  </button>
-                </div>
-              </div>
-
-              <div className={styles.previewContent}>
-                {previewTab === "photo" ? (
-                  <div className={styles.previewPhotoWrap}>
-                    <PhotoSheetPage items={photoSheetItems} preview />
-                  </div>
-                ) : (
-                  <div className={styles.previewUsageWrap}>
-                    <div className={styles.previewUsageTitle}>
-                      {docs.find((d) => d.id === selectedDocId)?.title ?? "항목별 사용 내역서"}
-                    </div>
-                    <div className={styles.previewUsageTableWrap}>
-                      <table className={styles.previewUsageTable}>
-                        <thead>
-                          <tr>
-                            <th className={styles.previewUsageThSeq}>순번</th>
-                            <th className={styles.previewUsageThDate}>사용일자</th>
-                            <th className={styles.previewUsageThName}>사용내역</th>
-                            <th className={styles.previewUsageThQty}>수량</th>
-                            <th className={styles.previewUsageThPrice}>단가</th>
-                            <th className={styles.previewUsageThAmount}>금액</th>
-                            <th className={styles.previewUsageThProof}>증빙번호</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {groupedItems.length === 0 ? (
-                            <tr>
-                              <td colSpan={7} className={styles.previewUsageEmpty}>
-                                품목이 없습니다.
-                              </td>
-                            </tr>
-                          ) : (
-                            (() => {
-                              let seqNo = 0;
-                              return groupedItems.map((grp) => (
-                                <React.Fragment key={grp.category}>
-                                  <tr className={styles.previewUsageGroupRow}>
-                                    <td colSpan={7} className={styles.previewUsageGroupCell}>
-                                      {grp.label}
-                                    </td>
-                                  </tr>
-                                  {grp.items.map((it) => {
-                                    seqNo += 1;
-                                    return (
-                                      <tr key={it.id} className={styles.previewUsageDataRow}>
-                                        <td className={styles.previewUsageTdSeq}>{seqNo}</td>
-                                    <td className={styles.previewUsageTdDate}>{it.useDate ?? "—"}</td>
-                                    <td className={styles.previewUsageTdName}>{it.name}</td>
-                                    <td className={styles.previewUsageTdQty}>{it.qty ?? it.qtyLabel}</td>
-                                    <td className={styles.previewUsageTdPrice}>{it.unitPrice?.toLocaleString("ko-KR") ?? "—"}</td>
-                                    <td className={styles.previewUsageTdAmount}>{it.amount?.toLocaleString("ko-KR") ?? "—"}</td>
-                                        <td className={styles.previewUsageTdProof}>{it.proofNo ?? it.evidenceNo}</td>
-                                      </tr>
-                                    );
-                                  })}
-                                </React.Fragment>
-                              ));
-                            })()
-                          )}
-                        </tbody>
-                        {groupedItems.length > 0 && (
-                          <tfoot>
-                            <tr className={styles.previewUsageTotalRow}>
-                              <td colSpan={3} className={styles.previewUsageTdName}>합계</td>
-                              <td className={styles.previewUsageTdQty}>{totalQty.toLocaleString("ko-KR")}</td>
-                              <td className={styles.previewUsageTdPrice}>—</td>
-                              <td className={styles.previewUsageTdAmount}>{totalAmount.toLocaleString("ko-KR")}</td>
-                              <td />
-                            </tr>
-                          </tfoot>
-                        )}
-                      </table>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+        </section>
+      </main>
     </div>
-  );
-}
-
-export default function Page() {
-  return (
-    <Suspense
-      fallback={
-        <div style={{ minHeight: "100dvh", background: "#ffffff", display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <LoadingState label="워크스페이스 불러오는 중…" />
-        </div>
-      }
-    >
-      <WorkspacePageContent />
-    </Suspense>
   );
 }

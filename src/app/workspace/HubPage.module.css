@@ -1,0 +1,231 @@
+/* /workspace — 허브 대시보드 */
+
+.hub {
+  min-height: 100dvh;
+  background: #f8fafc;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── 헤더 ── */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  height: 56px;
+  background: #fff;
+  border-bottom: 1px solid #e2e8f0;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.logo {
+  font-size: 16px;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: -0.3px;
+}
+
+.headerRight {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.userChip {
+  font-size: 13px;
+  color: #64748b;
+  background: #f1f5f9;
+  padding: 3px 10px;
+  border-radius: 999px;
+}
+
+.logoutBtn {
+  font-size: 13px;
+  color: #64748b;
+  background: none;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 5px 12px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.logoutBtn:hover {
+  background: #f1f5f9;
+  color: #334155;
+}
+
+.logoutBtn:active {
+  transform: scale(0.97);
+}
+
+/* ── 메인 ── */
+.main {
+  flex: 1;
+  max-width: 720px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 40px 20px 60px;
+  display: flex;
+  flex-direction: column;
+  gap: 36px;
+  animation: fadeUp 0.3s ease both;
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── 인사말 ── */
+.greeting {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.title {
+  font-size: 24px;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: -0.4px;
+  margin: 0;
+}
+
+.subtitle {
+  font-size: 15px;
+  color: #64748b;
+  margin: 0;
+}
+
+/* ── 섹션 ── */
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sectionTitle {
+  font-size: 12px;
+  font-weight: 600;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  margin: 0;
+}
+
+/* ── 최근 작업 ── */
+.recentList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.recentChip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 8px 14px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.recentChip:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+
+.recentChip:active {
+  transform: scale(0.97);
+}
+
+.recentLabel {
+  font-size: 14px;
+  font-weight: 500;
+  color: #1e293b;
+}
+
+.recentTime {
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+/* ── 기능 카드 그리드 ── */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+@media (max-width: 480px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 20px;
+  cursor: pointer;
+  text-align: left;
+  position: relative;
+  transition: box-shadow 0.15s, border-color 0.15s, transform 0.12s;
+}
+
+.card:hover {
+  box-shadow: 0 4px 16px rgba(0,0,0,0.07);
+  border-color: #cbd5e1;
+}
+
+.card:active {
+  transform: scale(0.97);
+}
+
+.cardIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: var(--card-bg);
+  color: var(--card-color);
+  margin-bottom: 2px;
+}
+
+.cardLabel {
+  font-size: 16px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.cardDesc {
+  font-size: 13px;
+  color: #64748b;
+  line-height: 1.5;
+}
+
+.cardArrow {
+  position: absolute;
+  top: 20px;
+  right: 16px;
+  color: #cbd5e1;
+  transition: color 0.15s, transform 0.15s;
+}
+
+.card:hover .cardArrow {
+  color: var(--card-color);
+  transform: translateX(2px);
+}
