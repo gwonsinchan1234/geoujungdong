@@ -1442,7 +1442,7 @@ export default function FillPage() {
       ));
       photoDraft.clear(fileName);
       setSaveToast(true);
-      setTimeout(() => setSaveToast(false), 2200);
+      setTimeout(() => setSaveToast(false), 2350);
       markSaved();
     } finally {
       setPhotoSaving(false);
@@ -2359,6 +2359,26 @@ img{image-rendering:high-quality;display:block}
             <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
           </svg>
           <span>출결관리</span>
+        </Link>
+        <Link href="/workspace/photo-standard" className={styles.pwaBtn}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+            <rect x="3" y="3" width="18" height="18" rx="2" />
+            <path d="M7 16h10" />
+            <path d="M7 12h10" />
+            <path d="M7 8h6" />
+          </svg>
+          <span>표준입력</span>
+        </Link>
+        <Link href="/workspace/monthly-output" className={styles.pwaBtn}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+            <path d="M8 6h13" />
+            <path d="M8 12h13" />
+            <path d="M8 18h13" />
+            <path d="M3 6h.01" />
+            <path d="M3 12h.01" />
+            <path d="M3 18h.01" />
+          </svg>
+          <span>월간표</span>
         </Link>
         {!isStandalone && (
           <button type="button" className={styles.pwaBtn} onClick={() => setShowPwaGuide(true)}>

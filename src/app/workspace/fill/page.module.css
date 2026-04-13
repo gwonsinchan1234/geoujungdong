@@ -206,7 +206,7 @@
   cursor: pointer;
   flex-shrink: 0;
   transition:
-    background-color 160ms ease,
+    background-color 500ms ease,
     border-color 160ms ease,
     color 160ms ease,
     box-shadow 180ms ease,
@@ -246,7 +246,6 @@
   position: absolute;
   top: 16px;
   left: 50%;
-  transform: translateX(-50%);
   background: rgba(22, 163, 74, 0.95);
   color: #fff;
   font-size: 13px;
@@ -256,8 +255,15 @@
   box-shadow: 0 4px 16px rgba(0,0,0,0.18);
   z-index: 200;
   pointer-events: none;
-  animation: fadeUp 0.3s cubic-bezier(0.16,1,0.3,1) both;
+  animation: toastLifecycle 2.3s cubic-bezier(0.16,1,0.3,1) both forwards;
   white-space: nowrap;
+}
+
+@keyframes toastLifecycle {
+  0%   { opacity: 0; transform: translateX(-50%) translateY(10px); }
+  12%  { opacity: 1; transform: translateX(-50%) translateY(0); }
+  78%  { opacity: 1; transform: translateX(-50%) translateY(0); }
+  100% { opacity: 0; transform: translateX(-50%) translateY(-6px); }
 }
 
 /* ── Content ───────────────────────────────────────────────────── */
