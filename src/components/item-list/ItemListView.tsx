@@ -334,7 +334,7 @@ interface Props {
   title?: string;
 }
 
-export default function ItemListView({ items, onChange, onSave, onPrint, saved, title = "항목별세부내역" }: Props) {
+export default function ItemListView({ items, onChange, onSave, onPrint, saved: savedProp, title = "항목별세부내역" }: Props) {
   const [editingItem, setEditingItem] = useState<ItemData | null>(null);
   const [deletingId,  setDeletingId]  = useState<string | null>(null);
   const [mobileTab,   setMobileTab]   = useState<"list" | "preview">("list");
@@ -412,12 +412,34 @@ export default function ItemListView({ items, onChange, onSave, onPrint, saved, 
 
         {/* 좌측 패널 */}
         <div className={`${styles.leftPanel} ${mobileTab === "preview" ? styles.mobileHidden : ""}`}>
-          <div className={styles.leftSummary}>
-            <span className={styles.leftSummaryTitle}>{title}</span>
-            <span className={styles.leftSummarySep} />
-            <span className={styles.leftSummaryCount}>총 {items.length}건</span>
-            <span className={styles.leftSummaryTotal}>{fmtNum(total)}원</span>
-          </div>
+          <header className={styles.paneHead}>
+            <div className={styles.paneHeadMain}>
+              <h2 className={styles.paneTitle}>{title}</h2>
+              <p className={styles.paneHint}>
+                표에서 품명·단가·금액을 바로 수정할 수 있어요. 전체 필드는 ✎ 버튼에서 편집합니다.
+              </p>
+              {(onSave || onPrint) && (
+                <p className={styles.paneHintSub}>
+                  {onSave && onPrint
+                    ? "이 탭 데이터 저장·PDF/인쇄는 화면 상단 바의 저장·인쇄를 눌러 주세요."
+                    : onSave
+                      ? "저장은 화면 상단 바의 저장을 눌러 주세요."
+                      : "인쇄·PDF는 화면 상단 바의 인쇄를 눌러 주세요."}
+                </p>
+              )}
+            </div>
+            <div className={styles.paneHeadStats} aria-live="polite">
+              <span className={styles.paneMetaCount}>총 {items.length}건</span>
+              <div className={styles.paneMetaRow}>
+                <span className={styles.paneMetaTotal}>{fmtNum(total)}원</span>
+                {savedProp ? (
+                  <span className={styles.paneSavedTag} role="status">
+                    저장됨
+                  </span>
+                ) : null}
+              </div>
+            </div>
+          </header>
           <div className={styles.formWrap}>
             {Array.from(grouped.entries()).map(([catNo, catItems], sectionIdx) => {
               const catSum = catItems.reduce((s, i) => s + i.amount, 0);
@@ -441,6 +463,12 @@ export default function ItemListView({ items, onChange, onSave, onPrint, saved, 
                     </div>
                   </div>
 
+                  {catItems.length === 0 && (
+                    <div className={styles.categoryEmpty} role="status">
+                      아직 항목이 없습니다. 아래 &quot;항목 추가&quot;로 넣을 수 있어요.
+                    </div>
+                  )}
+
                   {/* 항목 테이블 */}
                   {catItems.length > 0 && (
                     <div className={styles.tableWrap}>
@@ -454,11 +482,11 @@ export default function ItemListView({ items, onChange, onSave, onPrint, saved, 
                         </colgroup>
                         <thead>
                           <tr>
-                            <th>NO</th>
-                            <th>품명</th>
-                            <th>단가</th>
-                            <th>금액</th>
-                            <th></th>
+                            <th scope="col">NO</th>
+                            <th scope="col">품명</th>
+                            <th scope="col">단가</th>
+                            <th scope="col">금액</th>
+                            <th scope="col"><span className={styles.srOnly}>작업</span></th>
                           </tr>
                         </thead>
                         <tbody>
