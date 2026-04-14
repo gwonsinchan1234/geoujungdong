@@ -371,15 +371,9 @@ export default function ExpensePage() {
         </div>
       </section>
 
-      {/* 2) 엑셀 업로드(임시) */}
+      {/* 2) 품목 수동 추가 */}
       <section style={{ marginTop: 16, padding: 12, border: "1px solid #333", borderRadius: 12 }}>
-        <h2 style={{ margin: 0 }}>2) 엑셀 업로드(임시)</h2>
-        <div style={{ marginTop: 8, opacity: 0.8 }}>현재는 연결 전입니다.</div>
-      </section>
-
-      {/* 3) 품목 수동 추가 */}
-      <section style={{ marginTop: 16, padding: 12, border: "1px solid #333", borderRadius: 12 }}>
-        <h2 style={{ margin: 0 }}>3) 품목 수동 추가</h2>
+        <h2 style={{ margin: 0 }}>2) 품목 수동 추가</h2>
 
         <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap", alignItems: "center" }}>
           <input
@@ -400,9 +394,9 @@ export default function ExpensePage() {
         </div>
       </section>
 
-      {/* 4) 품목 선택(드롭다운) */}
+      {/* 3) 품목 선택(드롭다운) */}
       <section style={{ marginTop: 16, padding: 12, border: "1px solid #333", borderRadius: 12 }}>
-        <h2 style={{ margin: 0 }}>4) 품목 리스트 (행 선택)</h2>
+        <h2 style={{ margin: 0 }}>3) 품목 리스트 (행 선택)</h2>
 
         {!doc?.id ? (
           <div style={{ marginTop: 8, opacity: 0.8 }}>먼저 문서(doc)를 생성/로드하세요.</div>
@@ -482,9 +476,9 @@ export default function ExpensePage() {
         )}
       </section>
 
-      {/* 5) 사진 업로드 */}
+      {/* 4) 사진 업로드 */}
       <section style={{ marginTop: 16, padding: 12, border: "1px solid #333", borderRadius: 12 }}>
-        <h2 style={{ margin: 0 }}>5) 사진 업로드</h2>
+        <h2 style={{ margin: 0 }}>4) 사진 업로드</h2>
 
         {!doc?.id ? (
           <div style={{ marginTop: 8 }}>문서(doc)부터 선택하세요.</div>
