@@ -689,9 +689,21 @@
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 .photoTriListItemActive {
-  border-color: #3b82f6;
-  background: linear-gradient(180deg, #eff6ff 0%, #dbeafe 100%);
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.18);
+  border: 2px solid #0f172a;
+  background: linear-gradient(160deg, #1e293b 0%, #0f172a 100%);
+  box-shadow:
+    0 0 0 3px rgba(15, 23, 42, 0.18),
+    0 4px 16px rgba(15, 23, 42, 0.28);
+  transform: translateY(-1px);
+}
+.photoTriListItemActive .photoTriListNo {
+  color: #f8fafc;
+}
+.photoTriListItemActive .photoTriListCount {
+  color: #94a3b8;
+}
+.photoTriListItemActive .photoTriListLabel {
+  color: #cbd5e1;
 }
 /* 상태 바: 좌측 컬러 라인 */
 .photoTriListItemEmpty   { border-left: 3px solid #d1d5db; }
