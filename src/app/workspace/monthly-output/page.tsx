@@ -126,25 +126,6 @@ export default function MonthlyOutputPage() {
     [],
   );
 
-  // ── 휴무 ────────────────────────────────────────────────────
-  const holidaySet = useMemo(() => {
-    const set = new Set<string>();
-    for (const key of Object.keys(values)) {
-      if (key.startsWith("__holiday__")) set.add(key.slice(11));
-    }
-    return set;
-  }, [values]);
-
-  const toggleHoliday = useCallback((dateStr: string) => {
-    const k = `__holiday__${dateStr}`;
-    setValues((prev) => {
-      const next = { ...prev } as Record<string, string>;
-      if (next[k] === "1") delete next[k];
-      else next[k] = "1";
-      return next as Record<MonthlyOutputCellKey, string>;
-    });
-  }, []);
-
   const setCell = useCallback(
     (personId: string, dateStr: string, type: "day" | "early" | "lunch" | "ot" | "night", v: string) => {
       const k = keyOf(personId, dateStr, type);
@@ -369,14 +350,13 @@ export default function MonthlyOutputPage() {
   const fillDayO = useCallback(
     (personId: string) => {
       setValues((prev) => {
-        const next = { ...prev } as Record<string, string>;
+        const next = { ...prev };
         for (const day of dayCols) {
           if (day.dow === 0) continue; // 일요일 제외
-          if (next[`__holiday__${day.dateStr}`] === "1") continue; // 휴무 제외
-          const k = `${personId}__${day.dateStr}__day`;
-          if (!next[k]) next[k] = "O";
+          const k = `${personId}__${day.dateStr}__day` as MonthlyOutputCellKey;
+          if (!next[k]) next[k] = "O" as never;
         }
-        return next as Record<MonthlyOutputCellKey, string>;
+        return next;
       });
     },
     [dayCols],
@@ -453,7 +433,7 @@ export default function MonthlyOutputPage() {
           const cell = row.getCell(3 + di);
           cell.value = v || "";
           cell.alignment = { horizontal: "center", vertical: "middle" };
-          if (day.dow === 0 || holidaySet.has(day.dateStr)) cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFECACA" } };
+          if (day.dow === 0) cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFECACA" } };
           const n = numFromCell(v);
           if (blocks[i].type === "early") sumEarly += n;
           if (blocks[i].type === "lunch") sumLunch += n;
@@ -480,7 +460,7 @@ export default function MonthlyOutputPage() {
       new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }),
       `${startDate}_${endDate}_출력현황.xlsx`,
     );
-  }, [dayCols, filledPersons, holidaySet, keyOf, multiMonth, siteName, startDate, endDate, title, values]);
+  }, [dayCols, filledPersons, keyOf, multiMonth, siteName, startDate, endDate, title, values]);
 
   const closePreview = useCallback(() => {
     if (previewUrl) URL.revokeObjectURL(previewUrl);
@@ -689,35 +669,20 @@ export default function MonthlyOutputPage() {
                     <table className={styles.focusTable}>
                       <thead>
                         <tr>
-                          <th className={styles.focusCorner} rowSpan={3}>구분</th>
+                          <th className={styles.focusCorner}>구분</th>
                           {dayCols.map((day) => (
-                            <th key={day.dateStr} className={`${styles.focusDayHead} ${day.dow === 0 || holidaySet.has(day.dateStr) ? styles.holidayCell : ""}`}>
+                            <th key={day.dateStr} className={`${styles.focusDayHead} ${day.dow === 0 ? styles.holidayCell : ""}`}>
                               {multiMonth ? `${day.m}/${day.d}` : day.d}
                             </th>
                           ))}
                         </tr>
                         <tr>
+                          <th className={styles.focusCorner} />
                           {dayCols.map((day) => (
-                            <th key={`dow-${day.dateStr}`} className={`${styles.focusDaySubHead} ${day.dow === 0 || holidaySet.has(day.dateStr) ? styles.holidayCell : ""}`}>
+                            <th key={`dow-${day.dateStr}`} className={`${styles.focusDaySubHead} ${day.dow === 0 ? styles.holidayCell : ""}`}>
                               {["일", "월", "화", "수", "목", "금", "토"][day.dow]}
                             </th>
                           ))}
-                        </tr>
-                        <tr>
-                          {dayCols.map((day) => {
-                            const isSun = day.dow === 0;
-                            const isHol = holidaySet.has(day.dateStr);
-                            return (
-                              <th
-                                key={`hol-${day.dateStr}`}
-                                className={`${styles.focusHolidayHead} ${isSun || isHol ? styles.holidayCell : ""}`}
-                                onClick={isSun ? undefined : () => toggleHoliday(day.dateStr)}
-                                title={isSun ? "일요일" : isHol ? "휴무 해제" : "휴무 설정"}
-                              >
-                                {isHol ? "휴" : ""}
-                              </th>
-                            );
-                          })}
                         </tr>
                       </thead>
                       <tbody>
@@ -729,7 +694,7 @@ export default function MonthlyOutputPage() {
                               const val = values[k] ?? "";
                               const isDay = type === "day";
                               return (
-                                <td key={k} className={`${styles.focusValueCell} ${day.dow === 0 || (isDay && (holidaySet.has(day.dateStr) || val === "연차")) ? styles.holidayCell : ""} ${isDay && val === "O" ? styles.focusValueCellO : ""}`}>
+                                <td key={k} className={`${styles.focusValueCell} ${day.dow === 0 || (isDay && (val === "연차" || val === "휴")) ? styles.holidayCell : ""} ${isDay && val === "O" ? styles.focusValueCellO : ""}`}>
                                   <input
                                     data-focus-cell={`${ti}-${di}`}
                                     className={`${styles.focusCellInput} ${isDay && val === "O" ? styles.focusCellInputO : ""}`}
@@ -741,7 +706,8 @@ export default function MonthlyOutputPage() {
                                     onFocus={(e) => e.target.select()}
                                     onClick={isDay ? () => {
                                       if (val === "") setCell(focusedPerson.id, day.dateStr, "day", "O");
-                                      else if (val === "O") setCell(focusedPerson.id, day.dateStr, "day", "");
+                                      else if (val === "O") setCell(focusedPerson.id, day.dateStr, "day", "휴");
+                                      else if (val === "휴") setCell(focusedPerson.id, day.dateStr, "day", "");
                                     } : undefined}
                                     onKeyDown={(e) => handleFocusCellKey(e, ti, di)}
                                     inputMode="decimal"
@@ -775,9 +741,9 @@ export default function MonthlyOutputPage() {
           </div>
           <div className={styles.legend}>
             <span className={styles.legendChip}>인원 {persons.length}명</span>
-            <span className={`${styles.legendChip} ${styles.legendSunday}`}>일요일/휴무 열</span>
+            <span className={`${styles.legendChip} ${styles.legendSunday}`}>일요일/휴무</span>
             <span className={`${styles.legendChip} ${styles.legendSummary}`}>합계 영역</span>
-            <span className={styles.legendChip} style={{ color: "#888" }}>날짜 행 3번째 클릭 → 휴무</span>
+            <span className={styles.legendChip} style={{ color: "#888" }}>주간 클릭: 빈칸→O→휴→빈칸</span>
           </div>
         </div>
 
@@ -785,38 +751,22 @@ export default function MonthlyOutputPage() {
           <table className={`${styles.table} ${denseMode ? styles.tableDense : ""}`}>
             <thead>
               <tr>
-                <th className={`${styles.headerCell} ${styles.cornerHead} ${styles.stickyName} ${styles.stickyHead}`} rowSpan={3}>성명(직책)</th>
-                <th className={`${styles.headerCell} ${styles.cornerHead} ${styles.stickyType} ${styles.stickyHead}`} rowSpan={3}>구분</th>
+                <th className={`${styles.headerCell} ${styles.cornerHead} ${styles.stickyName} ${styles.stickyHead}`} rowSpan={2}>성명(직책)</th>
+                <th className={`${styles.headerCell} ${styles.cornerHead} ${styles.stickyType} ${styles.stickyHead}`} rowSpan={2}>구분</th>
                 {dayCols.map((day) => (
-                  <th key={day.dateStr} className={`${styles.headerCell} ${styles.dayHead} ${day.dow === 0 || holidaySet.has(day.dateStr) ? styles.holidayCell : ""}`}>
+                  <th key={day.dateStr} className={`${styles.headerCell} ${styles.dayHead} ${day.dow === 0 ? styles.holidayCell : ""}`}>
                     {multiMonth ? `${day.m}/${day.d}` : day.d}
                   </th>
                 ))}
-                <th className={`${styles.headerCell} ${styles.sideHead} ${styles.stickyHead}`} rowSpan={3}>비고</th>
-                <th className={`${styles.headerCell} ${styles.sideHead} ${styles.stickyHead}`} rowSpan={3}>총 추가근무</th>
+                <th className={`${styles.headerCell} ${styles.sideHead} ${styles.stickyHead}`} rowSpan={2}>비고</th>
+                <th className={`${styles.headerCell} ${styles.sideHead} ${styles.stickyHead}`} rowSpan={2}>총 추가근무</th>
               </tr>
               <tr>
                 {dayCols.map((day) => (
-                  <th key={`dow-${day.dateStr}`} className={`${styles.headerCell} ${styles.daySubHead} ${day.dow === 0 || holidaySet.has(day.dateStr) ? styles.holidayCell : ""}`}>
+                  <th key={`dow-${day.dateStr}`} className={`${styles.headerCell} ${styles.daySubHead} ${day.dow === 0 ? styles.holidayCell : ""}`}>
                     {["일", "월", "화", "수", "목", "금", "토"][day.dow]}
                   </th>
                 ))}
-              </tr>
-              <tr>
-                {dayCols.map((day) => {
-                  const isSun = day.dow === 0;
-                  const isHol = holidaySet.has(day.dateStr);
-                  return (
-                    <th
-                      key={`hol-${day.dateStr}`}
-                      className={`${styles.headerCell} ${styles.dayHolidayHead} ${isSun || isHol ? styles.holidayCell : ""}`}
-                      onClick={isSun ? undefined : () => toggleHoliday(day.dateStr)}
-                      title={isSun ? "일요일" : isHol ? "휴무 해제" : "휴무 설정"}
-                    >
-                      {isHol ? "휴" : ""}
-                    </th>
-                  );
-                })}
               </tr>
             </thead>
             <tbody>
@@ -848,7 +798,7 @@ export default function MonthlyOutputPage() {
                         const k = keyOf(p.id, day.dateStr, "day");
                         const val = values[k] ?? "";
                         return (
-                          <td key={k} className={`${styles.valueCell} ${day.dow === 0 || holidaySet.has(day.dateStr) || val === "연차" ? styles.holidayCell : ""} ${val === "O" ? styles.valueCellO : ""}`}>
+                          <td key={k} className={`${styles.valueCell} ${day.dow === 0 || val === "연차" || val === "휴" ? styles.holidayCell : ""} ${val === "O" ? styles.valueCellO : ""}`}>
                             <input
                               className={`${styles.cellInput} ${val === "O" ? styles.cellInputO : ""}`}
                               value={val}
@@ -859,7 +809,8 @@ export default function MonthlyOutputPage() {
                               onFocus={(e) => e.target.select()}
                               onClick={() => {
                                 if (val === "") setCell(p.id, day.dateStr, "day", "O");
-                                else if (val === "O") setCell(p.id, day.dateStr, "day", "");
+                                else if (val === "O") setCell(p.id, day.dateStr, "day", "휴");
+                                else if (val === "휴") setCell(p.id, day.dateStr, "day", "");
                               }}
                               inputMode="decimal"
                             />
