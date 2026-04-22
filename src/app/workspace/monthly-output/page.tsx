@@ -91,6 +91,7 @@ export default function MonthlyOutputPage() {
 
   const globalTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const rangeTimer  = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const justGotFocusRef = useRef(false); // 첫 클릭(포커스) vs 두 번째 클릭(휴무) 구분
 
   // ── 날짜 범위 → DayEntry 배열 ──────────────────────────────
   const dayCols = useMemo((): DayEntry[] => {
@@ -698,16 +699,21 @@ export default function MonthlyOutputPage() {
                                   <input
                                     data-focus-cell={`${ti}-${di}`}
                                     className={`${styles.focusCellInput} ${isDay && val === "O" ? styles.focusCellInputO : ""}`}
-                                    value={val}
+                                    value={isDay && val === "휴" ? "" : val}
                                     onChange={(e) => {
                                       const v = e.target.value;
                                       setCell(focusedPerson.id, day.dateStr, type, isDay ? (v === "O" || v === "o" ? "O" : v.replace(/[Oo]/g, "")) : v);
                                     }}
-                                    onFocus={(e) => e.target.select()}
+                                    onFocus={(e) => {
+                                      e.target.select();
+                                      if (isDay) {
+                                        justGotFocusRef.current = true;
+                                        setTimeout(() => { justGotFocusRef.current = false; }, 0);
+                                      }
+                                    }}
                                     onClick={isDay ? () => {
-                                      if (val === "") setCell(focusedPerson.id, day.dateStr, "day", "O");
-                                      else if (val === "O") setCell(focusedPerson.id, day.dateStr, "day", "휴");
-                                      else if (val === "휴") setCell(focusedPerson.id, day.dateStr, "day", "");
+                                      if (val === "휴") setCell(focusedPerson.id, day.dateStr, "day", "");
+                                      else if (!justGotFocusRef.current) setCell(focusedPerson.id, day.dateStr, "day", "휴");
                                     } : undefined}
                                     onKeyDown={(e) => handleFocusCellKey(e, ti, di)}
                                     inputMode="decimal"
@@ -801,16 +807,19 @@ export default function MonthlyOutputPage() {
                           <td key={k} className={`${styles.valueCell} ${day.dow === 0 || val === "연차" || val === "휴" ? styles.holidayCell : ""} ${val === "O" ? styles.valueCellO : ""}`}>
                             <input
                               className={`${styles.cellInput} ${val === "O" ? styles.cellInputO : ""}`}
-                              value={val}
+                              value={val === "휴" ? "" : val}
                               onChange={(e) => {
                                 const v = e.target.value;
                                 setCell(p.id, day.dateStr, "day", v === "O" || v === "o" ? "O" : v.replace(/[Oo]/g, ""));
                               }}
-                              onFocus={(e) => e.target.select()}
+                              onFocus={(e) => {
+                                e.target.select();
+                                justGotFocusRef.current = true;
+                                setTimeout(() => { justGotFocusRef.current = false; }, 0);
+                              }}
                               onClick={() => {
-                                if (val === "") setCell(p.id, day.dateStr, "day", "O");
-                                else if (val === "O") setCell(p.id, day.dateStr, "day", "휴");
-                                else if (val === "휴") setCell(p.id, day.dateStr, "day", "");
+                                if (val === "휴") setCell(p.id, day.dateStr, "day", "");
+                                else if (!justGotFocusRef.current) setCell(p.id, day.dateStr, "day", "휴");
                               }}
                               inputMode="decimal"
                             />
