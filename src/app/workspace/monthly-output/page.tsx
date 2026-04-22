@@ -729,7 +729,7 @@ export default function MonthlyOutputPage() {
                               const val = values[k] ?? "";
                               const isDay = type === "day";
                               return (
-                                <td key={k} className={`${styles.focusValueCell} ${day.dow === 0 || holidaySet.has(day.dateStr) || (isDay && val === "연차") ? styles.holidayCell : ""} ${isDay && val === "O" ? styles.focusValueCellO : ""}`}>
+                                <td key={k} className={`${styles.focusValueCell} ${day.dow === 0 || (isDay && (holidaySet.has(day.dateStr) || val === "연차")) ? styles.holidayCell : ""} ${isDay && val === "O" ? styles.focusValueCellO : ""}`}>
                                   <input
                                     data-focus-cell={`${ti}-${di}`}
                                     className={`${styles.focusCellInput} ${isDay && val === "O" ? styles.focusCellInputO : ""}`}
@@ -891,7 +891,7 @@ export default function MonthlyOutputPage() {
                       {dayCols.map((day) => {
                         const k = keyOf(p.id, day.dateStr, "early");
                         return (
-                          <td key={k} className={`${styles.valueCell} ${day.dow === 0 || holidaySet.has(day.dateStr) ? styles.holidayCell : ""}`}>
+                          <td key={k} className={`${styles.valueCell} ${day.dow === 0 ? styles.holidayCell : ""}`}>
                             <input className={styles.cellInput} value={values[k] ?? ""} onChange={(e) => setCell(p.id, day.dateStr, "early", e.target.value)} inputMode="decimal" />
                           </td>
                         );
@@ -902,7 +902,7 @@ export default function MonthlyOutputPage() {
                       {dayCols.map((day) => {
                         const k = keyOf(p.id, day.dateStr, "lunch");
                         return (
-                          <td key={k} className={`${styles.valueCell} ${day.dow === 0 || holidaySet.has(day.dateStr) ? styles.holidayCell : ""}`}>
+                          <td key={k} className={`${styles.valueCell} ${day.dow === 0 ? styles.holidayCell : ""}`}>
                             <input className={styles.cellInput} value={values[k] ?? ""} onChange={(e) => setCell(p.id, day.dateStr, "lunch", e.target.value)} inputMode="decimal" />
                           </td>
                         );
@@ -913,7 +913,7 @@ export default function MonthlyOutputPage() {
                       {dayCols.map((day) => {
                         const k = keyOf(p.id, day.dateStr, "ot");
                         return (
-                          <td key={k} className={`${styles.valueCell} ${day.dow === 0 || holidaySet.has(day.dateStr) ? styles.holidayCell : ""}`}>
+                          <td key={k} className={`${styles.valueCell} ${day.dow === 0 ? styles.holidayCell : ""}`}>
                             <input className={styles.cellInput} value={values[k] ?? ""} onChange={(e) => setCell(p.id, day.dateStr, "ot", e.target.value)} inputMode="decimal" />
                           </td>
                         );
@@ -924,7 +924,7 @@ export default function MonthlyOutputPage() {
                       {dayCols.map((day) => {
                         const k = keyOf(p.id, day.dateStr, "night");
                         return (
-                          <td key={k} className={`${styles.valueCell} ${day.dow === 0 || holidaySet.has(day.dateStr) ? styles.holidayCell : ""}`}>
+                          <td key={k} className={`${styles.valueCell} ${day.dow === 0 ? styles.holidayCell : ""}`}>
                             <input className={styles.cellInput} value={values[k] ?? ""} onChange={(e) => setCell(p.id, day.dateStr, "night", e.target.value)} inputMode="decimal" />
                           </td>
                         );
