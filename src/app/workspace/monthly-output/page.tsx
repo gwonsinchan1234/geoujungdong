@@ -89,9 +89,17 @@ export default function MonthlyOutputPage() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewFileName, setPreviewFileName] = useState("");
 
+  const [quickOpen, setQuickOpen] = useState(false);
+  const [quickDate, setQuickDate] = useState(startDate);
+  const [quickPersonId, setQuickPersonId] = useState("");
+  const [quickType, setQuickType] = useState<"day" | "early" | "lunch" | "ot" | "night">("early");
+  const [quickValue, setQuickValue] = useState("");
+
   const globalTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const rangeTimer  = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const justGotFocusRef = useRef(false); // 첫 클릭(포커스) vs 두 번째 클릭(휴무) 구분
+  const justGotFocusRef = useRef(false);
+  const quickNameRef = useRef<HTMLSelectElement>(null);
+  const quickValueRef = useRef<HTMLInputElement>(null);
 
   // ── 날짜 범위 → DayEntry 배열 ──────────────────────────────
   const dayCols = useMemo((): DayEntry[] => {
@@ -347,6 +355,61 @@ export default function MonthlyOutputPage() {
     ]);
   }, [persons, title, siteName, values, startDate, endDate, saveGlobalToSupabase, saveRangeToSupabase]);
 
+  // ── 빠른 입력 ─────────────────────────────────────────────
+  // startDate/endDate 변경 시 quickDate 클램프
+  useEffect(() => {
+    setQuickDate((prev) => {
+      if (prev < startDate) return startDate;
+      if (prev > endDate) return endDate;
+      return prev;
+    });
+  }, [startDate, endDate]);
+
+  // 패널 열릴 때 이름 select 자동 포커스
+  useEffect(() => {
+    if (quickOpen) setTimeout(() => quickNameRef.current?.focus(), 50);
+  }, [quickOpen]);
+
+  const quickDateInfo = useMemo(() => {
+    const d = new Date(quickDate + "T00:00:00");
+    return {
+      m: d.getMonth() + 1,
+      day: d.getDate(),
+      dow: ["일", "월", "화", "수", "목", "금", "토"][d.getDay()],
+    };
+  }, [quickDate]);
+
+  const moveQuickDate = useCallback((dir: 1 | -1) => {
+    const d = new Date(quickDate + "T00:00:00");
+    d.setDate(d.getDate() + dir);
+    const s = toDateStr(d);
+    if (s >= startDate && s <= endDate) setQuickDate(s);
+  }, [quickDate, startDate, endDate]);
+
+  const quickDayEntries = useMemo(() => {
+    const result: { personId: string; name: string; type: "day" | "early" | "lunch" | "ot" | "night"; typeLabel: string; value: string }[] = [];
+    for (const p of persons) {
+      if (!p.name.trim()) continue;
+      for (const { label, type } of TYPE_ROWS) {
+        const v = values[`${p.id}__${quickDate}__${type}` as MonthlyOutputCellKey];
+        if (v) result.push({ personId: p.id, name: p.name, type, typeLabel: label.replace("(시간)", ""), value: v });
+      }
+    }
+    return result;
+  }, [persons, quickDate, values]);
+
+  const submitQuickEntry = useCallback(() => {
+    if (!quickPersonId || quickValue === "") return;
+    setCell(quickPersonId, quickDate, quickType, quickValue);
+    setQuickValue("");
+    setQuickPersonId("");
+    setTimeout(() => quickNameRef.current?.focus(), 0);
+  }, [quickPersonId, quickDate, quickType, quickValue, setCell]);
+
+  const deleteQuickEntry = useCallback((personId: string, type: "day" | "early" | "lunch" | "ot" | "night") => {
+    setCell(personId, quickDate, type, "");
+  }, [quickDate, setCell]);
+
   // ── 주간 O 채우기 ──────────────────────────────────────────
   const fillDayO = useCallback(
     (personId: string) => {
@@ -525,6 +588,13 @@ export default function MonthlyOutputPage() {
           <button type="button" className={styles.secondaryButton} onClick={() => setShowSummary((prev) => !prev)}>
             {showSummary ? "월요약 접기" : "월요약 펼치기"}
           </button>
+          <button
+            type="button"
+            className={quickOpen ? styles.primaryButton : styles.secondaryButton}
+            onClick={() => setQuickOpen((prev) => !prev)}
+          >
+            {quickOpen ? "빠른입력 닫기" : "빠른 입력"}
+          </button>
           <button type="button" className={styles.secondaryButton} onClick={addPerson}>인원 추가</button>
           <button type="button" className={styles.secondaryButton} onClick={() => addPeople(5)}>5명 추가</button>
           <button type="button" className={styles.secondaryButton} onClick={() => addPeople(10)}>10명 추가</button>
@@ -596,6 +666,95 @@ export default function MonthlyOutputPage() {
           </div>
         </div>
       </section>
+
+      {/* 빠른 입력 패널 */}
+      {quickOpen && (
+        <section className={styles.panel}>
+          <div className={styles.quickPanel}>
+            {/* 날짜 네비게이션 */}
+            <div className={styles.quickDateNav}>
+              <button type="button" className={styles.quickNavBtn} onClick={() => moveQuickDate(-1)}>◀</button>
+              <span className={styles.quickDateLabel}>
+                {quickDateInfo.m}월 {quickDateInfo.day}일 ({quickDateInfo.dow})
+              </span>
+              <button type="button" className={styles.quickNavBtn} onClick={() => moveQuickDate(1)}>▶</button>
+              <span className={styles.quickDateHint}>날짜를 고정하고 이름·구분·값만 입력하세요</span>
+            </div>
+
+            {/* 입력 폼 */}
+            <div className={styles.quickForm}>
+              <select
+                ref={quickNameRef}
+                className={styles.quickSelect}
+                value={quickPersonId}
+                onChange={(e) => setQuickPersonId(e.target.value)}
+              >
+                <option value="">이름 선택</option>
+                {persons.filter((p) => p.name.trim()).map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}{p.role ? ` (${p.role})` : ""}
+                  </option>
+                ))}
+              </select>
+              <select
+                className={styles.quickSelect}
+                value={quickType}
+                onChange={(e) => setQuickType(e.target.value as typeof quickType)}
+              >
+                {TYPE_ROWS.map(({ label, type }) => (
+                  <option key={type} value={type}>{label.replace("(시간)", "")}</option>
+                ))}
+              </select>
+              <input
+                ref={quickValueRef}
+                className={styles.quickValueInput}
+                type="text"
+                inputMode="decimal"
+                value={quickValue}
+                onChange={(e) => setQuickValue(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); submitQuickEntry(); } }}
+                placeholder="시간"
+              />
+              <button type="button" className={styles.quickSubmitBtn} onClick={submitQuickEntry}>
+                입력 ↵
+              </button>
+            </div>
+
+            {/* 입력 현황 */}
+            {quickDayEntries.length > 0 ? (
+              <div className={styles.quickHistory}>
+                <p className={styles.quickHistoryTitle}>{quickDateInfo.m}월 {quickDateInfo.day}일 입력 현황 ({quickDayEntries.length}건)</p>
+                <div className={styles.quickHistoryList}>
+                  {quickDayEntries.map((entry, i) => (
+                    <div key={i} className={styles.quickHistoryItem}>
+                      <span className={styles.quickHistoryName}>{entry.name}</span>
+                      <span className={styles.quickHistoryType}>{entry.typeLabel}</span>
+                      <span className={styles.quickHistoryValue}>{entry.value}h</span>
+                      <button
+                        type="button"
+                        className={styles.quickEditBtn}
+                        onClick={() => {
+                          setQuickPersonId(entry.personId);
+                          setQuickType(entry.type);
+                          setQuickValue(entry.value);
+                          setTimeout(() => quickValueRef.current?.focus(), 0);
+                        }}
+                      >수정</button>
+                      <button
+                        type="button"
+                        className={styles.quickDeleteBtn}
+                        onClick={() => deleteQuickEntry(entry.personId, entry.type)}
+                      >×</button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <p className={styles.quickEmptyHint}>아직 입력된 값이 없습니다.</p>
+            )}
+          </div>
+        </section>
+      )}
 
       {/* 인원 개요 */}
       <section className={`${styles.panel} ${showOverview ? "" : styles.panelCollapsed}`}>
