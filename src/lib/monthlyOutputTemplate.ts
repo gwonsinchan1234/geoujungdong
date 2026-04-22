@@ -87,10 +87,8 @@ export function buildMonthlyOutputHtml(data: MonthlyOutputData): string {
     )
     .join("");
 
-  const titleDate =
-    data.startDate === data.endDate
-      ? data.startDate.replace(/-/g, ".")
-      : `${data.startDate.replace(/-/g, ".")} ~ ${data.endDate.replace(/-/g, ".")}`;
+  const [titleY, titleM] = data.startDate.split("-").map(Number);
+  const titleDate = `${titleY}년 ${titleM}월`;
 
   const bodyRows = data.persons
     .map((p) => {
@@ -261,8 +259,7 @@ tr.prow td, tr.prow th { border-top: 2px solid #888; }
 </style>
 </head>
 <body>
-<div class="doc-title">${esc(titleDate)} ${esc(data.title || "출력현황")}${data.siteName ? " — " + esc(data.siteName) : ""}</div>
-${data.siteName ? `<div class="doc-sub">${esc(data.siteName)}</div>` : ""}
+<div class="doc-title">${esc(titleDate)} ${esc(data.title || "출력현황")}${data.siteName ? " " + esc(data.siteName) : ""}</div>
 <table>
   <colgroup>
     <col style="width:88px"/>
