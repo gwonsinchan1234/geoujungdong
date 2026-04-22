@@ -514,6 +514,20 @@
   color: #bbbbbb;
 }
 
+.dayHolidayHead {
+  font-size: 7.5px;
+  font-weight: 700;
+  top: 40px;
+  color: #dc2626;
+  cursor: pointer;
+  letter-spacing: 0.02em;
+}
+
+.dayHolidayHead:not(.holidayCell):hover {
+  background: #fff0f0 !important;
+  color: #dc2626;
+}
+
 /* ── Sticky ───────────────────────────────────────────────── */
 .stickyName,
 .stickyType {
@@ -996,6 +1010,23 @@
   color: #777777;
   background: #f8f9fe;
   border: 1px solid #e8eaf6;
+}
+
+.focusHolidayHead {
+  min-width: 38px;
+  width: 38px;
+  padding: 2px;
+  text-align: center;
+  font-size: 9px;
+  font-weight: 700;
+  color: #dc2626;
+  background: #f8f9fe;
+  border: 1px solid #e8eaf6;
+  cursor: pointer;
+}
+
+.focusHolidayHead:not(.holidayCell):hover {
+  background: #fff0f0 !important;
 }
 
 .focusTypeCell {
