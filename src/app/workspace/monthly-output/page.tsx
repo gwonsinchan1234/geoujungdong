@@ -698,22 +698,24 @@ export default function MonthlyOutputPage() {
                                 <td key={k} className={`${styles.focusValueCell} ${day.dow === 0 || (isDay && (val === "연차" || val === "휴")) ? styles.holidayCell : ""} ${isDay && val === "O" ? styles.focusValueCellO : ""}`}>
                                   <input
                                     data-focus-cell={`${ti}-${di}`}
-                                    className={`${styles.focusCellInput} ${isDay && val === "O" ? styles.focusCellInputO : ""}`}
+                                    className={`${styles.focusCellInput} ${isDay && val === "O" ? styles.focusCellInputO : ""} ${isDay && val === "휴" ? styles.cellInputHoliday : ""}`}
                                     value={isDay && val === "휴" ? "" : val}
+                                    readOnly={isDay && val === "휴"}
                                     onChange={(e) => {
                                       const v = e.target.value;
                                       setCell(focusedPerson.id, day.dateStr, type, isDay ? (v === "O" || v === "o" ? "O" : v.replace(/[Oo]/g, "")) : v);
                                     }}
                                     onFocus={(e) => {
+                                      if (isDay && val === "휴") { e.target.blur(); return; }
                                       e.target.select();
                                       if (isDay) {
                                         justGotFocusRef.current = true;
                                         setTimeout(() => { justGotFocusRef.current = false; }, 0);
                                       }
                                     }}
-                                    onClick={isDay ? () => {
-                                      if (val === "휴") setCell(focusedPerson.id, day.dateStr, "day", "");
-                                      else if (!justGotFocusRef.current) setCell(focusedPerson.id, day.dateStr, "day", "휴");
+                                    onClick={isDay ? (e) => {
+                                      if (val === "휴") { setCell(focusedPerson.id, day.dateStr, "day", ""); return; }
+                                      if (!justGotFocusRef.current) { setCell(focusedPerson.id, day.dateStr, "day", "휴"); e.currentTarget.blur(); }
                                     } : undefined}
                                     onKeyDown={(e) => handleFocusCellKey(e, ti, di)}
                                     inputMode="decimal"
@@ -806,20 +808,22 @@ export default function MonthlyOutputPage() {
                         return (
                           <td key={k} className={`${styles.valueCell} ${day.dow === 0 || val === "연차" || val === "휴" ? styles.holidayCell : ""} ${val === "O" ? styles.valueCellO : ""}`}>
                             <input
-                              className={`${styles.cellInput} ${val === "O" ? styles.cellInputO : ""}`}
+                              className={`${styles.cellInput} ${val === "O" ? styles.cellInputO : ""} ${val === "휴" ? styles.cellInputHoliday : ""}`}
                               value={val === "휴" ? "" : val}
+                              readOnly={val === "휴"}
                               onChange={(e) => {
                                 const v = e.target.value;
                                 setCell(p.id, day.dateStr, "day", v === "O" || v === "o" ? "O" : v.replace(/[Oo]/g, ""));
                               }}
                               onFocus={(e) => {
+                                if (val === "휴") { e.target.blur(); return; }
                                 e.target.select();
                                 justGotFocusRef.current = true;
                                 setTimeout(() => { justGotFocusRef.current = false; }, 0);
                               }}
-                              onClick={() => {
-                                if (val === "휴") setCell(p.id, day.dateStr, "day", "");
-                                else if (!justGotFocusRef.current) setCell(p.id, day.dateStr, "day", "휴");
+                              onClick={(e) => {
+                                if (val === "휴") { setCell(p.id, day.dateStr, "day", ""); return; }
+                                if (!justGotFocusRef.current) { setCell(p.id, day.dateStr, "day", "휴"); e.currentTarget.blur(); }
                               }}
                               inputMode="decimal"
                             />

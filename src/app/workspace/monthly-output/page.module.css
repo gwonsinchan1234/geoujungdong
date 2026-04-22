@@ -776,6 +776,12 @@
   background: #f0fdf4 !important;
 }
 
+.cellInputHoliday {
+  caret-color: transparent !important;
+  cursor: pointer !important;
+  pointer-events: auto !important;
+}
+
 .cellInputO {
   color: #16a34a !important;
   font-weight: 700 !important;
