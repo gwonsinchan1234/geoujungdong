@@ -705,14 +705,10 @@ export default function MonthlyOutputPage() {
                                       const v = e.target.value;
                                       setCell(focusedPerson.id, day.dateStr, type, isDay ? (v === "O" || v === "o" ? "O" : v.replace(/[Oo]/g, "")) : v);
                                     }}
-                                    onFocus={(e) => {
-                                      if (isDay && val === "휴") { e.target.blur(); return; }
-                                      e.target.select();
-                                      if (isDay) {
-                                        justGotFocusRef.current = true;
-                                        setTimeout(() => { justGotFocusRef.current = false; }, 0);
-                                      }
-                                    }}
+                                    onFocus={(e) => { if (!(isDay && val === "휴")) e.target.select(); }}
+                                    onMouseDown={isDay ? (e) => {
+                                      justGotFocusRef.current = document.activeElement !== e.currentTarget;
+                                    } : undefined}
                                     onClick={isDay ? (e) => {
                                       if (val === "휴") { setCell(focusedPerson.id, day.dateStr, "day", ""); return; }
                                       if (!justGotFocusRef.current) { setCell(focusedPerson.id, day.dateStr, "day", "휴"); e.currentTarget.blur(); }
@@ -815,11 +811,10 @@ export default function MonthlyOutputPage() {
                                 const v = e.target.value;
                                 setCell(p.id, day.dateStr, "day", v === "O" || v === "o" ? "O" : v.replace(/[Oo]/g, ""));
                               }}
-                              onFocus={(e) => {
-                                if (val === "휴") { e.target.blur(); return; }
-                                e.target.select();
-                                justGotFocusRef.current = true;
-                                setTimeout(() => { justGotFocusRef.current = false; }, 0);
+                              onFocus={(e) => { if (val !== "휴") e.target.select(); }}
+                              onMouseDown={(e) => {
+                                // mousedown 시점에 이미 포커스된 상태인지 확인 (focus 변경 전)
+                                justGotFocusRef.current = document.activeElement !== e.currentTarget;
                               }}
                               onClick={(e) => {
                                 if (val === "휴") { setCell(p.id, day.dateStr, "day", ""); return; }
