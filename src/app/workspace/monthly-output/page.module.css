@@ -605,7 +605,7 @@
 /* ── Person Row Divider ───────────────────────────────────── */
 .personFirstRow td,
 .personFirstRow th {
-  border-top: 1px solid #cccccc !important;
+  border-top: 2px solid #888888 !important;
 }
 
 /* ── Name Editor ──────────────────────────────────────────── */
