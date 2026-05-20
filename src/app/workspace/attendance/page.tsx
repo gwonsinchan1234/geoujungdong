@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import styles from "./page.module.css";
 
@@ -398,10 +399,15 @@ function dateCellCls(r: DailyRow): string | undefined {
 }
 
 // ── 메인 페이지 ───────────────────────────────────────────────────
+type BootState = "loading" | "unauth" | "error" | "ready";
+
 export default function AttendancePage() {
+  const router = useRouter();
   const tokenRef   = useRef<string>("");
   const projIdRef  = useRef<string>("");   // 자동 생성된 프로젝트 ID
   const didInitRef = useRef(false);
+  const [boot, setBoot]           = useState<BootState>("loading");
+  const [bootError, setBootError] = useState("");
   const [ready, setReady]         = useState(false);   // 프로젝트 준비 완료
   const [tab, setTab]             = useState<Tab>("list");
   const [batches, setBatches]     = useState<BatchInfo[]>([]);
@@ -475,24 +481,33 @@ export default function AttendancePage() {
   }, [daily, matrixRates]);
 
   // ── 기본 프로젝트 자동 생성/조회
-  async function ensureProject(token: string): Promise<string | null> {
-    // 기존 프로젝트 조회
+  async function ensureProject(token: string): Promise<{ id: string | null; error?: string }> {
     const listRes = await fetch("/api/attendance/projects", {
       headers: { Authorization: `Bearer ${token}` },
     });
     const listJson = await listRes.json();
-    if (listJson.ok && listJson.projects.length > 0) {
-      return listJson.projects[0].id as string;
+    if (!listJson.ok) {
+      const msg =
+        typeof listJson.error === "string"
+          ? listJson.error
+          : listJson.error?.message ?? "프로젝트 목록 조회 실패";
+      return { id: null, error: msg };
     }
-    // 없으면 "기본" 프로젝트 생성
+    if (listJson.projects?.length > 0) {
+      return { id: listJson.projects[0].id as string };
+    }
     const createRes = await fetch("/api/attendance/projects", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify({ name: "기본" }),
     });
     const createJson = await createRes.json();
-    if (createJson.ok) return createJson.project.id as string;
-    return null;
+    if (createJson.ok) return { id: createJson.project.id as string };
+    const msg =
+      typeof createJson.error === "string"
+        ? createJson.error
+        : createJson.error?.message ?? "프로젝트 생성 실패";
+    return { id: null, error: msg };
   }
 
   // ── auth + 프로젝트 준비
@@ -502,17 +517,31 @@ export default function AttendancePage() {
     async function bootFromSession(session: { access_token: string } | null | undefined) {
       const token = session?.access_token ?? "";
       tokenRef.current = token;
-      if (!token) return;
+      if (!token) {
+        setBoot("unauth");
+        return;
+      }
       // 이미 준비됐으면 중복 초기화 방지 (deps 없이도 안전)
-      if (didInitRef.current && projIdRef.current) return;
+      if (didInitRef.current && projIdRef.current) {
+        setBoot("ready");
+        return;
+      }
 
-      const projId = await ensureProject(token);
+      setBoot("loading");
+      const { id: projId, error: projErr } = await ensureProject(token);
       if (!alive) return;
       if (projId) {
         projIdRef.current = projId;
         didInitRef.current = true;
         setReady(true);
+        setBoot("ready");
+        return;
       }
+      setBootError(
+        projErr ??
+          "출결 프로젝트를 준비하지 못했습니다. Supabase SQL Editor에서 20260326_attendance_v2.sql 을 실행했는지 확인하세요.",
+      );
+      setBoot("error");
     }
 
     supabase.auth.getSession().then(({ data }) => bootFromSession(data.session));
@@ -608,7 +637,44 @@ export default function AttendancePage() {
     return a.person_name.localeCompare(b.person_name, "ko");
   });
 
-  if (!ready) {
+  if (boot === "unauth") {
+    return (
+      <div className={styles.page}>
+        <div className={styles.emptyState} style={{ marginTop: 80 }}>
+          <div className={styles.emptyIcon}>🔐</div>
+          <div className={styles.emptyText}>로그인이 필요합니다</div>
+          <div className={styles.emptyDesc}>출결기성관리는 로그인 후 이용할 수 있습니다.</div>
+          <button
+            type="button"
+            className={styles.btnSm}
+            style={{ marginTop: 16, padding: "10px 20px", fontSize: 14 }}
+            onClick={() => router.push("/login?next=/workspace/attendance")}
+          >
+            로그인하러 가기
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (boot === "error") {
+    return (
+      <div className={styles.page}>
+        <div className={styles.errorBanner} style={{ margin: 24 }}>{bootError}</div>
+        <div style={{ textAlign: "center", padding: 16 }}>
+          <button
+            type="button"
+            className={styles.btnSm}
+            onClick={() => router.push("/login?next=/workspace/attendance")}
+          >
+            다시 로그인
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!ready || boot === "loading") {
     return (
       <div className={styles.page}>
         <div className={styles.loading}><div className={styles.spinner} /> 초기화 중...</div>
