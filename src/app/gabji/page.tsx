@@ -5,6 +5,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { DISABLE_LOGIN_UI } from "@/lib/authConfig";
 import { supabase } from "@/lib/supabaseClient";
 import GabjiEditor from "@/components/gabji/GabjiEditor";
 import type { GabjiDoc, GabjiItem } from "@/components/gabji/types";
@@ -32,6 +33,19 @@ export default function GabjiPage() {
 
   // ── 인증 확인 ────────────────────────────────────────────────
   useEffect(() => {
+    if (DISABLE_LOGIN_UI) {
+      setStatus("ready");
+      try {
+        const last = localStorage.getItem("gabji_last");
+        if (last) {
+          const { site_name, year_month } = JSON.parse(last);
+          if (site_name) setSiteName(site_name);
+          if (year_month) setYearMonth(year_month);
+        }
+      } catch {}
+      return;
+    }
+
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (!user) {
         setStatus("unauth");

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { DISABLE_LOGIN_UI } from "@/lib/authConfig";
 import { supabase } from "@/lib/supabaseClient";
 import styles from "./HubPage.module.css";
 
@@ -141,16 +142,18 @@ export default function WorkspaceHub() {
         <span className={styles.logo}>거우중동</span>
         <div className={styles.headerRight}>
           {userName && <span className={styles.userChip}>{userName}</span>}
-          <button
-            type="button"
-            className={styles.logoutBtn}
-            onClick={async () => {
-              await supabase.auth.signOut();
-              router.push("/login");
-            }}
-          >
-            로그아웃
-          </button>
+          {!DISABLE_LOGIN_UI && (
+            <button
+              type="button"
+              className={styles.logoutBtn}
+              onClick={async () => {
+                await supabase.auth.signOut();
+                router.push("/login");
+              }}
+            >
+              로그아웃
+            </button>
+          )}
         </div>
       </header>
 

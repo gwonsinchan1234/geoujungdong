@@ -1,8 +1,14 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextRequest, NextResponse } from "next/server";
 
+import { DISABLE_LOGIN_UI } from "@/lib/authConfig";
+
 export async function proxy(request: NextRequest) {
   const response = NextResponse.next({ request });
+
+  if (DISABLE_LOGIN_UI) {
+    return response;
+  }
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;

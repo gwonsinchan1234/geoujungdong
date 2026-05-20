@@ -1,14 +1,30 @@
 "use client";
 
-import { Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { Suspense, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { LoginFormPanel } from "@/components/auth/LoginFormPanel";
+import { DISABLE_LOGIN_UI } from "@/lib/authConfig";
 import { safeNextPath } from "@/lib/safeNextPath";
 import styles from "./page.module.css";
 
 function LoginPageInner() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const next = safeNextPath(searchParams.get("next"));
+
+  useEffect(() => {
+    if (DISABLE_LOGIN_UI) {
+      router.replace(next);
+    }
+  }, [router, next]);
+
+  if (DISABLE_LOGIN_UI) {
+    return (
+      <div className={styles.suspenseRoot}>
+        <div className={styles.suspenseSpinner} />
+      </div>
+    );
+  }
 
   return (
     <div className={styles.page}>

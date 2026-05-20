@@ -20,6 +20,7 @@ import {
   TableCellsMerge,
 } from "lucide-react";
 import { LoginFormPanel } from "@/components/auth/LoginFormPanel";
+import { DISABLE_LOGIN_UI } from "@/lib/authConfig";
 import { safeNextPath } from "@/lib/safeNextPath";
 import styles from "./page.module.css";
 
@@ -550,13 +551,15 @@ export default function HomePage() {
                 onClick={() => setLang("ENG")}
               >ENG</button>
             </div>
-            <button
-              type="button"
-              className={styles.loginBtn}
-              onClick={() => setLoginOpen(true)}
-            >
-              {kor ? "로그인" : "Sign in"}
-            </button>
+            {!DISABLE_LOGIN_UI && (
+              <button
+                type="button"
+                className={styles.loginBtn}
+                onClick={() => setLoginOpen(true)}
+              >
+                {kor ? "로그인" : "Sign in"}
+              </button>
+            )}
             <a className={styles.ctaTop} href="/workspace/fill" onClick={handleStart}>
               {kor ? "시작하기" : "Get started"}
             </a>
@@ -999,7 +1002,7 @@ export default function HomePage() {
         </div>
       </footer>
 
-      {loginOpen && (
+      {!DISABLE_LOGIN_UI && loginOpen && (
         <LoginFormPanel
           variant="dialog"
           nextPath={safeNextPath(null)}
